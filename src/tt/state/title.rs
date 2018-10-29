@@ -12,12 +12,14 @@ use super::State;
 
 pub struct TitleState {
     manager: TitleManager,
+    game_over_cnt: u32,
 }
 
 impl TitleState {
     pub fn new(screen: &Screen) -> Result<Self, GameError> {
         Ok(TitleState {
             manager: TitleManager::new(screen)?,
+            game_over_cnt: 0,
         })
     }
 }
@@ -33,9 +35,29 @@ impl State for TitleState {
     }
 
     fn mov(&mut self, params: &mut MoveParams) -> MoveAction {
-        // TODO
+        if params.ship.is_game_over() {
+            self.game_over_cnt += 1;
+            if self.game_over_cnt > 120 {
+                // TODO clearAll();
+                // TODO startReplay();
+            }
+        }
+        /* TODO
+        if (replayData) {
+            ship.move();
+            stageManager.move();
+            enemies.move();
+            shots.move();
+            bullets.move();
+            particles.move();
+            floatLetters.move();
+            passedEnemies.move();
+            inGameState.decrementTime();
+            titleManager.move(true);
+        } else {
+            titleManager.move(false);
+        }*/
         let action = self.manager.mov(false, params);
-        // TODO
         action
     }
 

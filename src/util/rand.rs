@@ -7,9 +7,9 @@ pub struct Rand {
 }
 
 impl Rand {
-    pub fn new() -> Self {
+    pub fn new(seed: u64) -> Self {
         Rand {
-            rng: XorShiftRng::seed_from_u64(Rand::rand_seed()),
+            rng: XorShiftRng::seed_from_u64(seed),
         }
     }
 

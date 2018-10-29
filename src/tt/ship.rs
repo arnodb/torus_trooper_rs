@@ -33,6 +33,8 @@ const RELPOS_Y_MOVE: f32 = 0.1;
 
 pub struct Ship {
     replay_mode: bool,
+    camera_mode: bool,
+    draw_front_mode: bool,
     is_game_over: bool,
 
     rand: Rand,
@@ -73,14 +75,22 @@ pub struct Ship {
     btn_pressed: bool,
 }
 
+#[derive(PartialEq, Eq, Debug)]
+pub enum ShipMoveAction {
+    None,
+    AddScore(u32),
+}
+
 impl Ship {
     // TODO split what is memorized and what is always reset
-    pub fn new(screen: &Screen) -> Self {
+    pub fn new(screen: &Screen, seed: u64) -> Self {
         Ship {
             replay_mode: false,
+            camera_mode: true,
+            draw_front_mode: true,
             is_game_over: false,
 
-            rand: Rand::new(),
+            rand: Rand::new(seed),
             pos: Vector::new(),
             rel_pos: Vector::new(),
             eye_pos: Vector::new(),
@@ -99,7 +109,7 @@ impl Ship {
             bank_max: BANK_MAX_DEFAULT[0],
             tunnel_ofs: 0.,
             pos3: Vector3::new(),
-            shape: ShipShape::new(ShipType::Small, false, screen),
+            shape: ShipShape::new(ShipType::Small, false, screen, seed),
 
             regenerative_charge: 0.,
             fire_cnt: 0,
@@ -160,7 +170,7 @@ impl Ship {
         self.regenerative_charge = 0.;
     }
 
-    pub fn mov(&mut self, pad: &Pad, camera: &mut Camera, tunnel: &mut Tunnel) {
+    pub fn mov(&mut self, pad: &Pad, camera: &mut Camera, tunnel: &mut Tunnel) -> ShipMoveAction {
         self.cnt += 1;
         let (mut btn, mut dir) = if !self.replay_mode {
             // TODO pad.record();
@@ -218,7 +228,7 @@ impl Ship {
         self.tunnel_ofs += self.speed;
         let tmv = self.tunnel_ofs as usize;
         tunnel.go_to_next_slice(tmv);
-        // TODO add_score(tmv);
+        let action = ShipMoveAction::AddScore(tmv as u32);
         self.tunnel_ofs = self.pos.y - f32::floor(self.pos.y);
         if self.pos.y >= tunnel.get_torus_length() as f32 {
             self.pos.y -= tunnel.get_torus_length() as f32;
@@ -412,15 +422,14 @@ impl Ship {
         if self.replay_mode {
             camera.mov(self);
         }
+        action
     }
 
     pub fn set_eye_pos(&mut self, screen: &Screen, camera: &Camera, tunnel: &Tunnel) {
         let mut e;
         let mut l;
         let deg;
-        if !self.replay_mode
-        /*TODO || !self.camera_mode*/
-        {
+        if !self.replay_mode || !self.camera_mode {
             let mut epos = Vector3::new_at(self.eye_pos.x, -1.1 + self.rel_pos.y * 0.3, 30.0);
             e = tunnel.get_pos_v3(epos);
             epos = Vector3::new_at(self.eye_pos.x, epos.y + 6.0 + self.rel_pos.y * 0.3, 0.);
@@ -515,6 +524,14 @@ impl Ship {
 
     pub fn is_replay_mode(&self) -> bool {
         self.replay_mode
+    }
+
+    pub fn camera_mode(&mut self, camera_mode: bool) {
+        self.camera_mode = camera_mode;
+    }
+
+    pub fn draw_front_mode(&mut self, draw_front_mode: bool) {
+        self.draw_front_mode = draw_front_mode;
     }
 
     pub fn is_game_over(&self) -> bool {

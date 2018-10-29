@@ -32,7 +32,7 @@ const MOVE_TYPES: [MoveType; 2] = [MoveType::Float, MoveType::Fix];
 impl Camera {
     pub fn new() -> Self {
         Camera {
-            rand: Rand::new(),
+            rand: Rand::new(Rand::rand_seed()),
             camera_pos: Vector3::new(),
             camera_trg: Vector3::new(),
             camera_vel: Vector3::new(),

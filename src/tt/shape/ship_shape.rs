@@ -13,8 +13,6 @@ pub struct ShipShape {
     collision: Vector,
     display_list: DisplayList,
     rocket_x: Vec<f32>,
-    rocket_pos: Vector,
-    fragment_pos: Vector,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -25,12 +23,11 @@ pub enum ShipType {
 }
 
 impl ShipShape {
-    pub fn new(ship_type: ShipType, damaged: bool, screen: &Screen) -> Self {
+    pub fn new(ship_type: ShipType, damaged: bool, screen: &Screen, seed: u64) -> Self {
         match ship_type {
-            // TODO seed
-            ShipType::Small => ShipShape::create_small_type(Rand::new(), damaged, screen),
-            ShipType::Medium => ShipShape::create_medium_type(Rand::new(), damaged, screen),
-            ShipType::Large => ShipShape::create_large_type(Rand::new(), damaged, screen),
+            ShipType::Small => ShipShape::create_small_type(Rand::new(seed), damaged, screen),
+            ShipType::Medium => ShipShape::create_medium_type(Rand::new(seed), damaged, screen),
+            ShipType::Large => ShipShape::create_large_type(Rand::new(seed), damaged, screen),
         }
     }
 
@@ -130,8 +127,6 @@ impl ShipShape {
             collision,
             display_list,
             rocket_x,
-            rocket_pos: Vector::new(),
-            fragment_pos: Vector::new(),
         }
     }
 
@@ -293,8 +288,6 @@ impl ShipShape {
             collision,
             display_list,
             rocket_x,
-            rocket_pos: Vector::new(),
-            fragment_pos: Vector::new(),
         }
     }
 
@@ -528,8 +521,6 @@ impl ShipShape {
             collision,
             display_list,
             rocket_x,
-            rocket_pos: Vector::new(),
-            fragment_pos: Vector::new(),
         }
     }
 

@@ -14,7 +14,10 @@ pub mod tunnel;
 // TODO merge all these
 
 pub struct StartParams<'a> {
+    pub seed: u64,
     pub pref_manager: &'a mut prefs::PrefManager,
+
+    pub stage_manager: &'a mut manager::stage::StageManager,
 
     pub camera: &'a mut camera::Camera,
     pub ship: &'a mut ship::Ship,
@@ -26,6 +29,8 @@ pub struct MoveParams<'a> {
 
     pub pad: &'a pad::Pad,
 
+    pub stage_manager: &'a mut manager::stage::StageManager,
+
     pub camera: &'a mut camera::Camera,
     pub ship: &'a mut ship::Ship,
     pub tunnel: &'a mut tunnel::Tunnel,
@@ -36,6 +41,8 @@ pub struct DrawParams<'a> {
 
     pub screen: &'a screen::Screen,
     pub letter: &'a letter::Letter,
+
+    pub stage_manager: &'a manager::stage::StageManager,
 
     pub camera: &'a camera::Camera,
     pub ship: &'a mut ship::Ship,

@@ -1,3 +1,4 @@
+pub mod stage;
 pub mod title;
 
 use piston::input::*;
@@ -24,9 +25,9 @@ enum GameState {
     InGame,
 }
 
-pub struct GameManager {
+pub struct GameManager<'a> {
     title_state: TitleState,
-    in_game_state: InGameState,
+    in_game_state: InGameState<'a>,
     state: GameState,
     esc_pressed: bool,
 }
@@ -39,7 +40,7 @@ pub enum MoveAction {
     BreakLoop,
 }
 
-impl GameManager {
+impl<'a> GameManager<'a> {
     pub fn new(screen: &Screen) -> Result<Self, GameError> {
         let title_state = TitleState::new(&screen)?;
         let in_game_state = InGameState::new()?;
@@ -72,9 +73,6 @@ impl GameManager {
     }
 
     fn start_state(&mut self, params: &mut StartParams) {
-        // TODO state.grade = prefManager.prefData.selectedGrade;
-        // TODO state.level = prefManager.prefData.selectedLevel;
-        // TODO state.seed = rand.nextInt32();
         match self.state {
             GameState::Title => self.title_state.start(params),
             GameState::InGame => self.in_game_state.start(params),
@@ -104,7 +102,7 @@ impl GameManager {
     }
 }
 
-impl Manager for GameManager {
+impl<'a> Manager for GameManager<'a> {
     fn start(&mut self, params: &mut StartParams) {
         // TODO loadLastReplay();
         self.start_title(params, false);

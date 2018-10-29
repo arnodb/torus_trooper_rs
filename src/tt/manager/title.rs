@@ -107,8 +107,30 @@ impl TitleManager {
                     }
                 }
             }
+        } else {
+            if dir & (PadDirection::RIGHT | PadDirection::LEFT) != PadDirection::NONE {
+                if !self.dir_pressed {
+                    self.dir_pressed = true;
+                    if dir & PadDirection::RIGHT != PadDirection::NONE {
+                        params.ship.camera_mode(false);
+                    }
+                    if dir & PadDirection::LEFT != PadDirection::NONE {
+                        params.ship.camera_mode(true);
+                    }
+                }
+            }
+            if dir & (PadDirection::UP | PadDirection::DOWN) != PadDirection::NONE {
+                if !self.dir_pressed {
+                    self.dir_pressed = true;
+                    if dir & PadDirection::UP != PadDirection::NONE {
+                        params.ship.draw_front_mode(true);
+                    }
+                    if dir & PadDirection::DOWN != PadDirection::NONE {
+                        params.ship.draw_front_mode(false);
+                    }
+                }
+            }
         }
-        // else TODO
         if dir == PadDirection::NONE {
             self.dir_pressed = false;
             self.key_repeat_cnt = 0;

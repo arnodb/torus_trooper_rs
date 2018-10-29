@@ -352,13 +352,13 @@ impl Tunnel {
         self.torus.slice_num
     }
 
-    pub fn draw(&mut self, screen: &Screen) {
+    pub fn draw(&mut self, draw_state: &SliceDrawState, screen: &Screen) {
         unsafe {
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
         }
         let mut line_bn = 0.4;
         let mut poly_bn = 0.;
-        let mut light_bn = 0.5 - SLICE_DARK_LINE_RATIO * 0.2;
+        let mut light_bn = 0.5 - draw_state.dark_line_ratio * 0.2;
         self.slices.last_mut().map(|slice| slice.set_point_pos());
         let slices_len = self.slices.len();
         for i in (1..slices_len).rev() {
@@ -377,7 +377,15 @@ impl Tunnel {
                 None => None,
             };
             self.slices[i - 1].set_point_pos();
-            self.slices[i].draw(&self.slices[i - 1], line_bn, poly_bn, light_bn, rtd, screen);
+            self.slices[i].draw(
+                &self.slices[i - 1],
+                line_bn,
+                poly_bn,
+                light_bn,
+                rtd,
+                draw_state,
+                screen,
+            );
             line_bn *= 1.02;
             if line_bn > 1. {
                 line_bn = 1.;
@@ -396,8 +404,8 @@ impl Tunnel {
                 }
             }
             if (i as f32) < slices_len as f32 * 0.75 {
-                line_bn *= 1.0 - SLICE_DARK_LINE_RATIO * 0.05;
-                light_bn *= 1.0 + SLICE_DARK_LINE_RATIO * 0.02;
+                line_bn *= 1.0 - draw_state.dark_line_ratio * 0.05;
+                light_bn *= 1.0 + draw_state.dark_line_ratio * 0.02;
             }
         }
         unsafe {
@@ -405,13 +413,13 @@ impl Tunnel {
         }
     }
 
-    fn draw_backward(&mut self, screen: &Screen) {
+    fn draw_backward(&mut self, draw_state: &SliceDrawState, screen: &Screen) {
         unsafe {
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
         }
         let mut line_bn = 0.4;
         let mut poly_bn = 0.;
-        let mut light_bn = 0.5 - SLICE_DARK_LINE_RATIO * 0.2;
+        let mut light_bn = 0.5 - draw_state.dark_line_ratio * 0.2;
         self.slices_backward
             .last_mut()
             .map(|slice| slice.set_point_pos());
@@ -438,6 +446,7 @@ impl Tunnel {
                 poly_bn,
                 light_bn,
                 rtd,
+                draw_state,
                 screen,
             );
             line_bn *= 1.02;
@@ -458,8 +467,8 @@ impl Tunnel {
                 }
             }
             if (i as f32) < slices_backward_len as f32 * 0.75 {
-                line_bn *= 1.0 - SLICE_DARK_LINE_RATIO * 0.05;
-                light_bn *= 1.0 + SLICE_DARK_LINE_RATIO * 0.02;
+                line_bn *= 1.0 - draw_state.dark_line_ratio * 0.05;
+                light_bn *= 1.0 + draw_state.dark_line_ratio * 0.02;
             }
         }
         unsafe {
@@ -478,16 +487,19 @@ pub struct RingToDraw<'a> {
 
 const DEPTH: f32 = 5.;
 
-// TODO
-const SLICE_DARK_LINE_RATIO: f32 = 1.;
-// TODO
-const SLICE_LINE_R: f32 = 1.0;
-const SLICE_LINE_G: f32 = 1.0;
-const SLICE_LINE_B: f32 = 1.0;
-// TODO
-const SLICE_POLY_R: f32 = 1.0;
-const SLICE_POLY_G: f32 = 0.0;
-const SLICE_POLY_B: f32 = 0.0;
+#[derive(Clone, Copy, Debug)]
+pub struct SliceColor {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct SliceDrawState {
+    pub dark_line_ratio: f32,
+    pub line: SliceColor,
+    pub poly: SliceColor,
+}
 
 #[derive(Clone)]
 pub struct Slice {
@@ -582,6 +594,7 @@ impl Slice {
         poly_bn: f32,
         light_bn: f32,
         ring: Option<RingToDraw>,
+        draw_state: &SliceDrawState,
         screen: &Screen,
     ) {
         let mut pi = self.point_from;
@@ -597,9 +610,9 @@ impl Slice {
                 let ps_prev_pi = (prev_pi * prev_slice.state.point_num as f32
                     / self.state.point_num as f32) as usize;
                 screen.set_color_rgb(
-                    SLICE_LINE_R * line_bn,
-                    SLICE_LINE_G * line_bn,
-                    SLICE_LINE_B * line_bn,
+                    draw_state.line.r * line_bn,
+                    draw_state.line.g * line_bn,
+                    draw_state.line.b * line_bn,
                 );
                 unsafe {
                     gl::Begin(gl::GL_LINE_STRIP);
@@ -612,7 +625,12 @@ impl Slice {
                 }
                 if poly_bn > 0. {
                     if round_slice || (!poly_first && width > 0.) {
-                        screen.set_color_rgba(SLICE_POLY_R, SLICE_POLY_G, SLICE_POLY_B, poly_bn);
+                        screen.set_color_rgba(
+                            draw_state.poly.r,
+                            draw_state.poly.g,
+                            draw_state.poly.b,
+                            poly_bn,
+                        );
                         unsafe {
                             gl::Begin(gl::GL_TRIANGLE_FAN);
                         }
@@ -629,9 +647,9 @@ impl Slice {
                         );
                         poly_point.gl_vertex();
                         screen.set_color_rgba(
-                            SLICE_POLY_R,
-                            SLICE_POLY_G,
-                            SLICE_POLY_B,
+                            draw_state.poly.r,
+                            draw_state.poly.g,
+                            draw_state.poly.b,
                             poly_bn / 2.,
                         );
                         let poly_point = Vector3::blend(
@@ -763,9 +781,8 @@ pub struct Torus {
 }
 
 impl Torus {
-    pub fn new() -> Self {
-        // TODO seed
-        let mut rand = Rand::new();
+    pub fn new(seed: u64) -> Self {
+        let mut rand = Rand::new(seed);
         let mut torus_parts = Vec::<TorusPart>::new();
         let mut rings = Vec::<Ring>::new();
         let mut slice_num = 0;
