@@ -147,7 +147,9 @@ impl Tunnel {
         }
         if self.torus_idx >= self.torus.slice_num {
             self.torus_idx -= self.torus.slice_num;
-            self.point_from = 0.;
+            // That is hard when you reach the end of the torus.
+            // Don't do this. -- arnodb
+            // self.point_from = 0.;
         }
     }
 
@@ -774,7 +776,7 @@ impl Torus {
             let tp = TorusPart::new(&prev, slice_num, lgt, &mut rand);
             prev = tp.slice_state;
             torus_parts.push(tp);
-            tl -= slice_num as isize;
+            tl -= lgt as isize;
             slice_num += lgt;
         }
         let mut ri = 5;
