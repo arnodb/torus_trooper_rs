@@ -1,0 +1,161 @@
+#[macro_use]
+extern crate bitflags;
+#[macro_use]
+extern crate failure;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate serde_derive;
+
+pub mod tt;
+pub mod util;
+
+pub mod gl;
+pub mod glu;
+
+use failure::Backtrace;
+use piston::event_loop::*;
+use piston::input::*;
+use std::time::SystemTime;
+
+use crate::tt::camera::Camera;
+use crate::tt::errors::GameError;
+use crate::tt::letter::Letter;
+use crate::tt::manager::{GameManager, Manager, MoveAction};
+use crate::tt::pad::{GamePad, Pad};
+use crate::tt::prefs::PrefManager;
+use crate::tt::screen::Screen;
+use crate::tt::ship::Ship;
+use crate::tt::tunnel::{Torus, Tunnel};
+use crate::tt::{DrawParams, MoveParams, StartParams};
+
+struct MainLoop {
+    done: bool,
+}
+
+impl MainLoop {
+    fn new() -> Self {
+        MainLoop { done: false }
+    }
+
+    fn main(&mut self) -> Result<(), GameError> {
+        let mut pref_manager = PrefManager::new();
+
+        let mut screen = Screen::new();
+        screen.init_opengl()?;
+
+        let mut pad = GamePad::new(false);
+
+        let letter = Letter::new(&screen);
+
+        let mut tunnel = Tunnel::new(Torus::new());
+
+        let mut camera = Camera::new();
+        let mut ship = Ship::new(&screen);
+
+        let mut manager = GameManager::new(&screen)?;
+
+        let mut events = Events::new(EventSettings::new().swap_buffers(true));
+
+        manager.start(&mut StartParams {
+            pref_manager: &mut pref_manager,
+            camera: &mut camera,
+            ship: &mut ship,
+            tunnel: &mut tunnel,
+        });
+
+        let start_time = SystemTime::now();
+        let mut prev_millis = 0;
+
+        while let Some(e) = events.next(
+            screen
+                .window_mut()
+                .ok_or(GameError::Fatal("No window".to_string(), Backtrace::new()))?,
+        ) {
+            let now_millis = {
+                let duration = SystemTime::now().duration_since(start_time);
+                duration
+                    .map(|d| d.as_secs() * 1000 + d.subsec_millis() as u64)
+                    .unwrap_or_else(|_| 0)
+            };
+            let mut frame = (now_millis - prev_millis) / 16;
+            /*if frame <= 0 {
+                frame = 1;
+                prev_millis = now_millis;
+            } else */
+            if frame > 5 {
+                frame = 5;
+                prev_millis = now_millis
+            } else {
+                prev_millis += frame * 16;
+            }
+
+            for _i in 0..frame {
+                let action = manager.mov(&mut MoveParams {
+                    pref_manager: &mut pref_manager,
+                    pad: &pad,
+                    camera: &mut camera,
+                    ship: &mut ship,
+                    tunnel: &mut tunnel,
+                });
+                match action {
+                    MoveAction::StartTitle(from_game_over) => {
+                        manager.start_title(
+                            &mut StartParams {
+                                pref_manager: &mut pref_manager,
+                                camera: &mut camera,
+                                ship: &mut ship,
+                                tunnel: &mut tunnel,
+                            },
+                            from_game_over,
+                        );
+                    }
+                    MoveAction::StartInGame => {
+                        // TODO Stage manager
+                        tunnel.start(Torus::new());
+                        manager.start_in_game(&mut StartParams {
+                            pref_manager: &mut pref_manager,
+                            camera: &mut camera,
+                            ship: &mut ship,
+                            tunnel: &mut tunnel,
+                        });
+                    }
+                    MoveAction::BreakLoop => self.done = true,
+                    MoveAction::None => (),
+                }
+            }
+
+            if let Some(r) = e.resize_args() {
+                screen.resized(r[0], r[1]);
+            }
+
+            if let Some(r) = e.render_args() {
+                manager.draw(
+                    &mut DrawParams {
+                        pref_manager: &pref_manager,
+                        screen: &screen,
+                        letter: &letter,
+                        camera: &mut camera,
+                        ship: &mut ship,
+                        tunnel: &mut tunnel,
+                    },
+                    &r,
+                );
+            }
+
+            if let Some(b) = e.button_args() {
+                pad.handle_button_event(&b);
+            }
+
+            if self.done {
+                break;
+            }
+        }
+
+        manager.quit_last(&pref_manager)
+    }
+}
+
+fn main() {
+    MainLoop::new().main().unwrap();
+}

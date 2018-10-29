@@ -1,0 +1,24 @@
+[package]
+name = "tt_rs"
+version = "0.1.0"
+authors = ["Arnaud de Bossoreille <arnaud.debossoreille@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+bitflags = "1.0"
+failure = "0.1"
+glutin = "0.18"
+image = "0.20"
+lazy_static = "1.1"
+piston = "0.37"
+piston2d-opengl_graphics = "0.54"
+pistoncore-glutin_window = "0.48"
+preferences = "1.1"
+rand = "0.5"
+rand_core = "0.3"
+rand_xorshift = "0.1"
+serde = "0.9"
+serde_derive = "0.9"
+
+[build-dependencies]
+gl_generator = "0.9"
