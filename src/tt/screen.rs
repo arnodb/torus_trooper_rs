@@ -75,14 +75,26 @@ impl Screen {
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::LoadIdentity();
             //gluPerspective(45.0f, cast(GLfloat) width / cast(GLfloat) height, nearPlane, farPlane);
-            gl::Frustum(
-                -self.near_plane as f64,
-                self.near_plane as f64,
-                (-self.near_plane * self.height as f32 / self.width as f32) as f64,
-                (self.near_plane * self.height as f32 / self.width as f32) as f64,
-                0.1,
-                self.far_plane as f64,
-            );
+            let screen_ratio = self.height as f32 / self.width as f32;
+            if screen_ratio >= 480. / 640. {
+                gl::Frustum(
+                    -self.near_plane as f64,
+                    self.near_plane as f64,
+                    (-self.near_plane * screen_ratio) as f64,
+                    (self.near_plane * screen_ratio) as f64,
+                    0.1,
+                    self.far_plane as f64,
+                );
+            } else {
+                gl::Frustum(
+                    (-self.near_plane / screen_ratio) as f64,
+                    (self.near_plane / screen_ratio) as f64,
+                    -self.near_plane as f64,
+                    self.near_plane as f64,
+                    0.1,
+                    self.far_plane as f64,
+                );
+            }
             gl::MatrixMode(gl::GL_MODELVIEW);
         }
     }

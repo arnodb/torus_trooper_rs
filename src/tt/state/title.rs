@@ -70,14 +70,26 @@ impl State for TitleState {
             gl::Viewport(0, 0, screen.width() as i32, screen.height() as i32);
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::LoadIdentity();
-            gl::Frustum(
-                -screen.near_plane() as f64,
-                screen.near_plane() as f64,
-                (-screen.near_plane() * screen.height() as f32 / screen.width() as f32) as f64,
-                (screen.near_plane() * screen.height() as f32 / screen.width() as f32) as f64,
-                0.1,
-                screen.far_plane() as f64,
-            );
+            let screen_ratio = screen.height() as f32 / screen.width() as f32;
+            if screen_ratio >= 480. / 640. {
+                gl::Frustum(
+                    -screen.near_plane() as f64,
+                    screen.near_plane() as f64,
+                    (-screen.near_plane() * screen_ratio) as f64,
+                    (screen.near_plane() * screen_ratio) as f64,
+                    0.1,
+                    screen.far_plane() as f64,
+                );
+            } else {
+                gl::Frustum(
+                    (-screen.near_plane() / screen_ratio) as f64,
+                    (screen.near_plane() / screen_ratio) as f64,
+                    -screen.near_plane() as f64,
+                    screen.near_plane() as f64,
+                    0.1,
+                    screen.far_plane() as f64,
+                );
+            }
             gl::MatrixMode(gl::GL_MODELVIEW);
         }
         self.manager.draw(params, render_args)
