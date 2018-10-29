@@ -9,13 +9,15 @@ pub struct Rand {
 impl Rand {
     pub fn new() -> Self {
         Rand {
-            rng: XorShiftRng::seed_from_u64(
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map(|d| d.as_secs())
-                    .unwrap_or_else(|_| 0),
-            ),
+            rng: XorShiftRng::seed_from_u64(Rand::rand_seed()),
         }
+    }
+
+    pub fn rand_seed() -> u64 {
+        let duration = SystemTime::now().duration_since(UNIX_EPOCH);
+        duration
+            .map(|d| d.as_secs() * 1000 + d.subsec_millis() as u64)
+            .unwrap_or_else(|_| 0)
     }
 
     pub fn set_seed(&mut self, seed: u64) {
@@ -35,8 +37,14 @@ impl Rand {
     }
 
     // TODO
+    #[cfg(target_pointer_width = "32")]
     pub fn gen_usize(&mut self, high: usize) -> usize {
-        let next = self.rng.next_u32();
-        next as usize * high / u32::max_value() as usize
+        self.rng.next_u32() as usize % high
+    }
+
+    // TODO
+    #[cfg(target_pointer_width = "64")]
+    pub fn gen_usize(&mut self, high: usize) -> usize {
+        self.rng.next_u64() as usize % high
     }
 }
