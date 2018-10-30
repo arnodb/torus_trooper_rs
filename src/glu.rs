@@ -1,22 +1,7 @@
 use crate::gl;
 
 fn make_identityf(m: &mut [f32; 16]) {
-    m[0 + 4 * 0] = 1.;
-    m[0 + 4 * 1] = 0.;
-    m[0 + 4 * 2] = 0.;
-    m[0 + 4 * 3] = 0.;
-    m[1 + 4 * 0] = 0.;
-    m[1 + 4 * 1] = 1.;
-    m[1 + 4 * 2] = 0.;
-    m[1 + 4 * 3] = 0.;
-    m[2 + 4 * 0] = 0.;
-    m[2 + 4 * 1] = 0.;
-    m[2 + 4 * 2] = 1.;
-    m[2 + 4 * 3] = 0.;
-    m[3 + 4 * 0] = 0.;
-    m[3 + 4 * 1] = 0.;
-    m[3 + 4 * 2] = 0.;
-    m[3 + 4 * 3] = 1.;
+    *m = [1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.];
 }
 
 fn normalize(v: &mut [f32; 3]) {
@@ -35,6 +20,7 @@ fn cross(v1: [f32; 3], v2: [f32; 3], result: &mut [f32; 3]) {
     result[2] = v1[0] * v2[1] - v1[1] * v2[0];
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn look_at(
     eyex: f64,
     eyey: f64,
@@ -53,30 +39,23 @@ pub fn look_at(
     ];
     let mut up = [upx as f32, upy as f32, upz as f32];
     let mut side = [0.; 3];
-
     normalize(&mut forward);
-
     /* Side = forward x up */
     cross(forward, up, &mut side);
     normalize(&mut side);
-
     /* Recompute up as: up = side x forward */
     cross(side, forward, &mut up);
-
     let mut m = [0.; 4 * 4];
     make_identityf(&mut m);
-    m[0 * 4 + 0] = side[0];
-    m[1 * 4 + 0] = side[1];
-    m[2 * 4 + 0] = side[2];
-
-    m[0 * 4 + 1] = up[0];
-    m[1 * 4 + 1] = up[1];
-    m[2 * 4 + 1] = up[2];
-
-    m[0 * 4 + 2] = -forward[0];
-    m[1 * 4 + 2] = -forward[1];
-    m[2 * 4 + 2] = -forward[2];
-
+    m[0] = side[0];
+    m[4] = side[1];
+    m[8] = side[2];
+    m[1] = up[0];
+    m[5] = up[1];
+    m[9] = up[2];
+    m[2] = -forward[0];
+    m[6] = -forward[1];
+    m[10] = -forward[2];
     unsafe {
         gl::MultMatrixf(m.as_ptr());
         gl::Translated(-eyex, -eyey, -eyez);
