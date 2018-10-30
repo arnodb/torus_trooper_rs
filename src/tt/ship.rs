@@ -510,7 +510,7 @@ impl Ship {
 
     pub fn draw_front(&self, params: &DrawParams) {
         let letter = params.letter;
-        letter.draw_num(self.speed as usize * 2500, 490., 420., 20.);
+        letter.draw_num((self.speed * 2500.) as usize, 490., 420., 20.);
         letter.draw_string("KM/H", 540., 445., 12.);
         letter.draw_num(self.rank as usize, 150., 432., 16.);
         letter.draw_string("/", 185., 448., 10.);
