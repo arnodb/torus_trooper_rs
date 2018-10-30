@@ -16,17 +16,17 @@ const DEPTH_RATIO_MAX: f32 = 80.;
 
 pub struct Tunnel {
     torus: Torus,
-    slices: Vec<Slice>,
-    slices_backward: Vec<Slice>,
-    // TODO use vectors
-    slices_ring_indexes: [Option<usize>; DEPTH_NUM],
-    slices_backward_ring_indexes: [Option<usize>; DEPTH_NUM],
     ship_idx: usize,
     ship_ofs: f32,
     ship_y: f32,
     torus_idx: usize,
     point_from: f32,
     sight_depth: f32,
+    slices: Vec<Slice>,
+    slices_backward: Vec<Slice>,
+    // TODO use vectors
+    slices_ring_indexes: [Option<usize>; DEPTH_NUM],
+    slices_backward_ring_indexes: [Option<usize>; DEPTH_NUM],
     rings_state: Vec<u32>,
 }
 
@@ -36,16 +36,16 @@ impl Tunnel {
         use std::iter::Iterator;
         Tunnel {
             torus,
-            slices: std::iter::repeat(Slice::new()).take(DEPTH_NUM).collect(),
-            slices_backward: std::iter::repeat(Slice::new()).take(DEPTH_NUM).collect(),
-            slices_ring_indexes: [None; DEPTH_NUM],
-            slices_backward_ring_indexes: [None; DEPTH_NUM],
             ship_idx: 0,
             ship_ofs: 0.,
             ship_y: 0.,
             torus_idx: 0,
             point_from: 0.,
             sight_depth: 0.,
+            slices: std::iter::repeat(Slice::new()).take(DEPTH_NUM).collect(),
+            slices_backward: std::iter::repeat(Slice::new()).take(DEPTH_NUM).collect(),
+            slices_ring_indexes: [None; DEPTH_NUM],
+            slices_backward_ring_indexes: [None; DEPTH_NUM],
             rings_state,
         }
     }
@@ -199,9 +199,6 @@ impl Tunnel {
     }
 
     fn get_center_pos(&self, y: f32) -> (Vector3, f32, f32) {
-        let tpos: Vector3;
-        let d1: f32;
-        let d2: f32;
         let mut mut_y = y - self.ship_y;
         if mut_y < -(self.get_torus_length() as f32) / 2. {
             mut_y += self.get_torus_length() as f32;
@@ -209,18 +206,21 @@ impl Tunnel {
         if mut_y >= -(self.ship_idx as f32) - self.ship_ofs {
             let (si, o) = self.calc_index(mut_y);
             let nsi = si + 1;
-            d1 = self.slices[si].d1 * (1. - o) + self.slices[nsi].d1 * o;
-            d2 = self.slices[si].d2 * (1. - o) + self.slices[nsi].d2 * o;
-            tpos = self.slices[si].center_pos * (1. - o) + self.slices[nsi].center_pos * o;
+            (
+                self.slices[si].center_pos * (1. - o) + self.slices[nsi].center_pos * o,
+                self.slices[si].d1 * (1. - o) + self.slices[nsi].d1 * o,
+                self.slices[si].d2 * (1. - o) + self.slices[nsi].d2 * o,
+            )
         } else {
             let (si, o) = self.calc_index_backward(mut_y);
             let nsi = si + 1;
-            d1 = self.slices_backward[si].d1 * (1. - o) + self.slices_backward[nsi].d1 * o;
-            d2 = self.slices_backward[si].d2 * (1. - o) + self.slices_backward[nsi].d2 * o;
-            tpos = self.slices_backward[si].center_pos * (1. - o)
-                + self.slices_backward[nsi].center_pos * o;
+            (
+                self.slices_backward[si].center_pos * (1. - o)
+                    + self.slices_backward[nsi].center_pos * o,
+                self.slices_backward[si].d1 * (1. - o) + self.slices_backward[nsi].d1 * o,
+                self.slices_backward[si].d2 * (1. - o) + self.slices_backward[nsi].d2 * o,
+            )
         }
-        (tpos, d1, d2)
     }
 
     pub fn get_slice(&self, y: f32) -> &Slice {
@@ -255,15 +255,12 @@ impl Tunnel {
         }
     }
 
+    #[allow(clippy::collapsible_if)]
     pub fn check_deg_inside(d: f32, ld: f32, rd: f32) -> i32 {
         let mut rsl = 0;
         if rd <= ld {
             if d > rd && d < ld {
-                if d < (rd + ld) / 2. {
-                    rsl = 1;
-                } else {
-                    rsl = -1;
-                }
+                rsl = if d < (rd + ld) / 2. { 1 } else { -1 };
             }
         } else {
             if d < ld || d > rd {
@@ -272,21 +269,13 @@ impl Tunnel {
                     cd -= std::f32::consts::PI * 2.;
                 }
                 if cd >= std::f32::consts::PI {
-                    if d < cd && d > rd {
-                        rsl = 1;
-                    } else {
-                        rsl = -1;
-                    }
+                    rsl = if d < cd && d > rd { 1 } else { -1 };
                 } else {
-                    if d > cd && d < ld {
-                        rsl = -1;
-                    } else {
-                        rsl = 1;
-                    }
+                    rsl = if d > cd && d < ld { -1 } else { 1 };
                 }
             }
         }
-        return rsl;
+        rsl
     }
 
     pub fn get_radius(&self, z: f32) -> f32 {
@@ -359,7 +348,9 @@ impl Tunnel {
         let mut line_bn = 0.4;
         let mut poly_bn = 0.;
         let mut light_bn = 0.5 - draw_state.dark_line_ratio * 0.2;
-        self.slices.last_mut().map(|slice| slice.set_point_pos());
+        if let Some(slice) = self.slices.last_mut() {
+            slice.set_point_pos();
+        }
         let slices_len = self.slices.len();
         for i in (1..slices_len).rev() {
             let rtd = match self.slices_ring_indexes[i] {
@@ -386,22 +377,13 @@ impl Tunnel {
                 draw_state,
                 screen,
             );
-            line_bn *= 1.02;
-            if line_bn > 1. {
-                line_bn = 1.;
-            }
-            light_bn *= 1.02;
-            if light_bn > 1. {
-                light_bn = 1.;
-            }
+            line_bn = f32::min(line_bn * 1.02, 1.);
+            light_bn = f32::min(light_bn * 1.02, 1.);
             if i < slices_len / 2 {
                 if poly_bn <= 0. {
                     poly_bn = 0.2;
                 }
-                poly_bn *= 1.03;
-                if poly_bn > 1. {
-                    poly_bn = 1.;
-                }
+                poly_bn = f32::min(poly_bn * 1.03, 1.);
             }
             if (i as f32) < slices_len as f32 * 0.75 {
                 line_bn *= 1.0 - draw_state.dark_line_ratio * 0.05;
@@ -420,9 +402,9 @@ impl Tunnel {
         let mut line_bn = 0.4;
         let mut poly_bn = 0.;
         let mut light_bn = 0.5 - draw_state.dark_line_ratio * 0.2;
-        self.slices_backward
-            .last_mut()
-            .map(|slice| slice.set_point_pos());
+        if let Some(slice) = self.slices_backward.last_mut() {
+            slice.set_point_pos();
+        }
         let slices_backward_len = self.slices_backward.len();
         for i in (1..slices_backward_len).rev() {
             let rtd = match self.slices_backward_ring_indexes[i] {
@@ -449,22 +431,13 @@ impl Tunnel {
                 draw_state,
                 screen,
             );
-            line_bn *= 1.02;
-            if line_bn > 1. {
-                line_bn = 1.;
-            }
-            light_bn *= 1.02;
-            if light_bn > 1. {
-                light_bn = 1.;
-            }
+            line_bn = f32::min(line_bn * 1.02, 1.);
+            light_bn = f32::min(light_bn * 1.02, 1.);
             if i < slices_backward_len / 2 {
                 if poly_bn <= 0. {
                     poly_bn = 0.2;
                 }
-                poly_bn *= 1.03;
-                if poly_bn > 1. {
-                    poly_bn = 1.;
-                }
+                poly_bn = f32::min(poly_bn * 1.03, 1.);
             }
             if (i as f32) < slices_backward_len as f32 * 0.75 {
                 line_bn *= 1.0 - draw_state.dark_line_ratio * 0.05;
@@ -587,6 +560,7 @@ impl Slice {
         self.depth = from.depth;
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw(
         &self,
         prev_slice: &Slice,
@@ -602,7 +576,7 @@ impl Slice {
         let mut prev_pi = 0.;
         let mut is_first = true;
         let mut poly_first = true;
-        let round_slice = self.state.course_width == self.state.point_num as f32;
+        let round_slice = self.state.course_width >= self.state.point_num as f32;
         loop {
             if !is_first {
                 let ps_pi =
@@ -634,36 +608,36 @@ impl Slice {
                         unsafe {
                             gl::Begin(gl::GL_TRIANGLE_FAN);
                         }
-                        let poly_point = Vector3::blend(
+                        Vector3::blend(
                             self.point_pos[prev_pi as usize],
                             prev_slice.point_pos[ps_pi],
                             0.9,
-                        );
-                        poly_point.gl_vertex();
-                        let poly_point = Vector3::blend(
+                        )
+                        .gl_vertex();
+                        Vector3::blend(
                             self.point_pos[pi as usize],
                             prev_slice.point_pos[ps_prev_pi],
                             0.9,
-                        );
-                        poly_point.gl_vertex();
+                        )
+                        .gl_vertex();
                         screen.set_color_rgba(
                             draw_state.poly.r,
                             draw_state.poly.g,
                             draw_state.poly.b,
                             poly_bn / 2.,
                         );
-                        let poly_point = Vector3::blend(
+                        Vector3::blend(
                             self.point_pos[prev_pi as usize],
                             prev_slice.point_pos[ps_pi],
                             0.1,
-                        );
-                        poly_point.gl_vertex();
-                        let poly_point = Vector3::blend(
+                        )
+                        .gl_vertex();
+                        Vector3::blend(
                             self.point_pos[pi as usize],
                             prev_slice.point_pos[ps_prev_pi],
                             0.1,
-                        );
-                        poly_point.gl_vertex();
+                        )
+                        .gl_vertex();
                         unsafe {
                             gl::End();
                         }
@@ -799,11 +773,12 @@ impl Torus {
         let mut ri = 5;
         while ri < slice_num - 100 {
             let ss = Torus::get_slice_state_internal(&torus_parts, ri);
-            if ri == 5 {
-                rings.push(Ring::new(ri, ss.rad, RingType::Final));
+            let ring_type = if ri == 5 {
+                RingType::Final
             } else {
-                rings.push(Ring::new(ri, ss.rad, RingType::Normal));
-            }
+                RingType::Normal
+            };
+            rings.push(Ring::new(ri, ss.rad, ring_type));
             ri += 100 + rand.gen_usize(200);
         }
         Torus {
@@ -817,7 +792,7 @@ impl Torus {
         Torus::get_slice_state_internal(&self.torus_parts, idx)
     }
 
-    fn get_slice_state_internal(torus_parts: &Vec<TorusPart>, idx: usize) -> SliceState {
+    fn get_slice_state_internal(torus_parts: &[TorusPart], idx: usize) -> SliceState {
         let tp_idx = torus_parts
             .binary_search_by(|tp| {
                 use core::cmp::Ordering;
@@ -830,10 +805,12 @@ impl Torus {
                 }
             })
             .unwrap();
-        let prev_tp_idx = (tp_idx + torus_parts.len() - 1) % torus_parts.len();
+        let torus_parts_len = torus_parts.len();
+        let prev_tp_idx = (tp_idx + torus_parts_len - 1) % torus_parts_len;
         torus_parts[tp_idx].create_blended_slice_state(&torus_parts[prev_tp_idx].slice_state, idx)
     }
 
+    #[allow(clippy::collapsible_if)]
     fn get_slice_state_and_ring(&self, idx: usize, pidx: usize) -> (SliceState, Option<usize>) {
         let ss = Torus::get_slice_state_internal(&self.torus_parts, idx);
         for (i, r) in self.rings.iter().enumerate() {
@@ -874,7 +851,7 @@ impl TorusPart {
             } else {
                 slice_state.change_to_straight();
             }
-        } else if prev_state.course_width == prev_state.point_num as f32 || rand.gen_usize(2) == 0 {
+        } else if prev_state.course_width >= prev_state.point_num as f32 || rand.gen_usize(2) == 0 {
             match rand.gen_usize(3) {
                 0 => slice_state.change_rad(rand),
                 1 => slice_state.change_width(rand),
@@ -935,7 +912,7 @@ impl SliceState {
     fn new_blended(s1: &SliceState, s2: &SliceState, ratio: f32) -> Self {
         let point_num = (s1.point_num as f32 * ratio + s2.point_num as f32 * (1. - ratio)) as usize;
         let course_width =
-            if s1.course_width == s1.point_num as f32 && s2.course_width == s2.point_num as f32 {
+            if s1.course_width >= s1.point_num as f32 && s2.course_width >= s2.point_num as f32 {
                 point_num as f32
             } else {
                 s1.course_width * ratio + s2.course_width * (1. - ratio)
@@ -959,7 +936,7 @@ impl SliceState {
         self.rad = DEFAULT_RAD + rand.gen_signed_f32(DEFAULT_RAD * 0.3);
         let ppn = self.point_num;
         self.point_num = (self.rad * DEFAULT_POINT_NUM as f32 / DEFAULT_RAD) as usize;
-        if ppn as f32 == self.course_width {
+        if ppn as f32 <= self.course_width {
             self.change_width_to_full();
         } else {
             self.course_width = self.course_width * self.point_num as f32 / ppn as f32;
@@ -980,10 +957,8 @@ impl SliceState {
     }
 
     fn change_to_easy_curve(&mut self, rand: &mut Rand) {
-        self.mp = rand.gen_f32(0.05) + 0.04;
-        if rand.gen_usize(2) == 0 {
-            self.mp = -self.mp;
-        }
+        let mp = rand.gen_f32(0.05) + 0.04;
+        self.mp = if rand.gen_usize(2) == 0 { -mp } else { mp };
     }
 
     fn change_to_tight_curve(&mut self, rand: &mut Rand) {
