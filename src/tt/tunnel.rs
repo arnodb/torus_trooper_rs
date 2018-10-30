@@ -1026,19 +1026,20 @@ impl Ring {
 
     fn create_normal_ring(r: f32) -> DisplayList {
         let mut display_list = DisplayList::new(1);
-        display_list.begin_new_list();
+        display_list.new_list();
         Ring::draw_ring(r, 1.2, 1.4, 16);
-        display_list.end_new_list();
+        display_list.end_list();
         display_list
     }
 
     fn create_final_ring(r: f32) -> DisplayList {
         let mut display_list = DisplayList::new(2);
-        display_list.begin_new_list();
+        display_list.new_list();
         Ring::draw_ring(r, 1.2, 1.5, 14);
-        display_list.next_new_list();
+        display_list.end_list();
+        display_list.new_list();
         Ring::draw_ring(r, 1.6, 1.9, 14);
-        display_list.end_new_list();
+        display_list.end_list();
         display_list
     }
 

@@ -16,7 +16,7 @@ impl Rand {
     pub fn rand_seed() -> u64 {
         let duration = SystemTime::now().duration_since(UNIX_EPOCH);
         duration
-            .map(|d| d.as_secs() * 1000 + d.subsec_millis() as u64)
+            .map(|d| d.as_secs() * 1000 + u64::from(d.subsec_millis()))
             .unwrap_or_else(|_| 0)
     }
 

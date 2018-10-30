@@ -33,11 +33,11 @@ impl ShipShape {
 
     fn create_display_list(structure: &Vec<Structure>, screen: &Screen) -> DisplayList {
         let mut display_list = DisplayList::new(1);
-        display_list.begin_new_list();
+        display_list.new_list();
         for st in structure {
             st.create_display_list(screen);
         }
-        display_list.end_new_list();
+        display_list.end_list();
         display_list
     }
 

@@ -38,7 +38,7 @@ impl TitleManager {
     pub fn new(screen: &Screen) -> Result<Self, GameError> {
         Ok(TitleManager {
             display_list: TitleManager::create_torus_shape(screen),
-            title_texture: Texture::new("title.bmp")?,
+            title_texture: Texture::create("title.bmp")?,
             cnt: 0,
             grade: 0,
             level: 1,
@@ -173,7 +173,7 @@ impl TitleManager {
         let torus_rad = 5.;
         let ring_rad = 0.7;
         let mut display_list = DisplayList::new(3);
-        display_list.begin_new_list();
+        display_list.new_list();
         let mut d1 = 0.;
         for _i in 0..32 {
             let mut d2 = 0.;
@@ -210,7 +210,8 @@ impl TitleManager {
             }
             d1 += std::f32::consts::PI * 2. / 32.;
         }
-        display_list.next_new_list();
+        display_list.end_list();
+        display_list.new_list();
         d1 = 0.;
         unsafe {
             gl::Begin(gl::GL_QUADS);
@@ -271,7 +272,8 @@ impl TitleManager {
         unsafe {
             gl::End();
         }
-        display_list.next_new_list();
+        display_list.end_list();
+        display_list.new_list();
         d1 = 0.;
         screen.set_color_rgb(1., 1., 1.);
         unsafe {
@@ -300,7 +302,7 @@ impl TitleManager {
         unsafe {
             gl::End();
         }
-        display_list.end_new_list();
+        display_list.end_list();
         display_list
     }
 

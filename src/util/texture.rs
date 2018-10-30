@@ -5,7 +5,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new(name: &str) -> Result<Self, image::ImageError> {
+    pub fn create(name: &str) -> Result<Self, image::ImageError> {
         let img = image::open("images/".to_string() + name)?;
         if let image::DynamicImage::ImageRgb8(rgb_img) = img {
             let mut num: u32 = 0;

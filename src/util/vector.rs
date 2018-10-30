@@ -1,6 +1,6 @@
 use crate::gl;
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Default, Clone, Copy, Debug)]
 pub struct Vector {
     pub x: f32,
     pub y: f32,
@@ -175,7 +175,7 @@ impl std::ops::DivAssign for Vector {
 }
 */
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Default, Clone, Copy, Debug)]
 pub struct Vector3 {
     pub x: f32,
     pub y: f32,
