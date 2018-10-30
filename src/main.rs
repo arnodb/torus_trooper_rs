@@ -16,7 +16,7 @@ pub mod glu;
 use failure::Backtrace;
 use piston::event_loop::*;
 use piston::input::*;
-use std::time::SystemTime;
+use std::time::Instant;
 
 use crate::tt::camera::Camera;
 use crate::tt::errors::GameError;
@@ -73,19 +73,17 @@ impl MainLoop {
             tunnel: &mut tunnel,
         });
 
-        let start_time = SystemTime::now();
+        let start_time = Instant::now();
         let mut prev_millis = 0;
 
         while let Some(e) = events.next(
             screen
                 .window_mut()
-                .ok_or(GameError::Fatal("No window".to_string(), Backtrace::new()))?,
+                .ok_or_else(|| GameError::Fatal("No window".to_string(), Backtrace::new()))?,
         ) {
             let now_millis = {
-                let duration = SystemTime::now().duration_since(start_time);
-                duration
-                    .map(|d| d.as_secs() * 1000 + d.subsec_millis() as u64)
-                    .unwrap_or_else(|_| 0)
+                let duration = Instant::now().duration_since(start_time);
+                duration.as_secs() * 1000 + u64::from(duration.subsec_millis())
             };
             let mut frame = (now_millis - prev_millis) / 16;
             /*if frame <= 0 {
