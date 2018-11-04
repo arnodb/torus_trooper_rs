@@ -33,11 +33,11 @@ impl Camera {
     pub fn new() -> Self {
         Camera {
             rand: Rand::new(Rand::rand_seed()),
-            camera_pos: Vector3::new(),
-            camera_trg: Vector3::new(),
-            camera_vel: Vector3::new(),
-            look_at_pos: Vector3::new(),
-            look_at_ofs: Vector3::new(),
+            camera_pos: Vector3::default(),
+            camera_trg: Vector3::default(),
+            camera_vel: Vector3::default(),
+            look_at_pos: Vector3::default(),
+            look_at_ofs: Vector3::default(),
             look_at_cnt: 0,
             change_cnt: 0,
             move_cnt: 0,
@@ -93,7 +93,7 @@ impl Camera {
             }
             self.camera_pos = self.camera_trg;
             self.deg = self.camera_trg.x;
-            self.look_at_ofs = Vector3::new();
+            self.look_at_ofs = Vector3::default();
             self.look_at_cnt = 0;
             self.zoom_min = 1.0 - self.rand.gen_f32(0.9);
         }

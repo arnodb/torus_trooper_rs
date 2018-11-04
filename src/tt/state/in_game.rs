@@ -127,8 +127,8 @@ impl<'a> State for InGameState<'a> {
     fn start(&mut self, params: &mut StartParams) {
         self.grade = params.pref_manager.selected_grade();
         self.level = params.pref_manager.selected_level() as f32;
+        params.shots.clear();
         /* TODO
-        shots.clear();
         bullets.clear();
         enemies.clear();
         particles.clear();
@@ -192,7 +192,7 @@ impl<'a> State for InGameState<'a> {
             SoundManager.nextBgm();
         }
         */
-        let ship_action = ship.mov(pad, params.camera, params.tunnel);
+        let ship_action = ship.mov(pad, params.camera, params.tunnel, params.shots);
         if let ShipMoveAction::AddScore(sc) = ship_action {
             if !ship.is_game_over() {
                 self.score += sc;
@@ -205,7 +205,9 @@ impl<'a> State for InGameState<'a> {
         params.stage_manager.mov();
         /* TODO
         enemies.move();
-        shots.move();
+        */
+        params.shots.mov();
+        /* TODO
         bullets.move();
         particles.move();
         floatLetters.move();
@@ -272,7 +274,7 @@ impl<'a> State for InGameState<'a> {
         unsafe {
             gl::Enable(gl::GL_BLEND);
         }
-        // TODO shots.draw();
+        params.shots.draw(params.tunnel);
     }
 
     fn draw_front(&self, params: &DrawParams, _render_args: &RenderArgs) {

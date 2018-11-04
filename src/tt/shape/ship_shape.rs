@@ -42,7 +42,7 @@ impl ShipShape {
     }
 
     fn create_small_type(mut rand: Rand, damaged: bool, screen: &Screen) -> ShipShape {
-        let mut collision = Vector::new();
+        let mut collision = Vector::default();
         let shaft_num = 1 + rand.gen_usize(2);
         println!("{}", shaft_num);
         let sx = (0.25 + rand.gen_f32(0.1)) * 1.5;
@@ -131,7 +131,7 @@ impl ShipShape {
     }
 
     fn create_medium_type(mut rand: Rand, damaged: bool, screen: &Screen) -> ShipShape {
-        let mut collision = Vector::new();
+        let mut collision = Vector::default();
         let shaft_num = 3 + rand.gen_usize(2);
         let sx = (1.0 + rand.gen_f32(0.7)) * 1.6;
         let so = (0.9 + rand.gen_f32(0.6)) * 1.6;
@@ -292,7 +292,7 @@ impl ShipShape {
     }
 
     fn create_large_type(mut rand: Rand, damaged: bool, screen: &Screen) -> ShipShape {
-        let mut collision = Vector::new();
+        let mut collision = Vector::default();
         let shaft_num = 5 + rand.gen_usize(2);
         let sx = (3.0 + rand.gen_f32(2.2)) * 1.6;
         let so = (1.5 + rand.gen_f32(1.0)) * 1.6;

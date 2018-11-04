@@ -7,8 +7,8 @@ pub struct Vector {
 }
 
 impl Vector {
-    pub fn new() -> Self {
-        Vector { x: 0., y: 0. }
+    pub fn new_at(x: f32, y: f32) -> Self {
+        Vector { x, y }
     }
 
     /*TODO
@@ -183,14 +183,6 @@ pub struct Vector3 {
 }
 
 impl Vector3 {
-    pub fn new() -> Self {
-        Vector3 {
-            x: 0.,
-            y: 0.,
-            z: 0.,
-        }
-    }
-
     pub fn new_at(x: f32, y: f32, z: f32) -> Self {
         Vector3 { x, y, z }
     }
@@ -214,6 +206,12 @@ impl Vector3 {
         self.y = self.x * f32::sin(d) + self.y * f32::cos(d);
         self.x = tx;
         self
+    }
+
+    pub fn gl_translate(&self) {
+        unsafe {
+            gl::Translatef(self.x, self.y, self.z);
+        }
     }
 
     pub fn gl_vertex(&self) {

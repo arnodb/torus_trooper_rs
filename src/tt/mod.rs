@@ -1,3 +1,4 @@
+pub mod actor;
 pub mod bullet;
 pub mod camera;
 pub mod errors;
@@ -22,6 +23,8 @@ pub struct StartParams<'a> {
     pub camera: &'a mut camera::Camera,
     pub ship: &'a mut ship::Ship,
     pub tunnel: &'a mut tunnel::Tunnel,
+
+    pub shots: &'a mut actor::shot::ShotPool,
 }
 
 pub struct MoveParams<'a> {
@@ -34,6 +37,8 @@ pub struct MoveParams<'a> {
     pub camera: &'a mut camera::Camera,
     pub ship: &'a mut ship::Ship,
     pub tunnel: &'a mut tunnel::Tunnel,
+
+    pub shots: &'a mut actor::shot::ShotPool,
 }
 
 pub struct DrawParams<'a> {
@@ -47,4 +52,6 @@ pub struct DrawParams<'a> {
     pub camera: &'a camera::Camera,
     pub ship: &'a mut ship::Ship,
     pub tunnel: &'a mut tunnel::Tunnel,
+
+    pub shots: &'a mut actor::shot::ShotPool,
 }

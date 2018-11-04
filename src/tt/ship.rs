@@ -4,6 +4,7 @@ use crate::glu;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
 
+use crate::tt::actor::shot::ShotPool;
 use crate::tt::bullet::BulletTarget;
 use crate::tt::camera::Camera;
 use crate::tt::pad::{Pad, PadButtons, PadDirection};
@@ -17,7 +18,7 @@ pub const GRADE_NUM: usize = 3;
 pub const GRADE_LETTER: [&str; 3] = ["N", "H", "E"];
 pub const GRADE_STR: [&str; 3] = ["NORMAL", "HARD", "EXTREME"];
 
-const IN_SIGHT_DEPTH_DEFAULT: f32 = 35.;
+pub const IN_SIGHT_DEPTH_DEFAULT: f32 = 35.;
 const RELPOS_MAX_Y: f32 = 10.;
 
 const RESTART_CNT: i32 = 268;
@@ -31,6 +32,11 @@ const BANK_MAX_DEFAULT: [f32; GRADE_NUM] = [0.8, 1.0, 1.2];
 const OUT_OF_COURSE_BANK: f32 = 1.0;
 const RELPOS_Y_MOVE: f32 = 0.1;
 
+const FIRE_INTERVAL: u32 = 2;
+const STAR_SHELL_INTERVAL: u32 = 7;
+
+const GUNPOINT_WIDTH: f32 = 0.05;
+
 pub struct Ship {
     replay_mode: bool,
     camera_mode: bool,
@@ -41,6 +47,7 @@ pub struct Ship {
     pos: Vector,
     rel_pos: Vector,
     eye_pos: Vector,
+    rocket_pos: Vector,
 
     d1: f32,
     d2: f32,
@@ -58,11 +65,13 @@ pub struct Ship {
     pos3: Vector3,
     shape: ShipShape,
 
+    charging_shot: bool,
     regenerative_charge: f32,
     fire_cnt: u32,
     fire_shot_cnt: u32,
     side_fire_cnt: u32,
     side_fire_shot_cnt: u32,
+    gunpoint_pos: Vector,
 
     rank: u32,
     in_boss_mode: bool,
@@ -91,9 +100,10 @@ impl Ship {
             is_game_over: false,
 
             rand: Rand::new(seed),
-            pos: Vector::new(),
-            rel_pos: Vector::new(),
-            eye_pos: Vector::new(),
+            pos: Vector::default(),
+            rel_pos: Vector::default(),
+            eye_pos: Vector::default(),
+            rocket_pos: Vector::default(),
 
             d1: 0.,
             d2: 0.,
@@ -108,14 +118,16 @@ impl Ship {
             bank: 0.,
             bank_max: BANK_MAX_DEFAULT[0],
             tunnel_ofs: 0.,
-            pos3: Vector3::new(),
+            pos3: Vector3::default(),
             shape: ShipShape::new(ShipType::Small, false, screen, seed),
 
+            charging_shot: false,
             regenerative_charge: 0.,
             fire_cnt: 0,
             fire_shot_cnt: 0,
             side_fire_cnt: 0,
             side_fire_shot_cnt: 0,
+            gunpoint_pos: Vector::default(),
 
             rank: 0,
             in_boss_mode: false,
@@ -134,9 +146,9 @@ impl Ship {
         self.rand.set_seed(seed);
         self.grade = grd;
         self.tunnel_ofs = 0.;
-        self.pos = Vector::new();
-        self.rel_pos = Vector::new();
-        self.eye_pos = Vector::new();
+        self.pos = Vector::default();
+        self.rel_pos = Vector::default();
+        self.eye_pos = Vector::default();
         self.bank = 0.;
         self.speed = 0.;
         self.d1 = 0.;
@@ -161,16 +173,17 @@ impl Ship {
         self.target_speed = 0.;
         self.fire_shot_cnt = 0;
         self.side_fire_shot_cnt = 99999;
-        /*TODO
-        if self.charging_shot {
-            chargingShot.remove();
-            chargingShot = null;
-        }
-        */
+        self.charging_shot = false;
         self.regenerative_charge = 0.;
     }
 
-    pub fn mov(&mut self, pad: &Pad, camera: &mut Camera, tunnel: &mut Tunnel) -> ShipMoveAction {
+    pub fn mov(
+        &mut self,
+        pad: &Pad,
+        camera: &mut Camera,
+        tunnel: &mut Tunnel,
+        shots: &mut ShotPool,
+    ) -> ShipMoveAction {
         self.cnt += 1;
         let (mut btn, mut dir) = if !self.replay_mode {
             // TODO pad.record();
@@ -330,55 +343,61 @@ impl Ship {
         self.d1 += (sl.d1() - self.d1) * 0.05;
         self.d2 += (sl.d2() - self.d2) * 0.05;
 
-        /* TODO
-        if (btn & Pad.Button.B) {
-            if (!chargingShot) {
-                chargingShot = shots.getInstanceForced();
-                chargingShot.set(true);
+        if btn & PadButtons::B != PadButtons::NONE {
+            if !self.charging_shot {
+                shots.get_charging_instance().set_charge(true);
+                self.charging_shot = true;
             }
         } else {
-            if (chargingShot) {
-                chargingShot.release();
-                chargingShot = null;
+            if self.charging_shot {
+                shots.release_charging_instance();
+                self.charging_shot = false;
             }
-            if (btn & Pad.Button.A) {
-                if (fireCnt <= 0) {
-                    fireCnt = FIRE_INTERVAL;
-                    Shot shot = shots.getInstance();
-                    if (shot) {
-                        if ((fireShotCnt % STAR_SHELL_INTERVAL) == 0)
-                        shot.set(false, true);
-                        else
-                        shot.set();
-                        gunpointPos.x = _relPos.x + GUNPOINT_WIDTH * ((fireShotCnt % 2) * 2 - 1);
-                        gunpointPos.y = _relPos.y;
-                        shot.update(gunpointPos);
-                        fireShotCnt++;
+            if btn & PadButtons::A != PadButtons::NONE {
+                if self.fire_cnt <= 0 {
+                    self.fire_cnt = FIRE_INTERVAL;
+                    let shot = shots.get_instance();
+                    if let Some(shot) = shot {
+                        if (self.fire_shot_cnt % STAR_SHELL_INTERVAL) == 0 {
+                            shot.set_charge_star(false, true);
+                        } else {
+                            shot.set();
+                        }
+                        self.gunpoint_pos.x = self.rel_pos.x
+                            + GUNPOINT_WIDTH * ((self.fire_shot_cnt as f32 % 2.) * 2. - 1.);
+                        self.gunpoint_pos.y = self.rel_pos.y;
+                        shot.update(self.gunpoint_pos);
+                        self.fire_shot_cnt += 1;
                     }
                 }
-                if (sideFireCnt <= 0) {
-                    sideFireCnt = 99999;
-                    Shot shot = shots.getInstance();
-                    if (shot) {
-                        float sideFireDeg =
-                            (speed - SPEED_DEFAULT[grade]) / (SPEED_MAX[grade] - SPEED_DEFAULT[grade]) * 0.1f;
-                        if (sideFireDeg < 0.01f)
-                        sideFireDeg = 0.01f;
-                        float d = sideFireDeg * (sideFireShotCnt % 5) * 0.2;
-                        if ((sideFireShotCnt % 2) == 1)
-                        d = -d;
-                        if ((sideFireShotCnt % STAR_SHELL_INTERVAL) == 0)
-                        shot.set(false, true, d);
-                        else
-                        shot.set(false, false, d);
-                        gunpointPos.x = _relPos.x + GUNPOINT_WIDTH * ((fireShotCnt % 2) * 2 - 1);
-                        gunpointPos.y = _relPos.y;
-                        shot.update(gunpointPos);
-                        sideFireShotCnt++;
+                if self.side_fire_cnt <= 0 {
+                    self.side_fire_cnt = 99999;
+                    let shot = shots.get_instance();
+                    if let Some(shot) = shot {
+                        let mut side_fire_deg = (self.speed - SPEED_DEFAULT[self.grade as usize])
+                            / (SPEED_MAX[self.grade as usize] - SPEED_DEFAULT[self.grade as usize])
+                            * 0.1;
+                        if side_fire_deg < 0.01 {
+                            side_fire_deg = 0.01;
+                        }
+                        let mut d = side_fire_deg * (self.side_fire_shot_cnt % 5) as f32 * 0.2;
+                        if (self.side_fire_shot_cnt % 2) == 1 {
+                            d = -d;
+                        }
+                        if (self.side_fire_shot_cnt % STAR_SHELL_INTERVAL) == 0 {
+                            shot.set_charge_star_deg(false, true, d);
+                        } else {
+                            shot.set_charge_star_deg(false, false, d);
+                        }
+                        self.gunpoint_pos.x = self.rel_pos.x
+                            + GUNPOINT_WIDTH * ((self.fire_shot_cnt as f32 % 2.) * 2. - 1.);
+                        self.gunpoint_pos.y = self.rel_pos.y;
+                        shot.update(self.gunpoint_pos);
+                        self.side_fire_shot_cnt += 1;
                     }
                 }
             }
-        }*/
+        }
         if self.fire_cnt > 0 {
             self.fire_cnt -= 1;
         }
@@ -395,13 +414,15 @@ impl Ship {
         if self.side_fire_cnt > 0 {
             self.side_fire_cnt -= 1;
         }
+        self.rocket_pos.x = self.rel_pos.x - self.bank * 0.1;
+        self.rocket_pos.y = self.rel_pos.y;
+        if self.charging_shot {
+            shots.get_charging_instance().update(self.rocket_pos);
+        }
         /* TODO
-        rocketPos.x = _relPos.x - bank * 0.1;
-        rocketPos.y = _relPos.y;
-        if (chargingShot)
-        chargingShot.update(rocketPos);
-        if (cnt >= -INVINCIBLE_CNT)
-        shape.addParticles(rocketPos, particles);
+        if self.cnt >= -INVINCIBLE_CNT {
+            shape.addParticles(rocketPos, particles);
+        }
         nextStarAppDist -= speed;
         if (nextStarAppDist <= 0) {
             for (int i = 0; i < 5; i++) {
@@ -546,6 +567,7 @@ impl Ship {
         self.rel_pos
     }
 }
+
 impl BulletTarget for Ship {
     fn get_target_pos(&self) -> Vector {
         self.rel_pos

@@ -18,6 +18,7 @@ use piston::event_loop::*;
 use piston::input::*;
 use std::time::Instant;
 
+use crate::tt::actor::shot::ShotPool;
 use crate::tt::camera::Camera;
 use crate::tt::errors::GameError;
 use crate::tt::letter::Letter;
@@ -58,6 +59,8 @@ impl MainLoop {
         let mut camera = Camera::new();
         let mut ship = Ship::new(&screen, seed);
 
+        let mut shots = ShotPool::new(64, &screen);
+
         let mut stage_manager = StageManager::new(seed);
 
         let mut manager = GameManager::new(&screen)?;
@@ -71,6 +74,7 @@ impl MainLoop {
             camera: &mut camera,
             ship: &mut ship,
             tunnel: &mut tunnel,
+            shots: &mut shots,
         });
 
         let start_time = Instant::now();
@@ -105,6 +109,7 @@ impl MainLoop {
                     camera: &mut camera,
                     ship: &mut ship,
                     tunnel: &mut tunnel,
+                    shots: &mut shots,
                 });
                 match action {
                     MoveAction::StartTitle(from_game_over) => {
@@ -116,6 +121,7 @@ impl MainLoop {
                                 camera: &mut camera,
                                 ship: &mut ship,
                                 tunnel: &mut tunnel,
+                                shots: &mut shots,
                             },
                             from_game_over,
                         );
@@ -128,6 +134,7 @@ impl MainLoop {
                             camera: &mut camera,
                             ship: &mut ship,
                             tunnel: &mut tunnel,
+                            shots: &mut shots,
                         });
                     }
                     MoveAction::BreakLoop => self.done = true,
@@ -149,6 +156,7 @@ impl MainLoop {
                         camera: &mut camera,
                         ship: &mut ship,
                         tunnel: &mut tunnel,
+                        shots: &mut shots,
                     },
                     &r,
                 );

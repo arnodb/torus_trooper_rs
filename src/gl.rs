@@ -5,6 +5,7 @@ pub const GL_ONE: u32 = 1;
 pub const GL_LINES: u32 = 0x0001;
 pub const GL_LINE_LOOP: u32 = 0x0002;
 pub const GL_LINE_STRIP: u32 = 0x0003;
+pub const GL_TRIANGLES: u32 = 0x0004;
 pub const GL_TRIANGLE_FAN: u32 = 0x0006;
 pub const GL_QUADS: u32 = 0x0007;
 pub const GL_SRC_ALPHA: u32 = 0x302;

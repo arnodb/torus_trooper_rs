@@ -507,15 +507,15 @@ impl Slice {
             d1: 0.,
             d2: 0.,
             point_from: 0.,
-            center_pos: Vector3::new(),
+            center_pos: Vector3::default(),
             point_ratio: 0.,
-            point_pos: [Vector3::new(); MAX_POINT_NUM],
+            point_pos: [Vector3::default(); MAX_POINT_NUM],
             depth: 0.,
         }
     }
 
     fn set_first(&mut self, pf: f32, state: &SliceState, dpt: f32) {
-        self.center_pos = Vector3::new();
+        self.center_pos = Vector3::default();
         self.d1 = 0.;
         self.d2 = 0.;
         self.point_from = pf;
@@ -545,7 +545,7 @@ impl Slice {
             center_pos,
             point_ratio,
             // TODO not used
-            point_pos: [Vector3::new(); MAX_POINT_NUM],
+            point_pos: [Vector3::default(); MAX_POINT_NUM],
             depth,
         }
     }

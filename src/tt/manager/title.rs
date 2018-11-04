@@ -168,8 +168,8 @@ impl TitleManager {
     }
 
     fn create_torus_shape(screen: &Screen) -> DisplayList {
-        let mut cp = Vector3::new();
-        let mut ring_ofs = Vector3::new();
+        let mut cp = Vector3::default();
+        let mut ring_ofs = Vector3::default();
         let torus_rad = 5.;
         let ring_rad = 0.7;
         let mut display_list = DisplayList::new(3);
