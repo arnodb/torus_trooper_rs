@@ -201,7 +201,7 @@ pub enum Shape {
     Rocket = 3,
 }
 
-pub const SHAPES: [Shape; 4] = [Shape::Square, Shape::Wing, Shape::Triangle, Shape::Rocket];
+pub const SHIP_SHAPES: [Shape; 3] = [Shape::Square, Shape::Wing, Shape::Triangle];
 
 pub const COLOR_RGB: [[f32; 3]; 8] = [
     [1., 1., 1.],

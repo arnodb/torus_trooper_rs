@@ -52,7 +52,7 @@ impl ShipShape {
         let sd1 = rand.gen_f32(1.) * std::f32::consts::PI / 3. + std::f32::consts::PI / 4.;
         let sd2 = rand.gen_f32(1.) * std::f32::consts::PI / 10.;
         let cl = rand.gen_usize(structure::COLOR_RGB.len() - 2) + 2;
-        let shp = structure::SHAPES[rand.gen_usize(structure::SHAPES.len())];
+        let shp = structure::SHIP_SHAPES[rand.gen_usize(structure::SHIP_SHAPES.len())];
         let mut rocket_x = vec![];
         let mut structure = vec![];
         match shaft_num {
@@ -140,12 +140,12 @@ impl ShipShape {
         let sd1 = rand.gen_f32(1.) * std::f32::consts::PI / 3. + std::f32::consts::PI / 4.;
         let sd2 = rand.gen_f32(1.) * std::f32::consts::PI / 10.;
         let cl = rand.gen_usize(structure::COLOR_RGB.len() - 2) + 2;
-        let shp = structure::SHAPES[rand.gen_usize(structure::SHAPES.len())];
+        let shp = structure::SHIP_SHAPES[rand.gen_usize(structure::SHIP_SHAPES.len())];
         let mut rocket_x = vec![];
         let mut structure = vec![];
         match shaft_num {
             3 => {
-                let cshp = structure::SHAPES[rand.gen_usize(structure::SHAPES.len())];
+                let cshp = structure::SHIP_SHAPES[rand.gen_usize(structure::SHIP_SHAPES.len())];
                 structure.extend(ShipShape::create_shaft(
                     &mut rand,
                     0.,
@@ -301,12 +301,12 @@ impl ShipShape {
         let sd1 = rand.gen_f32(1.) * std::f32::consts::PI / 3. + std::f32::consts::PI / 4.;
         let sd2 = rand.gen_f32(1.) * std::f32::consts::PI / 10.;
         let cl = rand.gen_usize(structure::COLOR_RGB.len() - 2) + 2;
-        let shp = structure::SHAPES[rand.gen_usize(structure::SHAPES.len())];
+        let shp = structure::SHIP_SHAPES[rand.gen_usize(structure::SHIP_SHAPES.len())];
         let mut rocket_x = vec![];
         let mut structure = vec![];
         match shaft_num {
             5 => {
-                let cshp = structure::SHAPES[rand.gen_usize(structure::SHAPES.len())];
+                let cshp = structure::SHIP_SHAPES[rand.gen_usize(structure::SHIP_SHAPES.len())];
                 structure.extend(ShipShape::create_shaft(
                     &mut rand,
                     0.,
