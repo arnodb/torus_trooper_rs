@@ -126,8 +126,8 @@ impl StageManager {
         self.tunnel_color_line_idx = TUNNEL_COLOR_PATTERN_LINE.len() + level as usize - 2;
         self.slice_draw_state = SliceDrawState {
             dark_line_ratio: 1.,
-            poly: TUNNEL_COLOR_PATTERN_POLY[self.tunnel_color_poly_idx],
-            line: TUNNEL_COLOR_PATTERN_POLY[self.tunnel_color_line_idx],
+            poly: TUNNEL_COLOR_PATTERN_POLY[self.tunnel_color_poly_idx % TUNNEL_COLOR_PATTERN_POLY.len()],
+            line: TUNNEL_COLOR_PATTERN_LINE[self.tunnel_color_line_idx % TUNNEL_COLOR_PATTERN_LINE.len()],
         };
         self.create_next_zone();
     }
