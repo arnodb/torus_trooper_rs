@@ -11,6 +11,7 @@ use crate::tt::pad::{Pad, PadButtons, PadDirection};
 use crate::tt::screen::Screen;
 use crate::tt::shape::ship_shape::ShipShape;
 use crate::tt::shape::Drawable;
+use crate::tt::state::in_game::ScoreAccumulator;
 use crate::tt::tunnel::{Tunnel, DEFAULT_RAD};
 use crate::tt::DrawParams;
 
@@ -82,12 +83,6 @@ pub struct Ship {
     screen_shake_intense: f32,
 
     btn_pressed: bool,
-}
-
-#[derive(PartialEq, Eq, Debug)]
-pub enum ShipMoveAction {
-    None,
-    AddScore(u32),
 }
 
 impl Ship {
@@ -183,7 +178,8 @@ impl Ship {
         camera: &mut Camera,
         tunnel: &mut Tunnel,
         shots: &mut ShotPool,
-    ) -> ShipMoveAction {
+        score_accumulator: &mut ScoreAccumulator
+    ) {
         self.cnt += 1;
         let (mut btn, mut dir) = if !self.replay_mode {
             // TODO pad.record();
@@ -241,7 +237,7 @@ impl Ship {
         self.tunnel_ofs += self.speed;
         let tmv = self.tunnel_ofs as usize;
         tunnel.go_to_next_slice(tmv);
-        let action = ShipMoveAction::AddScore(tmv as u32);
+        score_accumulator.add_score(tmv as u32);
         self.tunnel_ofs = self.pos.y - f32::floor(self.pos.y);
         if self.pos.y >= tunnel.get_torus_length() as f32 {
             self.pos.y -= tunnel.get_torus_length() as f32;
@@ -443,7 +439,6 @@ impl Ship {
         if self.replay_mode {
             camera.mov(self);
         }
-        action
     }
 
     pub fn set_eye_pos(&mut self, screen: &Screen, camera: &Camera, tunnel: &Tunnel) {

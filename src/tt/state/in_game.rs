@@ -7,7 +7,7 @@ use crate::tt::letter::Direction;
 use crate::tt::manager::stage::StageManager;
 use crate::tt::manager::MoveAction;
 use crate::tt::pad::PadButtons;
-use crate::tt::ship::{Ship, ShipMoveAction};
+use crate::tt::ship::Ship;
 use crate::tt::{DrawParams, MoveParams, StartParams};
 
 use super::State;
@@ -192,10 +192,13 @@ impl<'a> State for InGameState<'a> {
             SoundManager.nextBgm();
         }
         */
-        let ship_action = ship.mov(pad, params.camera, params.tunnel, params.shots);
-        if let ShipMoveAction::AddScore(sc) = ship_action {
+        let mut score_accumulator = ScoreAccumulator {
+            score: 0,
+        };
+        ship.mov(pad, params.camera, params.tunnel, params.shots, &mut score_accumulator);
+        if score_accumulator.score > 0 {
             if !ship.is_game_over() {
-                self.score += sc;
+                self.score += score_accumulator.score;
                 while self.score > self.next_extend {
                     self.set_next_extend(params.stage_manager.level());
                     self.extend_ship();
@@ -300,5 +303,15 @@ impl<'a> State for InGameState<'a> {
         if self.pause_cnt > 0 && (self.pause_cnt % 64) < 32 {
             letter.draw_string("PAUSE", 240., 185., 17.);
         }
+    }
+}
+
+pub struct ScoreAccumulator {
+    score: u32,
+}
+
+impl ScoreAccumulator {
+    pub fn add_score(&mut self, score: u32) {
+        self.score += score;
     }
 }
