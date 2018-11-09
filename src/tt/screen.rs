@@ -1,6 +1,9 @@
+#[cfg(feature = "glutin_backend")]
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::OpenGL;
-use piston::window::WindowSettings;
+use piston::window::{OpenGLWindow, WindowSettings};
+#[cfg(feature = "sdl_backend")]
+use sdl2_window::Sdl2Window as Window;
 
 use crate::gl;
 
@@ -53,15 +56,13 @@ impl Screen {
 
     pub fn init_opengl(&mut self) -> Result<(), GameError> {
         let opengl = OpenGL::V2_1;
-        let window: Window = WindowSettings::new("Torus Trooper", [self.width, self.height])
+        let mut window: Window = WindowSettings::new("Torus Trooper", [self.width, self.height])
             .opengl(opengl)
             .vsync(true)
             .exit_on_esc(false)
             .build()?;
-        let gl_window = &window.window;
-        use glutin::GlContext;
 
-        gl::load_with(|symbol| gl_window.get_proc_address(symbol) as *const _);
+        gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
         self.window = Some(window);
 
         self.resized(self.width, self.height);
