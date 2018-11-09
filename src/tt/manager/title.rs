@@ -58,6 +58,7 @@ impl TitleManager {
             if dir & (PadDirection::RIGHT | PadDirection::LEFT) != PadDirection::NONE {
                 if !self.dir_pressed {
                     self.dir_pressed = true;
+                    let old_max_level = pref_manager.max_level(self.grade);
                     if dir & PadDirection::RIGHT != PadDirection::NONE {
                         self.grade = (self.grade + 1) % ship::GRADE_NUM as u32;
                     }
@@ -66,7 +67,7 @@ impl TitleManager {
                             (self.grade + ship::GRADE_NUM as u32 - 1) % ship::GRADE_NUM as u32;
                     }
                     let max_level = pref_manager.max_level(self.grade);
-                    if self.level > max_level {
+                    if self.level == old_max_level || self.level > max_level {
                         self.level = max_level;
                     }
                 }
