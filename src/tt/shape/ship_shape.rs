@@ -15,36 +15,11 @@ pub struct ShipShape {
     rocket_x: Vec<f32>,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum ShipType {
-    Small,
-    Medium,
-    Large,
-}
-
 impl ShipShape {
-    pub fn new(ship_type: ShipType, damaged: bool, screen: &Screen, seed: u64) -> Self {
-        match ship_type {
-            ShipType::Small => ShipShape::create_small_type(Rand::new(seed), damaged, screen),
-            ShipType::Medium => ShipShape::create_medium_type(Rand::new(seed), damaged, screen),
-            ShipType::Large => ShipShape::create_large_type(Rand::new(seed), damaged, screen),
-        }
-    }
-
-    fn create_display_list(structure: &Vec<Structure>, screen: &Screen) -> DisplayList {
-        let mut display_list = DisplayList::new(1);
-        display_list.new_list();
-        for st in structure {
-            st.create_display_list(screen);
-        }
-        display_list.end_list();
-        display_list
-    }
-
-    fn create_small_type(mut rand: Rand, damaged: bool, screen: &Screen) -> ShipShape {
+    pub fn new_small(damaged: bool, screen: &Screen, seed: u64) -> Self {
+        let mut rand = Rand::new(seed);
         let mut collision = Vector::default();
         let shaft_num = 1 + rand.gen_usize(2);
-        println!("{}", shaft_num);
         let sx = (0.25 + rand.gen_f32(0.1)) * 1.5;
         let so = (0.5 + rand.gen_f32(0.3)) * 1.5;
         let sl = (0.7 + rand.gen_f32(0.9)) * 1.5;
@@ -130,7 +105,8 @@ impl ShipShape {
         }
     }
 
-    fn create_medium_type(mut rand: Rand, damaged: bool, screen: &Screen) -> ShipShape {
+    pub fn new_medium(damaged: bool, screen: &Screen, seed: u64) -> Self {
+        let mut rand = Rand::new(seed);
         let mut collision = Vector::default();
         let shaft_num = 3 + rand.gen_usize(2);
         let sx = (1.0 + rand.gen_f32(0.7)) * 1.6;
@@ -291,7 +267,8 @@ impl ShipShape {
         }
     }
 
-    fn create_large_type(mut rand: Rand, damaged: bool, screen: &Screen) -> ShipShape {
+    pub fn new_large(damaged: bool, screen: &Screen, seed: u64) -> Self {
+        let mut rand = Rand::new(seed);
         let mut collision = Vector::default();
         let shaft_num = 5 + rand.gen_usize(2);
         let sx = (3.0 + rand.gen_f32(2.2)) * 1.6;
@@ -522,6 +499,16 @@ impl ShipShape {
             display_list,
             rocket_x,
         }
+    }
+
+    fn create_display_list(structure: &Vec<Structure>, screen: &Screen) -> DisplayList {
+        let mut display_list = DisplayList::new(1);
+        display_list.new_list();
+        for st in structure {
+            st.create_display_list(screen);
+        }
+        display_list.end_list();
+        display_list
     }
 
     fn create_shaft(

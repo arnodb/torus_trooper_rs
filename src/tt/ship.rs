@@ -9,7 +9,7 @@ use crate::tt::bullet::BulletTarget;
 use crate::tt::camera::Camera;
 use crate::tt::pad::{Pad, PadButtons, PadDirection};
 use crate::tt::screen::Screen;
-use crate::tt::shape::ship_shape::{ShipShape, ShipType};
+use crate::tt::shape::ship_shape::ShipShape;
 use crate::tt::shape::Drawable;
 use crate::tt::tunnel::{Tunnel, DEFAULT_RAD};
 use crate::tt::DrawParams;
@@ -119,7 +119,7 @@ impl Ship {
             bank_max: BANK_MAX_DEFAULT[0],
             tunnel_ofs: 0.,
             pos3: Vector3::default(),
-            shape: ShipShape::new(ShipType::Small, false, screen, seed),
+            shape: ShipShape::new_small(false, screen, seed),
 
             charging_shot: false,
             regenerative_charge: 0.,
