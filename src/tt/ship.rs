@@ -341,7 +341,9 @@ impl Ship {
 
         if btn & PadButtons::B != PadButtons::NONE {
             if !self.charging_shot {
-                shots.get_charging_instance().set_charge(true);
+                shots.get_charging_instance_and(|shot| {
+                    shot.set_charge(true);
+                });
                 self.charging_shot = true;
             }
         } else {
@@ -352,8 +354,7 @@ impl Ship {
             if btn & PadButtons::A != PadButtons::NONE {
                 if self.fire_cnt <= 0 {
                     self.fire_cnt = FIRE_INTERVAL;
-                    let shot = shots.get_instance();
-                    if let Some(shot) = shot {
+                    shots.get_instance_and(|shot| {
                         if (self.fire_shot_cnt % STAR_SHELL_INTERVAL) == 0 {
                             shot.set_charge_star(false, true);
                         } else {
@@ -364,12 +365,11 @@ impl Ship {
                         self.gunpoint_pos.y = self.rel_pos.y;
                         shot.update(self.gunpoint_pos);
                         self.fire_shot_cnt += 1;
-                    }
+                    });
                 }
                 if self.side_fire_cnt <= 0 {
                     self.side_fire_cnt = 99999;
-                    let shot = shots.get_instance();
-                    if let Some(shot) = shot {
+                    shots.get_instance_and(|shot| {
                         let mut side_fire_deg = (self.speed - SPEED_DEFAULT[self.grade as usize])
                             / (SPEED_MAX[self.grade as usize] - SPEED_DEFAULT[self.grade as usize])
                             * 0.1;
@@ -390,7 +390,7 @@ impl Ship {
                         self.gunpoint_pos.y = self.rel_pos.y;
                         shot.update(self.gunpoint_pos);
                         self.side_fire_shot_cnt += 1;
-                    }
+                    });
                 }
             }
         }
@@ -413,7 +413,9 @@ impl Ship {
         self.rocket_pos.x = self.rel_pos.x - self.bank * 0.1;
         self.rocket_pos.y = self.rel_pos.y;
         if self.charging_shot {
-            shots.get_charging_instance().update(self.rocket_pos);
+            shots.get_charging_instance_and(|shot| {
+                shot.update(self.rocket_pos);
+            });
         }
         /* TODO
         if self.cnt >= -INVINCIBLE_CNT {

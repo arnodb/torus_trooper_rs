@@ -1,9 +1,11 @@
+use std::cell::{Cell, RefCell};
+
 pub mod shot;
 
 pub struct Pool<T, S> {
-    actors: Vec<PoolActor<T, S>>,
+    actors: RefCell<Vec<PoolActor<T, S>>>,
     idx: usize,
-    special_instance_idx: Option<usize>,
+    special_instance_idx: Cell<Option<usize>>,
 }
 
 pub struct PoolActor<T, S> {
@@ -26,82 +28,91 @@ impl<T: Default, S> Pool<T, S> {
             });
         }
         Self {
-            actors,
+            actors: RefCell::new(actors),
             idx: 0,
-            special_instance_idx: None,
+            special_instance_idx: Cell::new(None),
         }
     }
 
-    pub fn get_instance(&mut self, spec: S) -> Option<&mut T> {
-        let len = self.actors.len();
-        let mut idx = self.idx;
+    pub fn get_instance_and<O>(&mut self, spec: S, mut op: O)
+    where
+        O: FnMut(&mut T),
+    {
         let mut found = false;
-        for _ in 0..len {
-            idx = (idx + 1) % len;
-            let pa = &mut self.actors[idx];
-            if let ActorState::NotActing = pa.state {
-                self.idx = idx;
-                found = true;
-                break;
+        let mut idx = self.idx;
+        {
+            let actors = self.actors.borrow();
+            let len = actors.len();
+            for _ in 0..len {
+                idx = (idx + 1) % len;
+                let pa = &actors[idx];
+                if let ActorState::NotActing = pa.state {
+                    self.idx = idx;
+                    found = true;
+                    break;
+                }
             }
         }
         self.idx = idx;
         if found {
-            let pa = &mut self.actors[idx];
+            let pa = &mut self.actors.borrow_mut()[idx];
             pa.state = ActorState::Acting(spec);
-            Some(&mut pa.actor)
-        } else {
-            None
+            op(&mut pa.actor);
         }
     }
 
-    pub fn get_special_instance(&mut self, spec: S) -> &mut T {
-        if let None = self.special_instance_idx {
-            let idx = (self.idx + 1) % self.actors.len();
-            self.idx = idx;
-            self.special_instance_idx = Some(idx);
-            self.actors[idx].state = ActorState::Acting(spec);
-        }
-        &mut self.actors[self.special_instance_idx.unwrap()].actor
-    }
-
-    pub fn release_special_instance(&mut self) {
-        if let Some(idx) = self.special_instance_idx {
-            self.actors[idx].state = ActorState::NotActing;
-            self.special_instance_idx = None;
+    pub fn get_special_instance_and<O>(&mut self, spec: S, op: O)
+    where
+        O: Fn(&mut T) -> bool,
+    {
+        let idx = match self.special_instance_idx.get() {
+            Some(idx) => idx,
+            None => {
+                let idx = (self.idx + 1) % self.actors.borrow().len();
+                self.idx = idx;
+                self.special_instance_idx.set(Some(idx));
+                idx
+            }
+        };
+        let pa = &mut self.actors.borrow_mut()[idx];
+        pa.state = ActorState::Acting(spec);
+        let remove = op(&mut pa.actor);
+        if remove {
+            pa.state = ActorState::NotActing;
+            self.special_instance_idx.set(None);
         }
     }
 
     pub fn clear(&mut self) {
-        self.special_instance_idx = None;
-        for pa in &mut self.actors {
+        self.special_instance_idx.set(None);
+        for pa in self.actors.borrow_mut().iter_mut() {
             pa.state = ActorState::NotActing;
         }
         self.idx = 0;
     }
 
-    pub fn mov<O>(&mut self, op: O)
+    pub fn foreach_mut<O>(&self, mut op: O)
     where
-        O: Fn(&S, &mut T) -> bool,
+        O: FnMut(&S, &mut T) -> bool,
     {
-        for (idx, pool_actor) in &mut self.actors.iter_mut().enumerate() {
+        for (idx, pool_actor) in self.actors.borrow_mut().iter_mut().enumerate() {
             if let ActorState::Acting(spec) = &pool_actor.state {
                 let remove = op(spec, &mut pool_actor.actor);
                 if remove {
                     pool_actor.state = ActorState::NotActing;
-                    if Some(idx) == self.special_instance_idx {
-                        self.special_instance_idx = None;
+                    if Some(idx) == self.special_instance_idx.get() {
+                        self.special_instance_idx.set(None);
                     }
                 }
             }
         }
     }
 
-    pub fn draw<O>(&self, op: O)
+    pub fn foreach<O>(&self, op: O)
     where
         O: Fn(&S, &T),
     {
-        for pool_actor in &self.actors {
+        for pool_actor in self.actors.borrow().iter() {
             if let ActorState::Acting(spec) = &pool_actor.state {
                 op(spec, &pool_actor.actor);
             }

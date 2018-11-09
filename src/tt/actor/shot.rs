@@ -166,19 +166,31 @@ impl ShotPool {
         }
     }
 
-    pub fn get_instance(&mut self) -> Option<&mut Shot> {
-        self.pool.get_instance(ShotSpec::Normal)
+    pub fn get_instance_and<O>(&mut self, op: O)
+    where
+        O: FnMut(&mut Shot),
+    {
+        self.pool.get_instance_and(ShotSpec::Normal, op)
     }
 
-    pub fn get_charging_instance(&mut self) -> &mut Shot {
-        self.pool.get_special_instance(ShotSpec::Charge)
+    pub fn get_charging_instance_and<O>(&mut self, op: O)
+    where
+        O: Fn(&mut Shot),
+    {
+        self.pool.get_special_instance_and(ShotSpec::Charge, |shot| {
+            op(shot);
+            false
+        })
     }
 
     pub fn release_charging_instance(&mut self) {
-        let charging_shot = self.get_charging_instance();
-        if charging_shot.release() {
-            self.pool.release_special_instance();
-        }
+        self.pool.get_special_instance_and(ShotSpec::Charge, |shot| {
+            if shot.release() {
+                true
+            } else {
+                false
+            }
+        });
     }
 
     pub fn clear(&mut self) {
@@ -186,14 +198,14 @@ impl ShotPool {
     }
 
     pub fn mov(&mut self) {
-        self.pool.mov(|spec, shot| match spec {
+        self.pool.foreach_mut(|spec, shot| match spec {
             ShotSpec::Normal => shot.mov(false),
             ShotSpec::Charge => shot.mov(true),
         });
     }
 
     pub fn draw(&self, tunnel: &Tunnel) {
-        self.pool.draw(|spec, shot| match spec {
+        self.pool.foreach(|spec, shot| match spec {
             ShotSpec::Normal => shot.draw(&self.shot_shape, tunnel),
             ShotSpec::Charge => shot.draw(&self.charge_shot_shape, tunnel),
         });
