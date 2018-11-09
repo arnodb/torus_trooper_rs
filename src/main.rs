@@ -166,6 +166,10 @@ impl MainLoop {
                 pad.handle_button_event(&b);
             }
 
+            if let Some(f) = e.focus_args() {
+                pad.handle_focus_event(f);
+            }
+
             if self.done {
                 break;
             }

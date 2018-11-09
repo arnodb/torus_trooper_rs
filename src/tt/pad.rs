@@ -5,6 +5,7 @@ use piston::input::{Button, ButtonArgs, ButtonState};
 
 pub trait Pad {
     fn handle_button_event(&mut self, button_args: &ButtonArgs);
+    fn handle_focus_event(&mut self, focus: bool);
     fn get_direction(&self) -> PadDirection;
     fn get_buttons(&self) -> PadButtons;
     fn pause_pressed(&self) -> bool;
@@ -115,6 +116,14 @@ impl Pad for GamePad {
                     self.keys.remove(&key);
                 }
             }
+            self.direction = self.calc_direction();
+            self.buttons = self.calc_buttons();
+        }
+    }
+
+    fn handle_focus_event(&mut self, focus: bool) {
+        if !focus {
+            self.keys.clear();
             self.direction = self.calc_direction();
             self.buttons = self.calc_buttons();
         }
