@@ -5,7 +5,7 @@ use crate::glu;
 
 use crate::util::display_list::DisplayList;
 use crate::util::texture::Texture;
-use crate::util::vector::Vector3;
+use crate::util::vector::{Vector, Vector3};
 
 use crate::tt::errors::GameError;
 use crate::tt::manager::MoveAction;
@@ -307,17 +307,17 @@ impl TitleManager {
         display_list
     }
 
-    fn calc_cursor_pos(gd: usize, lv: u32) -> CursorPos {
+    fn calc_cursor_pos(gd: usize, lv: u32) -> Vector {
         let mut x = 460. + gd as f32 * 70.;
         let mut y = 90.;
         if lv > 1 {
             y += 30. + lv as f32;
             x -= lv as f32 * 0.33;
         }
-        CursorPos { x, y }
+        Vector::new_at(x, y)
     }
 
-    fn draw_cursor_ring(&self, pos: &CursorPos, s: f32) {
+    fn draw_cursor_ring(&self, pos: Vector, s: f32) {
         unsafe {
             gl::PushMatrix();
             gl::Translatef(pos.x, pos.y, 0.);
@@ -344,11 +344,6 @@ impl TitleManager {
         ring_ofs.roll_z(-d1);
         *ring_ofs += *center_pos;
     }
-}
-
-struct CursorPos {
-    x: f32,
-    y: f32,
 }
 
 impl Manager for TitleManager {
@@ -463,7 +458,7 @@ impl Manager for TitleManager {
                 gl::LineWidth(2.);
             }
             let cursor_pos = TitleManager::calc_cursor_pos(i, 1);
-            self.draw_cursor_ring(&cursor_pos, 15.);
+            self.draw_cursor_ring(cursor_pos, 15.);
             letter.draw_string(
                 ship::GRADE_LETTER[i],
                 cursor_pos.x - 4.,
@@ -476,7 +471,7 @@ impl Manager for TitleManager {
             let ml = pref_manager.max_level(i as u32);
             if ml > 1 {
                 let e_cursor_pos = TitleManager::calc_cursor_pos(i, ml);
-                self.draw_cursor_ring(&e_cursor_pos, 15.);
+                self.draw_cursor_ring(e_cursor_pos, 15.);
                 letter.draw_num(ml as usize, e_cursor_pos.x + 7., e_cursor_pos.y - 8., 6.);
                 let l2_cursor_pos = TitleManager::calc_cursor_pos(i, 2);
                 unsafe {
@@ -503,6 +498,6 @@ impl Manager for TitleManager {
         letter.draw_num(gd.end_level as usize, 453., 54., 5.);
         letter.draw_string("-", 423., 54., 5.);
         let cursor_pos = TitleManager::calc_cursor_pos(self.grade as usize, self.level);
-        self.draw_cursor_ring(&cursor_pos, 18. + f32::sin(self.cnt as f32 * 0.1) * 3.);
+        self.draw_cursor_ring(cursor_pos, 18. + f32::sin(self.cnt as f32 * 0.1) * 3.);
     }
 }
