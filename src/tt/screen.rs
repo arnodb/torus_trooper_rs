@@ -77,8 +77,9 @@ impl Screen {
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::LoadIdentity();
             //gluPerspective(45.0f, cast(GLfloat) width / cast(GLfloat) height, nearPlane, farPlane);
+            let ratio_threshold = 480. / 640.;
             let screen_ratio = self.height as f32 / self.width as f32;
-            if screen_ratio >= 480. / 640. {
+            if screen_ratio >= ratio_threshold {
                 gl::Frustum(
                     -self.near_plane as f64,
                     self.near_plane as f64,
@@ -88,11 +89,13 @@ impl Screen {
                     self.far_plane as f64,
                 );
             } else {
+                // This allows to see at least what can be seen horizontally and vertically
+                // with the default ratio -- arnodb
                 gl::Frustum(
-                    (-self.near_plane / screen_ratio) as f64,
-                    (self.near_plane / screen_ratio) as f64,
-                    -self.near_plane as f64,
-                    self.near_plane as f64,
+                    (-self.near_plane * ratio_threshold / screen_ratio) as f64,
+                    (self.near_plane * ratio_threshold / screen_ratio) as f64,
+                    (-self.near_plane * ratio_threshold) as f64,
+                    (self.near_plane * ratio_threshold) as f64,
                     0.1,
                     self.far_plane as f64,
                 );

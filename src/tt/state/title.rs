@@ -92,8 +92,9 @@ impl State for TitleState {
             gl::Viewport(0, 0, screen.width() as i32, screen.height() as i32);
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::LoadIdentity();
+            let ratio_threshold = 480. / 640.;
             let screen_ratio = screen.height() as f32 / screen.width() as f32;
-            if screen_ratio >= 480. / 640. {
+            if screen_ratio >= ratio_threshold {
                 gl::Frustum(
                     -screen.near_plane() as f64,
                     screen.near_plane() as f64,
@@ -103,11 +104,13 @@ impl State for TitleState {
                     screen.far_plane() as f64,
                 );
             } else {
+                // This allows to see at least what can be seen horizontally and vertically
+                // with the default ratio -- arnodb
                 gl::Frustum(
-                    (-screen.near_plane() / screen_ratio) as f64,
-                    (screen.near_plane() / screen_ratio) as f64,
-                    -screen.near_plane() as f64,
-                    screen.near_plane() as f64,
+                    (-screen.near_plane() * ratio_threshold / screen_ratio) as f64,
+                    (screen.near_plane() * ratio_threshold / screen_ratio) as f64,
+                    (-screen.near_plane() * ratio_threshold) as f64,
+                    (screen.near_plane() * ratio_threshold) as f64,
                     0.1,
                     screen.far_plane() as f64,
                 );
