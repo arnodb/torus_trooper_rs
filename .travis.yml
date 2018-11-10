@@ -1,1 +1,11 @@
 language: rust
+matrix:
+  include:
+    - rust: stable
+    - rust: stable
+      env: FEATURES='-no-default-features --features sdl_backend'
+    - rust: beta
+    - rust: nightly
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
