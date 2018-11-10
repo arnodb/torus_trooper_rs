@@ -138,11 +138,13 @@ impl Vector {
     */
 }
 
-/* TODO
-impl std::ops::Mul for Vector {
-    type Output = f32;
-    fn mul(self, rhs: Vector) -> f32 {
-        self.x * rhs.x + self.y * rhs.y
+impl std::ops::Add for Vector {
+    type Output = Vector;
+    fn add(self, rhs: Vector) -> Vector {
+        Vector {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
     }
 }
 
@@ -153,6 +155,24 @@ impl std::ops::AddAssign for Vector {
     }
 }
 
+impl std::ops::Mul<f32> for Vector {
+    type Output = Vector;
+    fn mul(self, rhs: f32) -> Vector {
+        Vector {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
+impl std::ops::MulAssign<f32> for Vector {
+    fn mul_assign(&mut self, rhs: f32) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}
+
+/* TODO
 impl std::ops::SubAssign for Vector {
     fn sub_assign(&mut self, rhs: Vector) {
         self.x -= rhs.x;

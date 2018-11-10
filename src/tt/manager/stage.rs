@@ -1,6 +1,12 @@
 use crate::util::rand::Rand;
 
+use crate::tt::actor::enemy::{Enemy, EnemyPool};
+use crate::tt::actor::enemy::ship_spec::ShipSpec;
+use crate::tt::screen::Screen;
+use crate::tt::ship::{self, Ship};
 use crate::tt::tunnel::{SliceColor, SliceDrawState, Torus, Tunnel};
+
+const BOSS_APP_RANK: [u32; ship::GRADE_NUM] = [100, 160, 250];
 
 const LEVEL_UP_RATIO: f32 = 0.5;
 
@@ -84,9 +90,15 @@ const TUNNEL_COLOR_PATTERN_LINE: [SliceColor; 7] = [
 
 pub struct StageManager {
     rand: Rand,
+    next_small_app_dist: f32,
+    next_medium_app_dist: f32,
+    next_boss_app_dist: f32,
+    boss_num: u32,
+    zone_end_rank: u32,
     level: f32,
     grade: u32,
-    middle_boss_zone: bool,
+    boss_mode_end_cnt: i32,
+    medium_boss_zone: bool,
     tunnel_color_poly_idx: usize,
     tunnel_color_line_idx: usize,
     tunnel_color_change_cnt: u32,
@@ -100,9 +112,15 @@ impl StageManager {
         let tunnel_color_line_idx = TUNNEL_COLOR_PATTERN_LINE.len() - 2;
         StageManager {
             rand: Rand::new(seed),
+            next_small_app_dist: 0.,
+            next_medium_app_dist: 0.,
+            next_boss_app_dist: 0.,
+            boss_num: 0,
+            zone_end_rank: 0,
             level: 1.,
             grade: 0,
-            middle_boss_zone: false,
+            boss_mode_end_cnt: 0,
+            medium_boss_zone: false,
             tunnel_color_poly_idx,
             tunnel_color_line_idx,
             tunnel_color_change_cnt: TUNNEL_COLOR_CHANGE_INTERVAL,
@@ -115,12 +133,13 @@ impl StageManager {
         }
     }
 
-    pub fn start(&mut self, level: f32, grade: u32, seed: u64, tunnel: &mut Tunnel) {
+    pub fn start(&mut self, level: f32, grade: u32, seed: u64, screen: &Screen, tunnel: &mut Tunnel, ship: &mut Ship, enemies: &mut EnemyPool) {
         self.rand.set_seed(seed);
         tunnel.start(Torus::new(seed));
         self.level = level - LEVEL_UP_RATIO;
         self.grade = grade;
-        self.middle_boss_zone = false;
+        self.zone_end_rank = 0;
+        self.medium_boss_zone = false;
         self.dark_line = true;
         self.tunnel_color_poly_idx = TUNNEL_COLOR_PATTERN_POLY.len() + level as usize - 2;
         self.tunnel_color_line_idx = TUNNEL_COLOR_PATTERN_LINE.len() + level as usize - 2;
@@ -129,73 +148,91 @@ impl StageManager {
             poly: TUNNEL_COLOR_PATTERN_POLY[self.tunnel_color_poly_idx % TUNNEL_COLOR_PATTERN_POLY.len()],
             line: TUNNEL_COLOR_PATTERN_LINE[self.tunnel_color_line_idx % TUNNEL_COLOR_PATTERN_LINE.len()],
         };
-        self.create_next_zone();
+        self.create_next_zone(screen, ship, enemies);
     }
 
-    fn create_next_zone(&mut self) {
+    fn create_next_zone(&mut self, screen: &Screen, ship: &mut Ship, enemies: &mut EnemyPool) {
         self.level += LEVEL_UP_RATIO;
-        self.middle_boss_zone = !self.middle_boss_zone;
+        self.medium_boss_zone = !self.medium_boss_zone;
         if self.dark_line {
             self.tunnel_color_poly_idx += 1;
             self.tunnel_color_line_idx += 1;
         }
         self.dark_line = !self.dark_line;
         self.tunnel_color_change_cnt = TUNNEL_COLOR_CHANGE_INTERVAL;
-        /*
         enemies.clear();
-        self.close_ship_spec();
-        smallShipSpec = null;
-        for (int
-        i = 0;
-        i < 2 + rand.nextInt(2);
-        i + +) {
-            ShipSpec ss = new ShipSpec;
-            ss.createSmall(rand, _level * 1.8f, grade);
-            smallShipSpec ~ = ss;
-        }
-        middleShipSpec = null;
-        for (int
-        i = 0;
-        i < 2 + rand.nextInt(2);
-        i + +) {
-            ShipSpec ss = new ShipSpec;
-            ss.createMiddle(rand, _level * 1.9f);
-            middleShipSpec ~ = ss;
-        }
-        nextSmallAppDist = nextMiddleAppDist = 0;
-        setNextSmallAppDist();
-        setNextMiddleAppDist();
-        bossShipSpec = null;
-        if (_middleBossZone && _level > 5 && rand.nextInt(3) != 0) {
-            bossNum = 1 + rand.nextInt(cast(int) sqrt(_level / 5) + 1);
-            if (bossNum > 4)
-            bossNum = 4;
+        self.next_small_app_dist = 0.;
+        self.next_medium_app_dist = 0.;
+        self.set_next_small_app_dist();
+        self.set_next_medium_app_dist();
+        if self.medium_boss_zone && self.level > 5. && self.rand.gen_usize(3) != 0 {
+            self.boss_num = 1 + self.rand.gen_usize(f32::sqrt(self.level / 5.) as usize + 1) as u32;
+            if self.boss_num > 4 {
+                self.boss_num = 4;
+            }
         } else {
-            bossNum = 1;
+            self.boss_num = 1;
         }
-        for (int
-        i = 0;
-        i < bossNum;
-        i + +) {
-            ShipSpec ss = new ShipSpec;
-            float lv = _level * 2.0f / bossNum;
-            if (_middleBossZone)
-            lv *= 1.33f;
-            ss.createBoss(rand, lv,
-                          0.8 + grade * 0.04 + rand.nextFloat(0.03), _middleBossZone);
-            bossShipSpec ~ = ss;
-        }
-        bossAppRank = BOSS_APP_RANK[grade] - bossNum + zoneEndRank;
-        zoneEndRank += BOSS_APP_RANK[grade];
-        ship.setBossApp(bossAppRank, bossNum, zoneEndRank);
-        bossSpecIdx = 0;
-        nextBossAppDist = 9999999;
-        bossModeEndCnt = -1;
-        */
+        enemies.renew_ship_specs(self.level, self.grade, self.medium_boss_zone, self.boss_num, screen);
+        let boss_app_rank = BOSS_APP_RANK[self.grade as usize] - self.boss_num + self.zone_end_rank;
+        self.zone_end_rank += BOSS_APP_RANK[self.grade as usize];
+        ship.set_boss_app(boss_app_rank, self.boss_num, self.zone_end_rank);
+        self.next_boss_app_dist = 9999999.;
+        self.boss_mode_end_cnt = -1;
     }
 
-    pub fn mov(&mut self) {
-        // TODO
+    pub fn mov(&mut self, screen: &Screen, tunnel: &Tunnel, ship: &mut Ship, enemies: &mut EnemyPool) {
+        if ship.in_boss_mode() {
+            if self.next_boss_app_dist > 99999. {
+                self.next_boss_app_dist = (self.rand.gen_usize(50) + 100) as f32;
+                self.next_small_app_dist = 9999999.;
+                self.next_medium_app_dist = 9999999.;
+            }
+            self.next_boss_app_dist -= ship.speed();
+            if self.boss_num > 0 && self.next_boss_app_dist <= 0. {
+                enemies.get_boss_instance_and(|enemy, spec| {
+                    self.add_enemy(ship::IN_SIGHT_DEPTH_DEFAULT * 4., enemy, spec, tunnel);
+                });
+                self.boss_num -= 1;
+                self.next_boss_app_dist = (self.rand.gen_usize(30) + 60) as f32;
+            }
+            if self.boss_num <= 0 && enemies.get_num() <= 0 {
+                ship.goto_next_zone_forced();
+            }
+            return;
+        } else {
+            if self.next_boss_app_dist < 99999. {
+                // Player's ship destroyed or overtook all bosses.
+                self.boss_mode_end_cnt = 60;
+                self.next_small_app_dist = 9999999.;
+                self.next_medium_app_dist = 9999999.;
+                self.next_boss_app_dist = 9999999.;
+            }
+            if self.boss_mode_end_cnt >= 0 {
+                self.boss_mode_end_cnt -= 1;
+                // TODO ship.clearVisibleBullets();
+                if self.boss_mode_end_cnt < 0 {
+                    self.create_next_zone(screen, ship, enemies);
+                    ship.start_next_zone();
+                }
+            }
+        }
+        self.next_small_app_dist -= ship.speed();
+        if self.next_small_app_dist <= 0. {
+            let y = ship::IN_SIGHT_DEPTH_DEFAULT * (4. + self.rand.gen_f32(0.5));
+            enemies.get_small_instance_and(|enemy, spec| {
+                self.add_enemy(y, enemy, spec, tunnel);
+            });
+            self.set_next_small_app_dist();
+        }
+        self.next_medium_app_dist -= ship.speed();
+        if self.next_medium_app_dist <= 0. {
+            let y = ship::IN_SIGHT_DEPTH_DEFAULT * (4. + self.rand.gen_f32(0.5));
+            enemies.get_medium_instance_and(|enemy, spec| {
+                self.add_enemy(y, enemy, spec, tunnel);
+            });
+            self.set_next_medium_app_dist();
+        }
         if self.tunnel_color_change_cnt > 0 {
             self.tunnel_color_change_cnt -= 1;
             if self.dark_line {
@@ -230,12 +267,41 @@ impl StageManager {
         }
     }
 
+    pub fn set_next_small_app_dist(&mut self) {
+        self.next_small_app_dist += (self.rand.gen_usize(16) + 6) as f32;
+    }
+
+    pub fn set_next_medium_app_dist(&mut self) {
+        self.next_medium_app_dist += (self.rand.gen_usize(200) + 33) as f32;
+    }
+
+    fn add_enemy(&mut self, y: f32, enemy: &mut Enemy, spec: &ShipSpec, tunnel: &Tunnel) {
+        let sl = tunnel.get_slice(y);
+        let mut x = if sl.is_nearly_round() {
+            self.rand.gen_f32(std::f32::consts::PI)
+        } else {
+            let ld = sl.get_left_edge_deg();
+            let rd = sl.get_right_edge_deg();
+            let mut wd = rd - ld;
+            if wd < 0. {
+                wd += std::f32::consts::PI * 2.;
+            }
+            ld + self.rand.gen_f32(wd)
+        };
+        if x < 0. {
+            x += std::f32::consts::PI * 2.;
+        } else if x >= std::f32::consts::PI * 2. {
+            x -= std::f32::consts::PI * 2.;
+        }
+        enemy.set(spec, x, y, &mut self.rand);
+    }
+
     pub fn level(&self) -> f32 {
         self.level
     }
 
-    pub fn middle_boss_zone(&self) -> bool {
-        self.middle_boss_zone
+    pub fn medium_boss_zone(&self) -> bool {
+        self.medium_boss_zone
     }
 
     pub fn slice_draw_state(&self) -> &SliceDrawState {

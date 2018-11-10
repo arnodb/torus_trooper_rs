@@ -5,7 +5,7 @@ use crate::util::vector::Vector;
 // FIXME we are in util!
 use crate::tt::screen::Screen;
 
-use super::Drawable;
+use super::{Collidable, Drawable};
 
 const COLOR_RGB: [f32; 3] = [0.8, 1., 0.7];
 
@@ -76,5 +76,11 @@ impl ShotShape {
 impl Drawable for ShotShape {
     fn draw(&self) {
         self.display_list.call(0);
+    }
+}
+
+impl Collidable for ShotShape {
+    fn collision(&self) -> Vector {
+        self.collision
     }
 }

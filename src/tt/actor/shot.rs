@@ -4,9 +4,12 @@ use crate::tt::actor::Pool;
 use crate::tt::screen::Screen;
 use crate::tt::shape::shot_shape::ShotShape;
 use crate::tt::shape::ResizableDrawable;
-use crate::tt::ship;
+use crate::tt::ship::{self, Ship};
+use crate::tt::state::in_game::ScoreAccumulator;
 use crate::tt::tunnel::Tunnel;
 use crate::util::vector::Vector;
+
+use super::enemy::EnemyPool;
 
 const SPEED: f32 = 0.75;
 
@@ -20,6 +23,8 @@ const MAX_CHARGE: u32 = 90;
 
 const CHARGE_RELEASE_RATIO: f32 = 0.25;
 
+const MAX_MULTIPLIER: u32 = 100;
+
 #[derive(Default)]
 pub struct Shot {
     pos: Vector,
@@ -32,7 +37,8 @@ pub struct Shot {
     in_charge: bool,
     star_shell: bool,
     shape: ResizableDrawable,
-    damage: u32,
+    multiplier: u32,
+    damage: i32,
     deg: f32,
 }
 
@@ -51,6 +57,7 @@ impl Shot {
 
     pub fn set_charge_star_deg(&mut self, charge: bool, star: bool, d: f32) {
         self.cnt = 0;
+        self.multiplier = 1;
         self.in_charge = charge;
         self.charge_cnt = 0;
         self.charge_se_cnt = 0;
@@ -86,7 +93,7 @@ impl Shot {
         return false;
     }
 
-    fn mov(&mut self, charge_shot: bool) -> bool {
+    fn mov(&mut self, charge_shot: bool, shape: &ShotShape, tunnel: &Tunnel, ship: &mut Ship, enemies: &mut EnemyPool, score_accumulator: &mut ScoreAccumulator) -> bool {
         let mut remove = false;
         if self.in_charge {
             if self.charge_cnt < MAX_CHARGE {
@@ -113,7 +120,10 @@ impl Shot {
             if charge_shot {
                 // TODO bullets.checkShotHit(pos, shape, this);
             }
-            // TODO enemies.checkShotHit(pos, shape, this);
+            let hit_remove = enemies.check_shot_hit(self.pos, shape, self, charge_shot, tunnel, ship, score_accumulator);
+            if hit_remove {
+                remove = true;
+            }
         }
         if self.star_shell || self.charge_cnt as f32 > MAX_CHARGE as f32 * CHARGE_RELEASE_RATIO {
             let pn = if charge_shot { 3 } else { 1 };
@@ -127,6 +137,33 @@ impl Shot {
         }
         self.cnt += 1;
         remove
+    }
+
+    pub fn add_score(&mut self, charge_shot: bool, sc: u32, pos: Vector, score_accumulator: &mut ScoreAccumulator) -> bool {
+        score_accumulator.add_score(sc * self.multiplier);
+        /* TODO
+        if (multiplier > 1) {
+            FloatLetter fl = floatLetters.getInstanceForced();
+            float size = 0.07;
+            if (sc >= 100)
+            size = 0.2;
+            else if (sc >= 500)
+            size = 0.4;
+            else if (sc >= 2000)
+            size = 0.7;
+            size *= (1 + multiplier * 0.01f);
+            fl.set("X" ~ std.string.toString(multiplier), pos, size * pos.y,
+            cast(int) (30 + multiplier * 0.3f));
+        }
+        */
+        if charge_shot {
+            if self.multiplier < MAX_MULTIPLIER {
+                self.multiplier += 1;
+            }
+            false
+        } else {
+            true
+        }
     }
 
     fn draw(&self, shape: &ShotShape, tunnel: &Tunnel) {
@@ -144,6 +181,8 @@ impl Shot {
             gl::PopMatrix();
         }
     }
+
+    pub fn damage(&self) -> i32 { self.damage }
 }
 
 pub struct ShotPool {
@@ -197,10 +236,10 @@ impl ShotPool {
         self.pool.clear();
     }
 
-    pub fn mov(&mut self) {
+    pub fn mov(&mut self, tunnel: &Tunnel, ship: &mut Ship, enemies: &mut EnemyPool, score_accumulator: &mut ScoreAccumulator) {
         self.pool.foreach_mut(|spec, shot| match spec {
-            ShotSpec::Normal => shot.mov(false),
-            ShotSpec::Charge => shot.mov(true),
+            ShotSpec::Normal => shot.mov(false, &self.shot_shape, tunnel, ship, enemies, score_accumulator),
+            ShotSpec::Charge => shot.mov(true, &self.charge_shot_shape, tunnel, ship, enemies, score_accumulator),
         });
     }
 

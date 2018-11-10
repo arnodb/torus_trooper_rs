@@ -75,6 +75,9 @@ pub struct Ship {
     gunpoint_pos: Vector,
 
     rank: u32,
+    boss_app_rank: u32,
+    boss_app_num: u32,
+    zone_end_rank: u32,
     in_boss_mode: bool,
     is_boss_mode_end: bool,
     cnt: i32,
@@ -125,6 +128,9 @@ impl Ship {
             gunpoint_pos: Vector::default(),
 
             rank: 0,
+            boss_app_rank: 0,
+            boss_app_num: 0,
+            zone_end_rank: 0,
             in_boss_mode: false,
             is_boss_mode_end: true,
             cnt: -INVINCIBLE_CNT,
@@ -504,6 +510,58 @@ impl Ship {
         self.screen_shake_intense = its;
     }
 
+    pub fn has_collision(&self) -> bool {
+        !(self.cnt <= -INVINCIBLE_CNT)
+    }
+
+    pub fn rank_up(&mut self, is_boss: bool) -> bool {
+        if (self.in_boss_mode && !is_boss) || self.is_game_over {
+            return false;
+        }
+        let mut goto_next_zone = false;
+        if self.in_boss_mode {
+            self.boss_app_num -= 1;
+            if self.boss_app_num <= 0 {
+                self.rank += 1;
+                goto_next_zone = true;
+                self.in_boss_mode = false;
+                self.is_boss_mode_end = true;
+                self.boss_app_rank = 9999999;
+            }
+        }
+        if self.rank < self.zone_end_rank {
+            self.rank += 1;
+        }
+        if self.rank >= self.boss_app_rank {
+            self.in_boss_mode = true;
+        }
+        goto_next_zone
+    }
+
+    pub fn goto_next_zone_forced(&mut self) {
+        self.boss_app_num = 0;
+        self.in_boss_mode = false;
+        self.is_boss_mode_end = true;
+        self.boss_app_rank = 9999999;
+    }
+
+    pub fn start_next_zone(&mut self) {
+        self.is_boss_mode_end = false;
+    }
+
+    pub fn rank_down(&mut self) {
+        if !self.in_boss_mode {
+            self.rank -= 1;
+        }
+    }
+
+    pub fn set_boss_app(&mut self, rank: u32, num: u32, zone_end_rank: u32) {
+        self.boss_app_rank = rank;
+        self.boss_app_num = num;
+        self.zone_end_rank = zone_end_rank;
+        self.in_boss_mode = false;
+    }
+
     pub fn draw(&self) {
         if self.cnt < -INVINCIBLE_CNT || (self.cnt < 0 && (-self.cnt % 32) < 16) {
             return;
@@ -532,8 +590,7 @@ impl Ship {
         letter.draw_string("KM/H", 540., 445., 12.);
         letter.draw_num(self.rank as usize, 150., 432., 16.);
         letter.draw_string("/", 185., 448., 10.);
-        // TODO letter.draw_num(self.zoneEndRank - self.rank, 250., 448., 10.);
-        // NOT TODO
+        letter.draw_num((self.zone_end_rank - self.rank) as usize, 250., 448., 10.);
         /*Letter.drawString("LAP", 20, 388, 8, Letter.Direction.TO_RIGHT, 1);
         Letter.drawNum(lap, 120, 388, 8);
         Letter.drawString(".", 130, 386, 8);
@@ -560,9 +617,21 @@ impl Ship {
         self.is_game_over = true;
     }
 
+    pub fn pos(&self) -> Vector {
+        self.pos
+    }
+
     pub fn rel_pos(&self) -> Vector {
         self.rel_pos
     }
+
+    pub fn speed(&self) -> f32 { self.speed }
+
+    pub fn in_boss_mode(&self) -> bool { self.in_boss_mode }
+
+    pub fn is_boss_mode_end(&self) -> bool { self.is_boss_mode_end }
+
+    pub fn shape(&self) -> &ShipShape { &self.shape }
 }
 
 impl BulletTarget for Ship {

@@ -255,6 +255,7 @@ impl Tunnel {
         }
     }
 
+    // TODO return -1, 0, 1
     #[allow(clippy::collapsible_if)]
     pub fn check_deg_inside(d: f32, ld: f32, rd: f32) -> i32 {
         let mut rsl = 0;

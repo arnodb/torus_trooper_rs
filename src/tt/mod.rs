@@ -18,6 +18,8 @@ pub struct StartParams<'a> {
     pub seed: u64,
     pub pref_manager: &'a mut prefs::PrefManager,
 
+    pub screen: &'a screen::Screen,
+
     pub stage_manager: &'a mut manager::stage::StageManager,
 
     pub camera: &'a mut camera::Camera,
@@ -25,10 +27,13 @@ pub struct StartParams<'a> {
     pub tunnel: &'a mut tunnel::Tunnel,
 
     pub shots: &'a mut actor::shot::ShotPool,
+    pub enemies: &'a mut actor::enemy::EnemyPool,
 }
 
 pub struct MoveParams<'a> {
     pub pref_manager: &'a mut prefs::PrefManager,
+
+    pub screen: &'a screen::Screen,
 
     pub pad: &'a pad::Pad,
 
@@ -39,6 +44,7 @@ pub struct MoveParams<'a> {
     pub tunnel: &'a mut tunnel::Tunnel,
 
     pub shots: &'a mut actor::shot::ShotPool,
+    pub enemies: &'a mut actor::enemy::EnemyPool,
 }
 
 pub struct DrawParams<'a> {
@@ -54,4 +60,5 @@ pub struct DrawParams<'a> {
     pub tunnel: &'a mut tunnel::Tunnel,
 
     pub shots: &'a mut actor::shot::ShotPool,
+    pub enemies: &'a actor::enemy::EnemyPool,
 }

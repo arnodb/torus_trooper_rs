@@ -1,5 +1,6 @@
 use std::cell::{Cell, RefCell};
 
+pub mod enemy;
 pub mod shot;
 
 pub struct Pool<T, S> {
@@ -117,5 +118,18 @@ impl<T: Default, S> Pool<T, S> {
                 op(spec, &pool_actor.actor);
             }
         }
+    }
+
+    pub fn get_num(&self) -> usize {
+        // TODO improve performance
+        self.actors.borrow().iter()
+            .map(|pool_actor| {
+                if let ActorState::Acting(_) = &pool_actor.state {
+                    1
+                } else {
+                    0
+                }
+            })
+            .sum()
     }
 }

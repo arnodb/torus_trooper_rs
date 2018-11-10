@@ -7,7 +7,7 @@ use crate::util::vector::Vector;
 use crate::tt::screen::Screen;
 
 use super::structure::{self, Structure};
-use super::Drawable;
+use super::{Drawable, Collidable};
 
 pub struct ShipShape {
     collision: Vector,
@@ -591,5 +591,11 @@ impl ShipShape {
 impl Drawable for ShipShape {
     fn draw(&self) {
         self.display_list.call(0);
+    }
+}
+
+impl Collidable for ShipShape {
+    fn collision(&self) -> Vector {
+        self.collision
     }
 }

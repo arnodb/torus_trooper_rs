@@ -18,6 +18,7 @@ use piston::event_loop::*;
 use piston::input::*;
 use std::time::Instant;
 
+use crate::tt::actor::enemy::EnemyPool;
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::camera::Camera;
 use crate::tt::errors::GameError;
@@ -60,6 +61,7 @@ impl MainLoop {
         let mut ship = Ship::new(&screen, seed);
 
         let mut shots = ShotPool::new(64, &screen);
+        let mut enemies = EnemyPool::new(64, seed);
 
         let mut stage_manager = StageManager::new(seed);
 
@@ -70,11 +72,13 @@ impl MainLoop {
         manager.start(&mut StartParams {
             seed: rand.gen_usize(usize::max_value()) as u64,
             pref_manager: &mut pref_manager,
+            screen: &screen,
             stage_manager: &mut stage_manager,
             camera: &mut camera,
             ship: &mut ship,
             tunnel: &mut tunnel,
             shots: &mut shots,
+            enemies: &mut enemies,
         });
 
         let start_time = Instant::now();
@@ -104,12 +108,14 @@ impl MainLoop {
             for _i in 0..frame {
                 let action = manager.mov(&mut MoveParams {
                     pref_manager: &mut pref_manager,
+                    screen: &screen,
                     pad: &pad,
                     stage_manager: &mut stage_manager,
                     camera: &mut camera,
                     ship: &mut ship,
                     tunnel: &mut tunnel,
                     shots: &mut shots,
+                    enemies: &mut enemies,
                 });
                 match action {
                     MoveAction::StartTitle(from_game_over) => {
@@ -117,11 +123,13 @@ impl MainLoop {
                             &mut StartParams {
                                 seed: rand.gen_usize(usize::max_value()) as u64,
                                 pref_manager: &mut pref_manager,
+                                screen: &screen,
                                 stage_manager: &mut stage_manager,
                                 camera: &mut camera,
                                 ship: &mut ship,
                                 tunnel: &mut tunnel,
                                 shots: &mut shots,
+                                enemies: &mut enemies,
                             },
                             from_game_over,
                         );
@@ -130,11 +138,13 @@ impl MainLoop {
                         manager.start_in_game(&mut StartParams {
                             seed: rand.gen_usize(usize::max_value()) as u64,
                             pref_manager: &mut pref_manager,
+                            screen: &screen,
                             stage_manager: &mut stage_manager,
                             camera: &mut camera,
                             ship: &mut ship,
                             tunnel: &mut tunnel,
                             shots: &mut shots,
+                            enemies: &mut enemies,
                         });
                     }
                     MoveAction::BreakLoop => self.done = true,
@@ -157,6 +167,7 @@ impl MainLoop {
                         ship: &mut ship,
                         tunnel: &mut tunnel,
                         shots: &mut shots,
+                        enemies: &enemies,
                     },
                     &r,
                 );
