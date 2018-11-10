@@ -97,7 +97,9 @@ impl Enemy {
         }
         self.pos.y += my;
         if !passed && spec.has_limit_y() {
-            self.handle_limit_y(self.pos.y, self.limit_y);
+            let py = self.pos.y;
+            let limit_y = self.limit_y;
+            self.handle_limit_y(py, limit_y);
         }
         let mut steer = false;
         if let Some((ld, rd)) = spec.get_range_of_movement(self.pos, tunnel) {

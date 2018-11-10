@@ -63,14 +63,16 @@ impl Tunnel {
         self.sight_depth = 0.;
         let mut ti = self.torus_idx as f32;
         let mut dr = 1.;
-        let first_slice = self.slices.first_mut();
-        if let Some(slice) = first_slice {
-            slice.set_first(
-                self.point_from,
-                &self.torus.get_slice_state(self.torus_idx),
-                -(self.ship_idx as f32) - self.ship_ofs,
-            );
-        };
+        {
+            let first_slice = self.slices.first_mut();
+            if let Some(slice) = first_slice {
+                slice.set_first(
+                    self.point_from,
+                    &self.torus.get_slice_state(self.torus_idx),
+                    -(self.ship_idx as f32) - self.ship_ofs,
+                );
+            };
+        }
         let slices_len = self.slices.len();
         for i in 1..slices_len {
             self.sight_depth += dr;
@@ -100,14 +102,16 @@ impl Tunnel {
         let mut sd = 0.;
         let mut ti = self.torus_idx as f32;
         let mut dr = -1.;
-        let first_slice = self.slices_backward.first_mut();
-        if let Some(slice) = first_slice {
-            slice.set_first(
-                self.point_from,
-                &self.torus.get_slice_state(self.torus_idx),
-                -(self.ship_idx as f32) - self.ship_ofs,
-            );
-        };
+        {
+            let first_slice = self.slices_backward.first_mut();
+            if let Some(slice) = first_slice {
+                slice.set_first(
+                    self.point_from,
+                    &self.torus.get_slice_state(self.torus_idx),
+                    -(self.ship_idx as f32) - self.ship_ofs,
+                );
+            };
+        }
         let slices_backward_len = self.slices_backward.len();
         for i in 1..slices_backward_len {
             let prev_ti = ti as usize;
@@ -256,7 +260,6 @@ impl Tunnel {
     }
 
     // TODO return -1, 0, 1
-    #[allow(clippy::collapsible_if)]
     pub fn check_deg_inside(d: f32, ld: f32, rd: f32) -> i32 {
         let mut rsl = 0;
         if rd <= ld {
@@ -561,7 +564,6 @@ impl Slice {
         self.depth = from.depth;
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn draw(
         &self,
         prev_slice: &Slice,
@@ -796,7 +798,7 @@ impl Torus {
     fn get_slice_state_internal(torus_parts: &[TorusPart], idx: usize) -> SliceState {
         let tp_idx = torus_parts
             .binary_search_by(|tp| {
-                use core::cmp::Ordering;
+                use std::cmp::Ordering;
                 if idx < tp.slice_idx_from {
                     Ordering::Greater
                 } else if idx < tp.slice_idx_to {
@@ -811,7 +813,6 @@ impl Torus {
         torus_parts[tp_idx].create_blended_slice_state(&torus_parts[prev_tp_idx].slice_state, idx)
     }
 
-    #[allow(clippy::collapsible_if)]
     fn get_slice_state_and_ring(&self, idx: usize, pidx: usize) -> (SliceState, Option<usize>) {
         let ss = Torus::get_slice_state_internal(&self.torus_parts, idx);
         for (i, r) in self.rings.iter().enumerate() {

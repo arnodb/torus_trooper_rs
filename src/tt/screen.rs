@@ -65,7 +65,8 @@ impl Screen {
         gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
         self.window = Some(window);
 
-        self.resized(self.width, self.height);
+        let (width, height) = (self.width, self.height);
+        self.resized(width, height);
         self.init();
         Ok(())
     }

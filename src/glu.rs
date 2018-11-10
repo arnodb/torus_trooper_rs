@@ -20,7 +20,6 @@ fn cross(v1: [f32; 3], v2: [f32; 3], result: &mut [f32; 3]) {
     result[2] = v1[0] * v2[1] - v1[1] * v2[0];
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn look_at(
     eyex: f64,
     eyey: f64,

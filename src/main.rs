@@ -2,8 +2,14 @@
 extern crate bitflags;
 #[macro_use]
 extern crate failure;
+extern crate glutin_window;
 #[macro_use]
 extern crate lazy_static;
+extern crate opengl_graphics;
+extern crate piston;
+extern crate preferences;
+extern crate rand;
+extern crate rand_core;
 #[macro_use]
 extern crate serde_derive;
 

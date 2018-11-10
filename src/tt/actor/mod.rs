@@ -97,13 +97,15 @@ impl<T: Default, S> Pool<T, S> {
         O: FnMut(&S, &mut T) -> bool,
     {
         for (idx, pool_actor) in self.actors.borrow_mut().iter_mut().enumerate() {
-            if let ActorState::Acting(spec) = &pool_actor.state {
-                let remove = op(spec, &mut pool_actor.actor);
-                if remove {
-                    pool_actor.state = ActorState::NotActing;
-                    if Some(idx) == self.special_instance_idx.get() {
-                        self.special_instance_idx.set(None);
-                    }
+            let remove = if let ActorState::Acting(spec) = &pool_actor.state {
+                op(spec, &mut pool_actor.actor)
+            } else {
+                false
+            };
+            if remove {
+                pool_actor.state = ActorState::NotActing;
+                if Some(idx) == self.special_instance_idx.get() {
+                    self.special_instance_idx.set(None);
                 }
             }
         }
