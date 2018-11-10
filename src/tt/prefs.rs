@@ -48,7 +48,7 @@ impl PrefManager {
     }
 
     pub fn record_result(&mut self, lv: u32, sc: u32) {
-        let gd = &mut self.prefs.grade_data[lv as usize];
+        let gd = &mut self.prefs.grade_data[self.selected_grade() as usize];
         if sc > gd.hi_score {
             gd.hi_score = sc;
             gd.start_level = self.prefs.selected_level;
