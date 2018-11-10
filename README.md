@@ -1,4 +1,6 @@
 # torus_trooper_rs
+[![Build Status](https://travis-ci.com/arnodb/torus_trooper_rs.svg?branch=master)](https://travis-ci.com/arnodb/torus_trooper_rs)
+
 A rewrite of the original game from [ABA Games](http://www.asahi-net.or.jp/~cs8k-cyu/) in Rust.
 
 ## WTF?
