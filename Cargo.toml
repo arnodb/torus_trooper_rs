@@ -1,5 +1,5 @@
 [package]
-name = "torus_trooper_rs"
+name = "torus_trooper"
 version = "0.1.0"
 authors = ["Arnaud de Bossoreille <arnaud.debossoreille@gmail.com>"]
 
