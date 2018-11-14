@@ -1,7 +1,7 @@
 #[cfg(feature = "glutin_backend")]
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::OpenGL;
-use piston::window::{OpenGLWindow, WindowSettings};
+use piston::window::{OpenGLWindow, Size, WindowSettings};
 #[cfg(feature = "sdl_backend")]
 use sdl2_window::Sdl2Window as Window;
 
@@ -13,8 +13,7 @@ const CAPTION: &str = "Torus Trooper";
 
 pub struct Screen {
     brightness: f32,
-    width: u32,
-    height: u32,
+    size: Size,
     near_plane: f32,
     far_plane: f32,
     window: Option<Window>,
@@ -24,20 +23,26 @@ impl Screen {
     pub fn new() -> Self {
         Screen {
             brightness: 1.,
-            width: 640,
-            height: 480,
+            size: [640, 480].into(),
             near_plane: 0.1,
             far_plane: 1000.,
             window: None,
         }
     }
 
-    pub fn width(&self) -> u32 {
-        self.width
+    #[cfg(feature = "glutin_backend")]
+    pub fn physical_size(&self) -> (u32, u32) {
+        let dpi_factor = if let Some(window) = &self.window {
+            window.window.get_hidpi_factor()
+        } else {
+            1.
+        };
+        ((self.size.width as f64 * dpi_factor) as u32, (self.size.height as f64 * dpi_factor) as u32)
     }
 
-    pub fn height(&self) -> u32 {
-        self.height
+    #[cfg(feature = "sdl_backend")]
+    pub fn physical_size(&self) -> (u32, u32) {
+        (self.size.width, self.size.height)
     }
 
     pub fn near_plane(&self) -> f32 {
@@ -56,7 +61,7 @@ impl Screen {
 
     pub fn init_opengl(&mut self) -> Result<(), GameError> {
         let opengl = OpenGL::V2_1;
-        let mut window: Window = WindowSettings::new("Torus Trooper", [self.width, self.height])
+        let mut window: Window = WindowSettings::new("Torus Trooper", self.size)
             .opengl(opengl)
             .vsync(true)
             .exit_on_esc(false)
@@ -64,21 +69,21 @@ impl Screen {
 
         gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
         self.window = Some(window);
-
-        let (width, height) = (self.width, self.height);
-        self.resized(width, height);
+        let size = self.size;
+        self.resized(size);
         self.init();
         Ok(())
     }
 
     fn screen_resized(&self) {
+        let p_size = self.physical_size();
         unsafe {
-            gl::Viewport(0, 0, self.width as i32, self.height as i32);
+            gl::Viewport(0, 0, p_size.0 as i32, p_size.1 as i32);
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::LoadIdentity();
             //gluPerspective(45.0f, cast(GLfloat) width / cast(GLfloat) height, nearPlane, farPlane);
             let ratio_threshold = 480. / 640.;
-            let screen_ratio = self.height as f32 / self.width as f32;
+            let screen_ratio = p_size.1 as f32 / p_size.0 as f32;
             if screen_ratio >= ratio_threshold {
                 gl::Frustum(
                     -self.near_plane as f64,
@@ -104,9 +109,8 @@ impl Screen {
         }
     }
 
-    pub fn resized(&mut self, width: u32, height: u32) {
-        self.width = width;
-        self.height = height;
+    pub fn resized<S: Into<Size>>(&mut self, size: S) {
+        self.size = size.into();
         self.screen_resized();
     }
 

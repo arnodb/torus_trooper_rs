@@ -88,12 +88,13 @@ impl State for TitleState {
         }
         */
         let screen = params.screen;
+        let p_size = screen.physical_size();
         unsafe {
-            gl::Viewport(0, 0, screen.width() as i32, screen.height() as i32);
+            gl::Viewport(0, 0, p_size.0 as i32, p_size.1 as i32);
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::LoadIdentity();
             let ratio_threshold = 480. / 640.;
-            let screen_ratio = screen.height() as f32 / screen.width() as f32;
+            let screen_ratio = p_size.1 as f32 / p_size.0 as f32;
             if screen_ratio >= ratio_threshold {
                 gl::Frustum(
                     -screen.near_plane() as f64,

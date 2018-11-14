@@ -162,7 +162,7 @@ impl MainLoop {
             }
 
             if let Some(r) = e.resize_args() {
-                screen.resized(r[0], r[1]);
+                screen.resized(r);
             }
 
             if let Some(r) = e.render_args() {
