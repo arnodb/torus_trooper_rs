@@ -380,32 +380,38 @@ impl EnemyPool {
     {
         let idx = self.rand.gen_usize(self.small_ship_specs.len());
         let spec = &self.small_ship_specs[idx];
-        self.pool.get_instance_and(EnemySpec::Small(idx), |enemy| {
-            op(enemy, spec)
-        })
+        let inst = self.pool.get_instance(EnemySpec::Small(idx));
+        if let Some(inst) = inst {
+            let pa = &mut self.pool[inst];
+            op(&mut pa.actor, spec);
+        }
     }
 
     pub fn get_medium_instance_and<O>(&mut self, mut op: O)
-        where
-            O: FnMut(&mut Enemy, &ShipSpec),
+    where
+        O: FnMut(&mut Enemy, &ShipSpec),
     {
         let idx = self.rand.gen_usize(self.medium_ship_specs.len());
         let spec = &self.medium_ship_specs[idx];
-        self.pool.get_instance_and(EnemySpec::Medium(idx), |enemy| {
-            op(enemy, spec)
-        })
+        let inst = self.pool.get_instance(EnemySpec::Medium(idx));
+        if let Some(inst) = inst {
+            let pa = &mut self.pool[inst];
+            op(&mut pa.actor, spec);
+        }
     }
 
     pub fn get_boss_instance_and<O>(&mut self, mut op: O)
-        where
-            O: FnMut(&mut Enemy, &ShipSpec),
+    where
+        O: FnMut(&mut Enemy, &ShipSpec),
     {
         let idx = self.boss_spec_idx;
         self.boss_spec_idx += 1;
         let spec = &self.boss_ship_specs[idx];
-        self.pool.get_instance_and(EnemySpec::Boss(idx), |enemy| {
-            op(enemy, spec)
-        })
+        let inst = self.pool.get_instance(EnemySpec::Boss(idx));
+        if let Some(inst) = inst {
+            let pa = &mut self.pool[inst];
+            op(&mut pa.actor, spec);
+        }
     }
 
     pub fn clear(&mut self) {
@@ -418,42 +424,93 @@ impl EnemyPool {
 
     pub fn mov(&mut self, tunnel: &Tunnel, ship: &mut Ship) -> bool {
         let mut goto_next_zone = false;
-        self.pool.foreach_mut(|spec, enemy| {
-            let (remove, goto_nz) = match spec {
-                EnemySpec::Small(idx) => enemy.mov(false, &self.small_ship_specs[*idx], tunnel, ship),
-                EnemySpec::Medium(idx) => enemy.mov(false, &self.medium_ship_specs[*idx], tunnel, ship),
-                EnemySpec::Boss(idx) => enemy.mov(false, &self.boss_ship_specs[*idx], tunnel, ship),
+        for pa in &mut self.pool {
+            let (release, goto_nz) = match pa.state.unwrap() {
+                EnemySpec::Small(idx) => {
+                    pa.actor
+                        .mov(false, &self.small_ship_specs[*idx], tunnel, ship)
+                }
+                EnemySpec::Medium(idx) => {
+                    pa.actor
+                        .mov(false, &self.medium_ship_specs[*idx], tunnel, ship)
+                }
+                EnemySpec::Boss(idx) => {
+                    pa.actor
+                        .mov(false, &self.boss_ship_specs[*idx], tunnel, ship)
+                }
             };
             if goto_nz {
                 goto_next_zone = true;
             }
-            remove
-        });
+            if release {
+                pa.release();
+            }
+        }
         goto_next_zone
     }
 
-    pub fn check_shot_hit(&mut self, p: Vector, shape: &Collidable, shot: &mut Shot, charge_shot: bool, tunnel: &Tunnel, ship: &mut Ship, score_accumulator: &mut ScoreAccumulator) -> bool {
-        let mut remove_shot = false;
-        self.pool.foreach_mut(|spec, enemy| {
-            let (remove_enemy, rm_shot) = match spec {
-                EnemySpec::Small(idx) => enemy.check_shot_hit(&self.small_ship_specs[*idx], p, shape, shot, charge_shot, tunnel, ship, score_accumulator),
-                EnemySpec::Medium(idx) => enemy.check_shot_hit(&self.medium_ship_specs[*idx], p, shape, shot, charge_shot, tunnel, ship, score_accumulator),
-                EnemySpec::Boss(idx) => enemy.check_shot_hit(&self.boss_ship_specs[*idx], p, shape, shot, charge_shot, tunnel, ship, score_accumulator),
+    pub fn check_shot_hit(
+        &mut self,
+        p: Vector,
+        shape: &Collidable,
+        shot: &mut Shot,
+        charge_shot: bool,
+        tunnel: &Tunnel,
+        ship: &mut Ship,
+        score_accumulator: &mut ScoreAccumulator,
+    ) -> bool {
+        let mut release_shot = false;
+        for pa in &mut self.pool {
+            let (release_enemy, rel_shot) = match pa.state.unwrap() {
+                EnemySpec::Small(idx) => pa.actor.check_shot_hit(
+                    &self.small_ship_specs[*idx],
+                    p,
+                    shape,
+                    shot,
+                    charge_shot,
+                    tunnel,
+                    ship,
+                    score_accumulator,
+                ),
+                EnemySpec::Medium(idx) => pa.actor.check_shot_hit(
+                    &self.medium_ship_specs[*idx],
+                    p,
+                    shape,
+                    shot,
+                    charge_shot,
+                    tunnel,
+                    ship,
+                    score_accumulator,
+                ),
+                EnemySpec::Boss(idx) => pa.actor.check_shot_hit(
+                    &self.boss_ship_specs[*idx],
+                    p,
+                    shape,
+                    shot,
+                    charge_shot,
+                    tunnel,
+                    ship,
+                    score_accumulator,
+                ),
             };
-            if rm_shot {
-                remove_shot = true;
+            if rel_shot {
+                release_shot = true;
             }
-            remove_enemy
-        });
-        remove_shot
+            if release_enemy {
+                pa.release();
+            }
+        }
+        release_shot
     }
 
     pub fn draw(&self, tunnel: &Tunnel) {
-        self.pool.foreach(|spec, enemy| match spec {
-            EnemySpec::Small(idx) => enemy.draw(&self.small_ship_specs[*idx], tunnel),
-            EnemySpec::Medium(idx) => enemy.draw(&self.medium_ship_specs[*idx], tunnel),
-            EnemySpec::Boss(idx) => enemy.draw(&self.boss_ship_specs[*idx], tunnel),
-        });
+        for pa in &self.pool {
+            match pa.state.unwrap() {
+                EnemySpec::Small(idx) => pa.actor.draw(&self.small_ship_specs[*idx], tunnel),
+                EnemySpec::Medium(idx) => pa.actor.draw(&self.medium_ship_specs[*idx], tunnel),
+                EnemySpec::Boss(idx) => pa.actor.draw(&self.boss_ship_specs[*idx], tunnel),
+            }
+        }
     }
 
     pub fn get_num(&self) -> usize {

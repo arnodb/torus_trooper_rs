@@ -1,6 +1,8 @@
+use std::ops::{Index, IndexMut};
+
 use crate::gl;
 
-use crate::tt::actor::Pool;
+use crate::tt::actor::{Pool, PoolActor, PoolActorRef};
 use crate::tt::screen::Screen;
 use crate::tt::shape::shot_shape::ShotShape;
 use crate::tt::shape::ResizableDrawable;
@@ -93,7 +95,15 @@ impl Shot {
         return false;
     }
 
-    fn mov(&mut self, charge_shot: bool, shape: &ShotShape, tunnel: &Tunnel, ship: &mut Ship, enemies: &mut EnemyPool, score_accumulator: &mut ScoreAccumulator) -> bool {
+    fn mov(
+        &mut self,
+        charge_shot: bool,
+        shape: &ShotShape,
+        tunnel: &Tunnel,
+        ship: &mut Ship,
+        enemies: &mut EnemyPool,
+        score_accumulator: &mut ScoreAccumulator,
+    ) -> bool {
         let mut remove = false;
         if self.in_charge {
             if self.charge_cnt < MAX_CHARGE {
@@ -120,7 +130,15 @@ impl Shot {
             if charge_shot {
                 // TODO bullets.checkShotHit(pos, shape, this);
             }
-            let hit_remove = enemies.check_shot_hit(self.pos, shape, self, charge_shot, tunnel, ship, score_accumulator);
+            let hit_remove = enemies.check_shot_hit(
+                self.pos,
+                shape,
+                self,
+                charge_shot,
+                tunnel,
+                ship,
+                score_accumulator,
+            );
             if hit_remove {
                 remove = true;
             }
@@ -139,7 +157,13 @@ impl Shot {
         remove
     }
 
-    pub fn add_score(&mut self, charge_shot: bool, sc: u32, pos: Vector, score_accumulator: &mut ScoreAccumulator) -> bool {
+    pub fn add_score(
+        &mut self,
+        charge_shot: bool,
+        sc: u32,
+        pos: Vector,
+        score_accumulator: &mut ScoreAccumulator,
+    ) -> bool {
         score_accumulator.add_score(sc * self.multiplier);
         /* TODO
         if (multiplier > 1) {
@@ -182,7 +206,9 @@ impl Shot {
         }
     }
 
-    pub fn damage(&self) -> i32 { self.damage }
+    pub fn damage(&self) -> i32 {
+        self.damage
+    }
 }
 
 pub struct ShotPool {
@@ -191,7 +217,7 @@ pub struct ShotPool {
     charge_shot_shape: ShotShape,
 }
 
-enum ShotSpec {
+pub enum ShotSpec {
     Normal,
     Charge,
 }
@@ -205,48 +231,76 @@ impl ShotPool {
         }
     }
 
-    pub fn get_instance_and<O>(&mut self, op: O)
+    pub fn get_instance_and<O>(&mut self, mut op: O)
     where
         O: FnMut(&mut Shot),
     {
-        self.pool.get_instance_and(ShotSpec::Normal, op)
+        let inst = self.pool.get_instance(ShotSpec::Normal);
+        if let Some(inst) = inst {
+            let pa = &mut self.pool[inst];
+            op(&mut pa.actor);
+        }
     }
 
-    pub fn get_charging_instance_and<O>(&mut self, op: O)
-    where
-        O: Fn(&mut Shot),
-    {
-        self.pool.get_special_instance_and(ShotSpec::Charge, |shot| {
-            op(shot);
-            false
-        })
-    }
-
-    pub fn release_charging_instance(&mut self) {
-        self.pool.get_special_instance_and(ShotSpec::Charge, |shot| {
-            if shot.release() {
-                true
-            } else {
-                false
-            }
-        });
+    pub fn get_charging_instance(&mut self) -> PoolActorRef {
+        self.pool.get_instance_forced(ShotSpec::Charge)
     }
 
     pub fn clear(&mut self) {
         self.pool.clear();
     }
 
-    pub fn mov(&mut self, tunnel: &Tunnel, ship: &mut Ship, enemies: &mut EnemyPool, score_accumulator: &mut ScoreAccumulator) {
-        self.pool.foreach_mut(|spec, shot| match spec {
-            ShotSpec::Normal => shot.mov(false, &self.shot_shape, tunnel, ship, enemies, score_accumulator),
-            ShotSpec::Charge => shot.mov(true, &self.charge_shot_shape, tunnel, ship, enemies, score_accumulator),
-        });
+    pub fn mov(
+        &mut self,
+        tunnel: &Tunnel,
+        ship: &mut Ship,
+        enemies: &mut EnemyPool,
+        score_accumulator: &mut ScoreAccumulator,
+    ) {
+        for pa in &mut self.pool {
+            let release = match pa.state.unwrap() {
+                ShotSpec::Normal => pa.actor.mov(
+                    false,
+                    &self.shot_shape,
+                    tunnel,
+                    ship,
+                    enemies,
+                    score_accumulator,
+                ),
+                ShotSpec::Charge => pa.actor.mov(
+                    true,
+                    &self.charge_shot_shape,
+                    tunnel,
+                    ship,
+                    enemies,
+                    score_accumulator,
+                ),
+            };
+            if release {
+                pa.release();
+            }
+        }
     }
 
     pub fn draw(&self, tunnel: &Tunnel) {
-        self.pool.foreach(|spec, shot| match spec {
-            ShotSpec::Normal => shot.draw(&self.shot_shape, tunnel),
-            ShotSpec::Charge => shot.draw(&self.charge_shot_shape, tunnel),
-        });
+        for pa in &self.pool {
+            match pa.state.unwrap() {
+                ShotSpec::Normal => pa.actor.draw(&self.shot_shape, tunnel),
+                ShotSpec::Charge => pa.actor.draw(&self.charge_shot_shape, tunnel),
+            }
+        }
+    }
+}
+
+impl Index<PoolActorRef> for ShotPool {
+    type Output = PoolActor<Shot, ShotSpec>;
+    fn index(&self, index: PoolActorRef) -> &Self::Output {
+        &self.pool[index]
+    }
+}
+
+impl IndexMut<PoolActorRef> for ShotPool {
+    fn index_mut(&mut self, index: PoolActorRef) -> &mut Self::Output {
+        &mut self.pool[index]
     }
 }

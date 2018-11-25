@@ -4,6 +4,7 @@ use crate::glu;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
 
+use crate::tt::actor::PoolActorRef;
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::bullet::BulletTarget;
 use crate::tt::camera::Camera;
@@ -66,7 +67,7 @@ pub struct Ship {
     pos3: Vector3,
     shape: ShipShape,
 
-    charging_shot: bool,
+    charging_shot: Option<PoolActorRef>,
     regenerative_charge: f32,
     fire_cnt: u32,
     fire_shot_cnt: u32,
@@ -119,7 +120,7 @@ impl Ship {
             pos3: Vector3::default(),
             shape: ShipShape::new_small(false, screen, seed),
 
-            charging_shot: false,
+            charging_shot: None,
             regenerative_charge: 0.,
             fire_cnt: 0,
             fire_shot_cnt: 0,
@@ -174,7 +175,7 @@ impl Ship {
         self.target_speed = 0.;
         self.fire_shot_cnt = 0;
         self.side_fire_shot_cnt = 99999;
-        self.charging_shot = false;
+        self.charging_shot = None;
         self.regenerative_charge = 0.;
     }
 
@@ -346,16 +347,15 @@ impl Ship {
         self.d2 += (sl.d2() - self.d2) * 0.05;
 
         if btn & PadButtons::B != PadButtons::NONE {
-            if !self.charging_shot {
-                shots.get_charging_instance_and(|shot| {
-                    shot.set_charge(true);
-                });
-                self.charging_shot = true;
+            if self.charging_shot.is_none() {
+                let charging_shot = shots.get_charging_instance();
+                shots[charging_shot].actor.set_charge(true);
+                self.charging_shot = Some(charging_shot);
             }
         } else {
-            if self.charging_shot {
-                shots.release_charging_instance();
-                self.charging_shot = false;
+            if let Some(charging_shot) = self.charging_shot {
+                shots[charging_shot].actor.release();
+                self.charging_shot = None;
             }
             if btn & PadButtons::A != PadButtons::NONE {
                 if self.fire_cnt <= 0 {
@@ -418,10 +418,8 @@ impl Ship {
         }
         self.rocket_pos.x = self.rel_pos.x - self.bank * 0.1;
         self.rocket_pos.y = self.rel_pos.y;
-        if self.charging_shot {
-            shots.get_charging_instance_and(|shot| {
-                shot.update(self.rocket_pos);
-            });
+        if let Some(charging_shot) = self.charging_shot {
+            shots[charging_shot].actor.update(self.rocket_pos);
         }
         /* TODO
         if self.cnt >= -INVINCIBLE_CNT {
