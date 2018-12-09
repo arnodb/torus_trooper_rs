@@ -38,6 +38,16 @@ impl<S> ActorState<S> {
             ActorState::NotActing => panic!("called `ActorState::spec()` on a `NotActing` value"),
         }
     }
+
+    #[inline]
+    pub fn spec_mut(&mut self) -> &mut S {
+        match self {
+            ActorState::Acting { spec, .. } => spec,
+            ActorState::NotActing => {
+                panic!("called `ActorState::spec_mut()` on a `NotActing` value")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -93,7 +103,6 @@ impl<T: Default, S> Pool<T, S> {
                 },
             ))
         } else {
-            println!("cannot get instance");
             None
         }
     }

@@ -1,9 +1,8 @@
 use crate::gl;
 
+use crate::tt::screen::Screen;
 use crate::util::display_list::DisplayList;
 use crate::util::vector::Vector;
-// FIXME we are in util!
-use crate::tt::screen::Screen;
 
 use super::{Collidable, Drawable};
 
@@ -15,7 +14,7 @@ pub struct ShotShape {
 }
 
 impl ShotShape {
-    pub fn new<'b>(charge: bool, screen: &'b Screen) -> ShotShape {
+    pub fn new(charge: bool, screen: &Screen) -> ShotShape {
         let mut display_list = DisplayList::new(1);
         display_list.new_list();
         if charge {

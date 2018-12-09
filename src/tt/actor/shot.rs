@@ -1,11 +1,12 @@
 use std::ops::{Index, IndexMut};
+use std::rc::Rc;
 
 use crate::gl;
 
 use crate::tt::actor::{Pool, PoolActor, PoolActorRef};
 use crate::tt::screen::Screen;
 use crate::tt::shape::shot_shape::ShotShape;
-use crate::tt::shape::ResizableDrawable;
+use crate::tt::shape::{Drawable, ResizableDrawable};
 use crate::tt::ship::{self, Ship};
 use crate::tt::state::in_game::ScoreAccumulator;
 use crate::tt::tunnel::Tunnel;
@@ -38,7 +39,6 @@ pub struct Shot {
     trg_size: f32,
     in_charge: bool,
     star_shell: bool,
-    shape: ResizableDrawable,
     multiplier: u32,
     damage: i32,
     deg: f32,
@@ -98,13 +98,13 @@ impl Shot {
     fn mov(
         &mut self,
         charge_shot: bool,
-        shape: &ShotShape,
+        shape: &mut ResizableDrawable<ShotShape>,
         tunnel: &Tunnel,
         ship: &mut Ship,
         enemies: &mut EnemyPool,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
-        let mut remove = false;
+        let mut release = false;
         if self.in_charge {
             if self.charge_cnt < MAX_CHARGE {
                 self.charge_cnt += 1;
@@ -119,18 +119,18 @@ impl Shot {
             self.pos.y += f32::cos(self.deg) * SPEED;
             self.range -= SPEED;
             if self.range <= 0. {
-                remove = true;
+                release = true;
             } else if self.range < 10. {
                 self.trg_size *= 0.75;
             }
         }
         self.size += (self.trg_size - self.size) * 0.1;
-        self.shape.size(self.size);
+        shape.size(self.size);
         if !self.in_charge {
             if charge_shot {
                 // TODO bullets.checkShotHit(pos, shape, this);
             }
-            let hit_remove = enemies.check_shot_hit(
+            let hit_release = enemies.check_shot_hit(
                 self.pos,
                 shape,
                 self,
@@ -139,8 +139,8 @@ impl Shot {
                 ship,
                 score_accumulator,
             );
-            if hit_remove {
-                remove = true;
+            if hit_release {
+                release = true;
             }
         }
         if self.star_shell || self.charge_cnt as f32 > MAX_CHARGE as f32 * CHARGE_RELEASE_RATIO {
@@ -154,7 +154,7 @@ impl Shot {
             }
         }
         self.cnt += 1;
-        remove
+        release
     }
 
     pub fn add_score(
@@ -190,7 +190,7 @@ impl Shot {
         }
     }
 
-    fn draw(&self, shape: &ShotShape, tunnel: &Tunnel) {
+    fn draw(&self, shape: &ResizableDrawable<ShotShape>, tunnel: &Tunnel) {
         let sp = tunnel.get_pos_v(self.pos);
         unsafe {
             gl::PushMatrix();
@@ -200,7 +200,7 @@ impl Shot {
             gl::Rotatef(self.deg * 180. / std::f32::consts::PI, 0., 1., 10.);
             gl::Rotatef(self.cnt as f32 * 7., 0., 0., 1.);
         }
-        self.shape.draw(shape);
+        shape.draw();
         unsafe {
             gl::PopMatrix();
         }
@@ -213,21 +213,21 @@ impl Shot {
 
 pub struct ShotPool {
     pool: Pool<Shot, ShotSpec>,
-    shot_shape: ShotShape,
-    charge_shot_shape: ShotShape,
+    shot_shape: Rc<ShotShape>,
+    charge_shot_shape: Rc<ShotShape>,
 }
 
 pub enum ShotSpec {
-    Normal,
-    Charge,
+    Normal(ResizableDrawable<ShotShape>),
+    Charge(ResizableDrawable<ShotShape>),
 }
 
 impl ShotPool {
     pub fn new(n: usize, screen: &Screen) -> Self {
         ShotPool {
             pool: Pool::new(n),
-            shot_shape: ShotShape::new(false, screen),
-            charge_shot_shape: ShotShape::new(true, screen),
+            shot_shape: Rc::new(ShotShape::new(false, screen)),
+            charge_shot_shape: Rc::new(ShotShape::new(true, screen)),
         }
     }
 
@@ -237,14 +237,20 @@ impl ShotPool {
     {
         let inst = self.pool.get_instance();
         if let Some((pa, pa_ref)) = inst {
-            pa.prepare(pa_ref, ShotSpec::Normal);
+            pa.prepare(
+                pa_ref,
+                ShotSpec::Normal(ResizableDrawable::new(&self.shot_shape, 0.)),
+            );
             op(&mut pa.actor);
         }
     }
 
     pub fn get_charging_instance(&mut self) -> PoolActorRef {
         let (pa, pa_ref) = self.pool.get_instance_forced();
-        pa.prepare(pa_ref, ShotSpec::Charge);
+        pa.prepare(
+            pa_ref,
+            ShotSpec::Charge(ResizableDrawable::new(&self.charge_shot_shape, 0.)),
+        );
         pa_ref
     }
 
@@ -260,23 +266,15 @@ impl ShotPool {
         score_accumulator: &mut ScoreAccumulator,
     ) {
         for pa in &mut self.pool {
-            let release = match pa.state.spec() {
-                ShotSpec::Normal => pa.actor.mov(
-                    false,
-                    &self.shot_shape,
-                    tunnel,
-                    ship,
-                    enemies,
-                    score_accumulator,
-                ),
-                ShotSpec::Charge => pa.actor.mov(
-                    true,
-                    &self.charge_shot_shape,
-                    tunnel,
-                    ship,
-                    enemies,
-                    score_accumulator,
-                ),
+            let release = match pa.state.spec_mut() {
+                ShotSpec::Normal(shape) => {
+                    pa.actor
+                        .mov(false, shape, tunnel, ship, enemies, score_accumulator)
+                }
+                ShotSpec::Charge(shape) => {
+                    pa.actor
+                        .mov(true, shape, tunnel, ship, enemies, score_accumulator)
+                }
             };
             if release {
                 pa.release();
@@ -287,8 +285,8 @@ impl ShotPool {
     pub fn draw(&self, tunnel: &Tunnel) {
         for pa in &self.pool {
             match pa.state.spec() {
-                ShotSpec::Normal => pa.actor.draw(&self.shot_shape, tunnel),
-                ShotSpec::Charge => pa.actor.draw(&self.charge_shot_shape, tunnel),
+                ShotSpec::Normal(shape) => pa.actor.draw(shape, tunnel),
+                ShotSpec::Charge(shape) => pa.actor.draw(shape, tunnel),
             }
         }
     }

@@ -2,6 +2,8 @@ pub mod ship_shape;
 pub mod shot_shape;
 pub mod structure;
 
+use std::rc::Rc;
+
 use crate::util::vector::Vector;
 
 use crate::gl;
@@ -25,21 +27,35 @@ pub trait Collidable {
     }
 }
 
-#[derive(Default)]
-pub struct ResizableDrawable {
+pub struct ResizableDrawable<T> {
+    shape: Rc<T>,
     size: f32,
-    // TODO collision
 }
 
-impl ResizableDrawable {
-    pub fn draw(&self, shape: &Drawable) {
-        unsafe {
-            gl::Scalef(self.size, self.size, self.size);
+impl<T: Drawable> ResizableDrawable<T> {
+    pub fn new(shape: &Rc<T>, size: f32) -> Self {
+        ResizableDrawable {
+            shape: shape.clone(),
+            size,
         }
-        shape.draw();
     }
 
     pub fn size(&mut self, size: f32) {
         self.size = size;
+    }
+}
+
+impl<T: Drawable> Drawable for ResizableDrawable<T> {
+    fn draw(&self) {
+        unsafe {
+            gl::Scalef(self.size, self.size, self.size);
+        }
+        self.shape.draw();
+    }
+}
+
+impl<T: Collidable> Collidable for ResizableDrawable<T> {
+    fn collision(&self) -> Vector {
+        self.shape.collision() * self.size
     }
 }

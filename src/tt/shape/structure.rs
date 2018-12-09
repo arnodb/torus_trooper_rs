@@ -195,10 +195,10 @@ impl Structure {
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Shape {
-    Square = 0,
-    Wing = 1,
-    Triangle = 2,
-    Rocket = 3,
+    Square,
+    Wing,
+    Triangle,
+    Rocket,
 }
 
 pub const SHIP_SHAPES: [Shape; 3] = [Shape::Square, Shape::Wing, Shape::Triangle];

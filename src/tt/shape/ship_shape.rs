@@ -1,13 +1,12 @@
 use std::vec::Vec;
 
+use crate::tt::screen::Screen;
 use crate::util::display_list::DisplayList;
 use crate::util::rand::Rand;
 use crate::util::vector::Vector;
-// FIXME we are in util!
-use crate::tt::screen::Screen;
 
 use super::structure::{self, Structure};
-use super::{Drawable, Collidable};
+use super::{Collidable, Drawable};
 
 pub struct ShipShape {
     collision: Vector,
