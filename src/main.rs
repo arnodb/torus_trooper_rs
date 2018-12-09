@@ -1,3 +1,4 @@
+extern crate bulletml;
 #[macro_use]
 extern crate bitflags;
 #[macro_use]
@@ -27,8 +28,10 @@ use piston::event_loop::*;
 use piston::input::*;
 use std::time::Instant;
 
+use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::EnemyPool;
 use crate::tt::actor::shot::ShotPool;
+use crate::tt::barrage::BarrageManager;
 use crate::tt::camera::Camera;
 use crate::tt::errors::GameError;
 use crate::tt::letter::Letter;
@@ -69,7 +72,9 @@ impl MainLoop {
         let mut camera = Camera::new();
         let mut ship = Ship::new(&screen, seed);
 
+        let mut barrage_manager = BarrageManager::load(&screen)?;
         let mut shots = ShotPool::new(64, &screen);
+        let mut bullets = BulletPool::new(512);
         let mut enemies = EnemyPool::new(64, seed);
 
         let mut stage_manager = StageManager::new(seed);
@@ -87,7 +92,9 @@ impl MainLoop {
             camera: &mut camera,
             ship: &mut ship,
             tunnel: &mut tunnel,
+            barrage_manager: &mut barrage_manager,
             shots: &mut shots,
+            bullets: &mut bullets,
             enemies: &mut enemies,
         };
 

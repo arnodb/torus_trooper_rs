@@ -1,4 +1,5 @@
 pub mod actor;
+pub mod barrage;
 pub mod bullet;
 pub mod camera;
 pub mod errors;
@@ -26,6 +27,8 @@ pub struct ActionParams<'a> {
     pub ship: &'a mut ship::Ship,
     pub tunnel: &'a mut tunnel::Tunnel,
 
+    pub barrage_manager: &'a mut barrage::BarrageManager,
     pub shots: &'a mut actor::shot::ShotPool,
+    pub bullets: &'a mut actor::bullet::BulletPool,
     pub enemies: &'a mut actor::enemy::EnemyPool,
 }

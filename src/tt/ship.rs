@@ -21,10 +21,12 @@ pub const GRADE_LETTER: [&str; 3] = ["N", "H", "E"];
 pub const GRADE_STR: [&str; 3] = ["NORMAL", "HARD", "EXTREME"];
 
 pub const IN_SIGHT_DEPTH_DEFAULT: f32 = 35.;
-const RELPOS_MAX_Y: f32 = 10.;
+pub const RELPOS_MAX_Y: f32 = 10.;
 
 const RESTART_CNT: i32 = 268;
 const INVINCIBLE_CNT: i32 = 228;
+
+const HIT_WIDTH: f32 = 0.00025;
 
 const SPEED_DEFAULT: [f32; GRADE_NUM] = [0.4, 0.6, 0.8];
 const SPEED_MAX: [f32; GRADE_NUM] = [0.8, 1.2, 1.6];
@@ -354,7 +356,10 @@ impl Ship {
             }
         } else {
             if let Some(charging_shot) = self.charging_shot {
-                shots[charging_shot].actor.release();
+                let release = shots[charging_shot].actor.release();
+                if release {
+                    shots[charging_shot].release()
+                }
                 self.charging_shot = None;
             }
             if btn & PadButtons::A != PadButtons::NONE {
@@ -509,6 +514,36 @@ impl Ship {
         self.screen_shake_intense = its;
     }
 
+    pub fn check_bullet_hit(&self, p: Vector, pp: Vector) -> bool {
+        if self.cnt <= 0 {
+            return false;
+        }
+        let mut bmv = pp - p;
+        if bmv.x > std::f32::consts::PI {
+            bmv.x = bmv.x - std::f32::consts::PI * 2.;
+        } else if bmv.x < -std::f32::consts::PI {
+            bmv.x = bmv.x + std::f32::consts::PI * 2.;
+        }
+        let inaa = bmv.x * bmv.x + bmv.y * bmv.y;
+        if inaa > 0.00001 {
+            let mut sofs = self.rel_pos - p;
+            if sofs.x > std::f32::consts::PI {
+                sofs.x -= std::f32::consts::PI * 2.;
+            } else if sofs.x < -std::f32::consts::PI {
+                sofs.x += std::f32::consts::PI * 2.;
+            }
+            let inab = bmv.x * sofs.x + bmv.y * sofs.y;
+            if inab >= 0. && inab <= inaa {
+                let hd = sofs.x * sofs.x + sofs.y * sofs.y - inab * inab / inaa;
+                if hd >= 0. && hd <= HIT_WIDTH {
+                    // TODO self.destroyed();
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     pub fn has_collision(&self) -> bool {
         !(self.cnt <= -INVINCIBLE_CNT)
     }
@@ -625,8 +660,16 @@ impl Ship {
         self.rel_pos
     }
 
+    pub fn eye_pos(&self) -> Vector {
+        self.eye_pos
+    }
+
     pub fn speed(&self) -> f32 {
         self.speed
+    }
+
+    pub fn in_sight_depth(&self) -> f32 {
+        self.in_sight_depth
     }
 
     pub fn in_boss_mode(&self) -> bool {

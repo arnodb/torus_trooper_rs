@@ -22,6 +22,17 @@ impl TitleState {
             game_over_cnt: 0,
         })
     }
+
+    fn clear_all(&mut self, params: &mut ActionParams) {
+        params.shots.clear();
+        params.bullets.clear();
+        params.enemies.clear_shallow();
+        /*TODO
+        particles.clear();
+        floatLetters.clear();
+        passedEnemies.clear();
+        */
+    }
 }
 
 impl State for TitleState {
@@ -29,7 +40,7 @@ impl State for TitleState {
         // TODO SoundManager.haltBgm();
         // TODO SoundManager.disableSe();
         self.manager.start(seed, params);
-        // TODO clearAll();
+        self.clear_all(params);
         // TODO if (replayData)
         // TODO startReplay();
     }

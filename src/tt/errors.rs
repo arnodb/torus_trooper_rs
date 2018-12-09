@@ -6,6 +6,8 @@ pub enum GameError {
     Preference(#[cause] preferences::PreferencesError, Backtrace),
     #[fail(display = "Image error")]
     Image(#[cause] image::ImageError, Backtrace),
+    #[fail(display = "BulletML parse error")]
+    BulletML(#[cause] bulletml::parse::Error, Backtrace),
     #[fail(display = "String error")]
     String(String, Backtrace),
     #[fail(display = "Fatal error")]
@@ -21,6 +23,12 @@ impl From<preferences::PreferencesError> for GameError {
 impl From<image::ImageError> for GameError {
     fn from(inner: image::ImageError) -> Self {
         GameError::Image(inner, Backtrace::new())
+    }
+}
+
+impl From<bulletml::parse::Error> for GameError {
+    fn from(inner: bulletml::parse::Error) -> Self {
+        GameError::BulletML(inner, Backtrace::new())
     }
 }
 

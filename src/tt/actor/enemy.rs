@@ -1,4 +1,7 @@
-use crate::tt::actor::Pool;
+use crate::tt::actor::bullet::{Bullet, BulletPool};
+use crate::tt::actor::shot::Shot;
+use crate::tt::actor::{Pool, PoolActorRef};
+use crate::tt::barrage::BarrageManager;
 use crate::tt::screen::Screen;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::{self, Ship};
@@ -10,8 +13,6 @@ use crate::util::vector::Vector;
 use crate::gl;
 
 use self::ship_spec::ShipSpec;
-
-use super::shot::Shot;
 
 const OUT_OF_COURSE_BANK: f32 = 1.0;
 const DISAP_DEPTH: f32 = -5.0;
@@ -27,6 +28,7 @@ pub struct Enemy {
     d2: f32,
     base_bank: f32,
     bank: f32,
+    top_bullet: Option<PoolActorRef>,
     shield: i32,
     first_shield: i32,
     damaged: bool,
@@ -66,16 +68,17 @@ impl Enemy {
         self.flip_mv_cnt = 0;
         self.damaged = false;
         self.high_order = true;
-        // TODO topBullet = null;
+        self.top_bullet = None;
         // TODO bitBullet = null;
     }
 
     fn mov(
         &mut self,
         passed: bool,
-        spec: &ShipSpec,
+        spec: &mut ShipSpec,
         tunnel: &Tunnel,
         ship: &mut Ship,
+        bullets: &mut BulletPool,
     ) -> (bool, bool) {
         let mut goto_next_zone = false;
         if !passed {
@@ -207,10 +210,10 @@ impl Enemy {
         }
         self.d1 += (sl.d1() - self.d1) * 0.1;
         self.d2 += (sl.d2() - self.d2) * 0.1;
-        /* TODO
-        if (!passed && !topBullet) {
-            Barrage tbb = spec.barrage;
-            topBullet = tbb.addTopBullet(bullets, ship);
+        if !passed && self.top_bullet.is_none() {
+            let tbb = spec.barrage();
+            self.top_bullet = tbb.add_top_bullet(bullets);
+            /* TODO
             for (int i = 0; i < spec.bitNum; i++) {
                 Barrage bbb = spec.bitBarrage;
                 BulletActor ba = bbb.addTopBullet(bullets, ship);
@@ -219,11 +222,15 @@ impl Enemy {
                     bitBullet ~= ba;
                 }
             }
+            */
         }
-        if (topBullet) {
-            topBullet.bullet.pos.x = pos.x;
-            topBullet.bullet.pos.y = pos.y;
-            checkBulletInRange(topBullet);
+        if let Some(tb_ref) = self.top_bullet {
+            let top_bullet = bullets.maybe_index_mut(tb_ref);
+            if let Some(top_bullet) = top_bullet {
+                let tb_spec = top_bullet.state.spec_mut();
+                tb_spec.bullet.pos = self.pos;
+                self.check_bullet_in_range(spec, tunnel, ship, &mut top_bullet.actor);
+            /*TODO
             float d;
             int i = 0;
             if (bitBullet) {
@@ -235,13 +242,17 @@ impl Enemy {
                     checkBulletInRange(bb);
                     i++;
                 }
+            }*/
+            } else {
+                self.top_bullet = None;
             }
         }
+        /* TODO
         if !passed && self.pos.y <= ship.in_sight_depth() {
             spec.shape().add_particles(pos, particles);
         }
         */
-        let mut remove = false;
+        let mut release = false;
         if !passed {
             if (!spec.has_limit_y() && self.pos.y > ship::IN_SIGHT_DEPTH_DEFAULT * 5.)
                 || self.pos.y < DISAP_DEPTH
@@ -252,17 +263,45 @@ impl Enemy {
                     if (en)
                     en.set(spec, pos.x, pos.y, null, true, baseBank);
                 }*/
-                remove = true;
+                release = true;
             }
         } else if self.pos.y < -ship::IN_SIGHT_DEPTH_DEFAULT * 3. {
-            remove = true;
+            release = true;
         }
         self.damaged = false;
         self.bit_cnt += 1;
-        (remove, goto_next_zone)
+        (release, goto_next_zone)
     }
 
-    pub fn check_shot_hit(
+    fn check_bullet_in_range(
+        &self,
+        spec: &mut ShipSpec,
+        tunnel: &Tunnel,
+        ship: &Ship,
+        top_bullet: &mut Bullet,
+    ) {
+        if !tunnel.check_in_screen(self.pos, ship) {
+            top_bullet.root_rank = 0.;
+        } else {
+            let ship_rel_pos = ship.rel_pos();
+            if self.pos.dist(ship_rel_pos) > 20. + ship_rel_pos.y * 10. / ship::RELPOS_MAX_Y
+                && self.pos.y > ship_rel_pos.y
+                && self.flip_mv_cnt <= 0
+            {
+                if spec.no_fire_depth_limit {
+                    top_bullet.root_rank = 1.;
+                } else if self.pos.y <= ship.in_sight_depth() {
+                    top_bullet.root_rank = 1.;
+                } else {
+                    top_bullet.root_rank = 0.;
+                }
+            } else {
+                top_bullet.root_rank = 0.;
+            }
+        }
+    }
+
+    fn check_shot_hit(
         &mut self,
         spec: &ShipSpec,
         p: Vector,
@@ -279,20 +318,20 @@ impl Enemy {
             ox = std::f32::consts::PI * 2. - ox;
         }
         ox *= (tunnel.get_radius(self.pos.y) / tunnel::DEFAULT_RAD) * 3.;
-        let mut remove_enemy = false;
-        let mut remove_shot = false;
+        let mut release_enemy = false;
+        let mut release_shot = false;
         if spec.shape().check_collision_shape(ox, oy, shape, 1.) {
             self.shield -= shot.damage();
             if self.shield <= 0 {
                 self.destroyed(spec, ship);
-                remove_enemy = true;
+                release_enemy = true;
             } else {
                 self.damaged = true;
                 // TODO
             }
-            remove_shot = shot.add_score(charge_shot, spec.score(), self.pos, score_accumulator);
+            release_shot = shot.add_score(charge_shot, spec.score(), self.pos, score_accumulator);
         }
-        (remove_enemy, remove_shot)
+        (release_enemy, release_shot)
     }
 
     fn destroyed(&self, spec: &ShipSpec, ship: &mut Ship) {
@@ -305,6 +344,20 @@ impl Enemy {
         } else {
             // TODO SoundManager.playSe("boss_dest.wav");
             ship.set_screen_shake(56, 0.064);
+        }
+    }
+
+    fn remove_shallow(&mut self) {
+        self.top_bullet = None;
+        // TODO
+    }
+
+    fn remove(&mut self, bullets: &mut BulletPool) {
+        if let Some(tb_ref) = self.top_bullet {
+            let tb = &mut bullets[tb_ref];
+            tb.release();
+            self.top_bullet = None;
+            // TODO
         }
     }
 
@@ -398,13 +451,15 @@ impl EnemyPool {
         medium_boss_zone: bool,
         boss_num: u32,
         screen: &Screen,
+        barrage_manager: &mut BarrageManager,
     ) {
         for _ in 0..(2 + self.rand.gen_usize(2)) {
-            let ss = ShipSpec::new_small(&mut self.rand, level * 1.8, grade, screen);
+            let ss =
+                ShipSpec::new_small(&mut self.rand, level * 1.8, grade, screen, barrage_manager);
             self.small_ship_specs.push(ss);
         }
         for _ in 0..(2 + self.rand.gen_usize(2)) {
-            let ss = ShipSpec::new_medium(&mut self.rand, level * 1.9, screen);
+            let ss = ShipSpec::new_medium(&mut self.rand, level * 1.9, screen, barrage_manager);
             self.medium_ship_specs.push(ss);
         }
         for _ in 0..boss_num {
@@ -413,7 +468,14 @@ impl EnemyPool {
                 lv *= 1.33;
             }
             let boss_speed = 0.8 + grade as f32 * 0.04 + self.rand.gen_f32(0.03);
-            let ss = ShipSpec::new_boss(&mut self.rand, lv, boss_speed, medium_boss_zone, screen);
+            let ss = ShipSpec::new_boss(
+                &mut self.rand,
+                lv,
+                boss_speed,
+                medium_boss_zone,
+                screen,
+                barrage_manager,
+            );
             self.boss_ship_specs.push(ss);
         }
         self.boss_spec_idx = 0;
@@ -459,7 +521,17 @@ impl EnemyPool {
         }
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear_shallow(&mut self) {
+        for pa in &mut self.pool {
+            pa.actor.remove_shallow();
+        }
+        self.pool.clear();
+    }
+
+    pub fn clear(&mut self, bullets: &mut BulletPool) {
+        for pa in &mut self.pool {
+            pa.actor.remove(bullets);
+        }
         self.pool.clear();
     }
 
@@ -467,19 +539,20 @@ impl EnemyPool {
         self.rand.set_seed(seed);
     }
 
-    pub fn mov(&mut self, tunnel: &Tunnel, ship: &mut Ship) -> bool {
+    pub fn mov(&mut self, tunnel: &Tunnel, ship: &mut Ship, bullets: &mut BulletPool) -> bool {
         let mut goto_next_zone = false;
         for pa in &mut self.pool {
             let spec = match pa.state.spec() {
-                EnemySpec::Small(idx) => &self.small_ship_specs[*idx],
-                EnemySpec::Medium(idx) => &self.medium_ship_specs[*idx],
-                EnemySpec::Boss(idx) => &self.boss_ship_specs[*idx],
+                EnemySpec::Small(idx) => &mut self.small_ship_specs[*idx],
+                EnemySpec::Medium(idx) => &mut self.medium_ship_specs[*idx],
+                EnemySpec::Boss(idx) => &mut self.boss_ship_specs[*idx],
             };
-            let (release, goto_nz) = pa.actor.mov(false, spec, tunnel, ship);
+            let (release, goto_nz) = pa.actor.mov(false, spec, tunnel, ship, bullets);
             if goto_nz {
                 goto_next_zone = true;
             }
             if release {
+                pa.actor.remove(bullets);
                 pa.release();
             }
         }
@@ -494,6 +567,7 @@ impl EnemyPool {
         charge_shot: bool,
         tunnel: &Tunnel,
         ship: &mut Ship,
+        bullets: &mut BulletPool,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         let mut release_shot = false;
@@ -517,6 +591,7 @@ impl EnemyPool {
                 release_shot = true;
             }
             if release_enemy {
+                pa.actor.remove(bullets);
                 pa.release();
             }
         }
@@ -539,11 +614,16 @@ impl EnemyPool {
 }
 
 pub mod ship_spec {
+    use std::ffi::OsStr;
+    use std::rc::Rc;
+
     use crate::util::rand::Rand;
     use crate::util::vector::Vector;
 
+    use crate::tt::barrage::{Barrage, BarrageManager, BulletShapeType};
     use crate::tt::screen::Screen;
     use crate::tt::shape::ship_shape::ShipShape;
+    use crate::tt::shape::{Drawable, ResizableDrawable};
     use crate::tt::ship;
     use crate::tt::tunnel::Tunnel;
 
@@ -552,6 +632,7 @@ pub mod ship_spec {
     pub struct ShipSpec {
         shape: ShipShape,
         damaged_shape: ShipShape,
+        barrage: Barrage,
         shield: i32,
         base_speed: f32,
         ship_speed_ratio: f32,
@@ -562,12 +643,18 @@ pub mod ship_spec {
         bit_num: u32,
         aim_ship: bool,
         has_limit_y: bool,
-        no_fire_depth_limit: bool,
+        pub no_fire_depth_limit: bool,
         is_boss: bool,
     }
 
     impl ShipSpec {
-        pub fn new_small(rand: &mut Rand, level: f32, grade: u32, screen: &Screen) -> Self {
+        pub fn new_small(
+            rand: &mut Rand,
+            level: f32,
+            grade: u32,
+            screen: &Screen,
+            barrage_manager: &mut BarrageManager,
+        ) -> Self {
             let rs = rand.gen_usize(99999) as u64;
             let bi_min = usize::max(usize::min((160.0 / level) as usize, 40), 80)
                 + (ship::GRADE_NUM - 1 - grade as usize) * 8;
@@ -577,6 +664,13 @@ pub mod ship_spec {
             Self {
                 shape: ShipShape::new_small(false, screen, rs),
                 damaged_shape: ShipShape::new_small(true, screen, rs),
+                barrage: ShipSpec::create_barrage(
+                    rand,
+                    brg_rank,
+                    0,
+                    brg_interval as u32,
+                    barrage_manager,
+                ),
                 shield: 1,
                 base_speed: 0.05 + rand.gen_f32(0.1),
                 ship_speed_ratio: 0.25 + rand.gen_f32(0.25),
@@ -594,14 +688,29 @@ pub mod ship_spec {
                 no_fire_depth_limit: false,
                 is_boss: false,
             }
-            // TODO _barrage = createBarrage(rand, brgRank, 0, brgInterval);
         }
 
-        pub fn new_medium(rand: &mut Rand, level: f32, screen: &Screen) -> Self {
+        pub fn new_medium(
+            rand: &mut Rand,
+            level: f32,
+            screen: &Screen,
+            barrage_manager: &mut BarrageManager,
+        ) -> Self {
             let rs = rand.gen_usize(99999) as u64;
             Self {
                 shape: ShipShape::new_medium(false, screen, rs),
                 damaged_shape: ShipShape::new_medium(true, screen, rs),
+                barrage: ShipSpec::create_barrage_full(
+                    rand,
+                    level,
+                    0,
+                    0,
+                    1.,
+                    Some(OsStr::new("middle")),
+                    BulletShapeType::Square,
+                    false,
+                    barrage_manager,
+                ),
                 shield: 10,
                 base_speed: 0.1 + rand.gen_f32(0.1),
                 ship_speed_ratio: 0.4 + rand.gen_f32(0.4),
@@ -619,7 +728,6 @@ pub mod ship_spec {
                 no_fire_depth_limit: false,
                 is_boss: false,
             }
-            // TODO _barrage = createBarrage(rand, level, 0, 0, 1, "middle", BulletShape.BSType.SQUARE);
         }
 
         pub fn new_boss(
@@ -628,11 +736,23 @@ pub mod ship_spec {
             speed: f32,
             medium_boss: bool,
             screen: &Screen,
+            barrage_manager: &mut BarrageManager,
         ) -> Self {
             let rs = rand.gen_usize(99999) as u64;
             let mut spec = Self {
                 shape: ShipShape::new_large(false, screen, rs),
                 damaged_shape: ShipShape::new_large(true, screen, rs),
+                barrage: ShipSpec::create_barrage_full(
+                    rand,
+                    level,
+                    0,
+                    0,
+                    1.2,
+                    Some(OsStr::new("middle")),
+                    BulletShapeType::Square,
+                    true,
+                    barrage_manager,
+                ),
                 shield: 30,
                 base_speed: 0.1 + rand.gen_f32(0.1),
                 ship_speed_ratio: speed,
@@ -646,7 +766,6 @@ pub mod ship_spec {
                 no_fire_depth_limit: true,
                 is_boss: true,
             };
-            // TODO _barrage = createBarrage(rand, level, 0, 0, 1.2f, "middle", BulletShape.BSType.SQUARE, true);
             if !medium_boss {
                 spec.bit_num = 2 + rand.gen_usize(3) as u32 * 2;
             }
@@ -669,6 +788,87 @@ pub mod ship_spec {
     _bitBarrage.setNoXReverse();
             */
             spec
+        }
+
+        fn create_barrage(
+            rand: &mut Rand,
+            level: f32,
+            pre_wait: u32,
+            post_wait: u32,
+            barrage_manager: &mut BarrageManager,
+        ) -> Barrage {
+            ShipSpec::create_barrage_full(
+                rand,
+                level,
+                pre_wait,
+                post_wait,
+                1.,
+                None,
+                BulletShapeType::Triangle,
+                false,
+                barrage_manager,
+            )
+        }
+
+        fn create_barrage_full(
+            rand: &mut Rand,
+            level: f32,
+            pre_wait: u32,
+            post_wait: u32,
+            size: f32,
+            base_dir: Option<&OsStr>,
+            shape_type: BulletShapeType,
+            long_range: bool,
+            barrage_manager: &mut BarrageManager,
+        ) -> Barrage {
+            // TODO
+            let mut rank = f32::sqrt(level) / (8. - rand.gen_usize(3) as f32);
+            if rank > 0.8 {
+                rank = rand.gen_f32(0.2) + 0.8;
+            }
+            let mut speed_rank = f32::sqrt(rank) * (rand.gen_f32(0.2) + 0.8);
+            if speed_rank < 1. {
+                speed_rank = 1.;
+            }
+            if speed_rank > 2. {
+                speed_rank = f32::sqrt(speed_rank * 2.);
+            }
+            let mut morph_rank = level / (rank + 2.) / speed_rank;
+            let mut morph_cnt = 0;
+            while morph_rank > 1. {
+                morph_cnt += 1;
+                morph_rank /= 3.;
+            }
+            let (bsr, dbsr) = barrage_manager.get_shape(shape_type);
+            let bsr = Rc::new(ResizableDrawable::new(bsr, size * 1.25)) as Rc<Drawable>;
+            let dbsr = Rc::new(ResizableDrawable::new(dbsr, size * 1.25)) as Rc<Drawable>;
+            let mut br = Barrage::new(&bsr, &dbsr);
+            br.set_wait(pre_wait, post_wait);
+            br.set_long_range(long_range);
+            if let Some(base_dir) = base_dir {
+                let ps = barrage_manager.get_instance_list(base_dir);
+                let pi = rand.gen_usize(ps.len());
+                br.add_bml(&ps[pi], rank, true, speed_rank);
+            } else {
+                br.add_bml(
+                    barrage_manager.get_instance(OsStr::new("basic"), OsStr::new("straight.xml")),
+                    rank,
+                    true,
+                    speed_rank,
+                );
+            }
+            let ps = barrage_manager.get_instance_list(OsStr::new("morph"));
+            let psn = ps.len();
+            let mut used_ps = vec![false; psn];
+            for _ in 0..morph_cnt {
+                let mut pi = rand.gen_usize(psn);
+                while used_ps[pi] {
+                    pi = (pi + psn - 1) % psn;
+                }
+                br.add_bml(&ps[pi], morph_rank, true, speed_rank);
+                used_ps[pi] = true;
+            }
+            br
         }
 
         pub fn speed(&self, sp: f32) -> f32 {
@@ -737,6 +937,10 @@ pub mod ship_spec {
 
         pub fn damaged_shape(&self) -> &ShipShape {
             &self.damaged_shape
+        }
+
+        pub fn barrage(&mut self) -> &mut Barrage {
+            &mut self.barrage
         }
 
         pub fn shield(&self) -> i32 {

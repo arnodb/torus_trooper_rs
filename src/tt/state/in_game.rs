@@ -139,10 +139,8 @@ impl<'a> State for InGameState<'a> {
         self.grade = params.pref_manager.selected_grade();
         self.level = params.pref_manager.selected_level() as f32;
         params.shots.clear();
-        /* TODO
-        bullets.clear();
-        */
-        params.enemies.clear();
+        params.bullets.clear();
+        params.enemies.clear_shallow();
         /* TODO
         particles.clear();
         floatLetters.clear();
@@ -170,7 +168,9 @@ impl<'a> State for InGameState<'a> {
             params.screen,
             params.tunnel,
             params.ship,
+            params.bullets,
             params.enemies,
+            params.barrage_manager,
         );
         self.init_game_state(params.stage_manager);
         /* TODO sound
@@ -210,25 +210,51 @@ impl<'a> State for InGameState<'a> {
             SoundManager.nextBgm();
         }
         */
-        let mut score_accumulator = ScoreAccumulator {
-            score: 0,
-        };
-        params.ship.mov(*pad, params.camera, params.tunnel, params.shots, &mut score_accumulator);
-        self.add_score(score_accumulator, params.ship.is_game_over(), params.stage_manager.level());
-        params.stage_manager.mov(params.screen, params.tunnel, params.ship, params.enemies);
-        if params.enemies.mov(params.tunnel, params.ship) {
+        let mut score_accumulator = ScoreAccumulator { score: 0 };
+        params.ship.mov(
+            *pad,
+            params.camera,
+            params.tunnel,
+            params.shots,
+            &mut score_accumulator,
+        );
+        self.add_score(
+            score_accumulator,
+            params.ship.is_game_over(),
+            params.stage_manager.level(),
+        );
+        params.stage_manager.mov(
+            params.screen,
+            params.tunnel,
+            params.ship,
+            params.bullets,
+            params.enemies,
+            params.barrage_manager,
+        );
+        if params
+            .enemies
+            .mov(params.tunnel, params.ship, params.bullets)
+        {
             self.goto_next_zone(false, params.stage_manager);
         }
-        let mut score_accumulator = ScoreAccumulator {
-            score: 0,
-        };
-        params.shots.mov(params.tunnel, params.ship, params.enemies, &mut score_accumulator);
-        self.add_score(score_accumulator, params.ship.is_game_over(), params.stage_manager.level());
-         /* TODO
-        bullets.move();
-        particles.move();
-        floatLetters.move();
-        */
+        let mut score_accumulator = ScoreAccumulator { score: 0 };
+        params.shots.mov(
+            params.tunnel,
+            params.ship,
+            params.bullets,
+            params.enemies,
+            &mut score_accumulator,
+        );
+        self.add_score(
+            score_accumulator,
+            params.ship.is_game_over(),
+            params.stage_manager.level(),
+        );
+        params.bullets.mov(params.tunnel, params.ship);
+        /* TODO
+       particles.move();
+       floatLetters.move();
+       */
         self.decrement_time(params.ship);
         let mut action = MoveAction::None;
         if self.time < 0 {
@@ -287,7 +313,7 @@ impl<'a> State for InGameState<'a> {
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE);
             gl::Disable(gl::GL_BLEND);
         }
-        // TODO bullets.draw();
+        params.bullets.draw(params.tunnel);
         unsafe {
             gl::Enable(gl::GL_BLEND);
         }

@@ -1,7 +1,9 @@
 use crate::util::rand::Rand;
 
-use crate::tt::actor::enemy::{Enemy, EnemyPool};
+use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::ship_spec::ShipSpec;
+use crate::tt::actor::enemy::{Enemy, EnemyPool};
+use crate::tt::barrage::BarrageManager;
 use crate::tt::screen::Screen;
 use crate::tt::ship::{self, Ship};
 use crate::tt::tunnel::{SliceColor, SliceDrawState, Torus, Tunnel};
@@ -133,7 +135,18 @@ impl StageManager {
         }
     }
 
-    pub fn start(&mut self, level: f32, grade: u32, seed: u64, screen: &Screen, tunnel: &mut Tunnel, ship: &mut Ship, enemies: &mut EnemyPool) {
+    pub fn start(
+        &mut self,
+        level: f32,
+        grade: u32,
+        seed: u64,
+        screen: &Screen,
+        tunnel: &mut Tunnel,
+        ship: &mut Ship,
+        bullets: &mut BulletPool,
+        enemies: &mut EnemyPool,
+        barrage_manager: &mut BarrageManager,
+    ) {
         self.rand.set_seed(seed);
         tunnel.start(Torus::new(seed));
         self.level = level - LEVEL_UP_RATIO;
@@ -145,13 +158,22 @@ impl StageManager {
         self.tunnel_color_line_idx = TUNNEL_COLOR_PATTERN_LINE.len() + level as usize - 2;
         self.slice_draw_state = SliceDrawState {
             dark_line_ratio: 1.,
-            poly: TUNNEL_COLOR_PATTERN_POLY[self.tunnel_color_poly_idx % TUNNEL_COLOR_PATTERN_POLY.len()],
-            line: TUNNEL_COLOR_PATTERN_LINE[self.tunnel_color_line_idx % TUNNEL_COLOR_PATTERN_LINE.len()],
+            poly: TUNNEL_COLOR_PATTERN_POLY
+                [self.tunnel_color_poly_idx % TUNNEL_COLOR_PATTERN_POLY.len()],
+            line: TUNNEL_COLOR_PATTERN_LINE
+                [self.tunnel_color_line_idx % TUNNEL_COLOR_PATTERN_LINE.len()],
         };
-        self.create_next_zone(screen, ship, enemies);
+        self.create_next_zone(screen, ship, bullets, enemies, barrage_manager);
     }
 
-    fn create_next_zone(&mut self, screen: &Screen, ship: &mut Ship, enemies: &mut EnemyPool) {
+    fn create_next_zone(
+        &mut self,
+        screen: &Screen,
+        ship: &mut Ship,
+        bullets: &mut BulletPool,
+        enemies: &mut EnemyPool,
+        barrage_manager: &mut BarrageManager,
+    ) {
         self.level += LEVEL_UP_RATIO;
         self.medium_boss_zone = !self.medium_boss_zone;
         if self.dark_line {
@@ -160,7 +182,7 @@ impl StageManager {
         }
         self.dark_line = !self.dark_line;
         self.tunnel_color_change_cnt = TUNNEL_COLOR_CHANGE_INTERVAL;
-        enemies.clear();
+        enemies.clear(bullets);
         self.next_small_app_dist = 0.;
         self.next_medium_app_dist = 0.;
         self.set_next_small_app_dist();
@@ -173,7 +195,14 @@ impl StageManager {
         } else {
             self.boss_num = 1;
         }
-        enemies.renew_ship_specs(self.level, self.grade, self.medium_boss_zone, self.boss_num, screen);
+        enemies.renew_ship_specs(
+            self.level,
+            self.grade,
+            self.medium_boss_zone,
+            self.boss_num,
+            screen,
+            barrage_manager,
+        );
         let boss_app_rank = BOSS_APP_RANK[self.grade as usize] - self.boss_num + self.zone_end_rank;
         self.zone_end_rank += BOSS_APP_RANK[self.grade as usize];
         ship.set_boss_app(boss_app_rank, self.boss_num, self.zone_end_rank);
@@ -181,7 +210,15 @@ impl StageManager {
         self.boss_mode_end_cnt = -1;
     }
 
-    pub fn mov(&mut self, screen: &Screen, tunnel: &Tunnel, ship: &mut Ship, enemies: &mut EnemyPool) {
+    pub fn mov(
+        &mut self,
+        screen: &Screen,
+        tunnel: &Tunnel,
+        ship: &mut Ship,
+        bullets: &mut BulletPool,
+        enemies: &mut EnemyPool,
+        barrage_manager: &mut BarrageManager,
+    ) {
         if ship.in_boss_mode() {
             if self.next_boss_app_dist > 99999. {
                 self.next_boss_app_dist = (self.rand.gen_usize(50) + 100) as f32;
@@ -212,7 +249,7 @@ impl StageManager {
                 self.boss_mode_end_cnt -= 1;
                 // TODO ship.clearVisibleBullets();
                 if self.boss_mode_end_cnt < 0 {
-                    self.create_next_zone(screen, ship, enemies);
+                    self.create_next_zone(screen, ship, bullets, enemies, barrage_manager);
                     ship.start_next_zone();
                 }
             }

@@ -3,6 +3,7 @@ use std::fmt;
 use crate::gl;
 
 use crate::tt::screen::Screen;
+use crate::tt::ship::Ship;
 use crate::util::display_list::DisplayList;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
@@ -341,6 +342,19 @@ impl Tunnel {
         (idx, ofs)
     }
 
+    pub fn check_in_screen(&self, p: Vector, ship: &Ship) -> bool {
+        self.check_in_screen_v_ofs(p, ship, 0.03, 28.)
+    }
+
+    fn check_in_screen_v_ofs(&self, p: Vector, ship: &Ship, v: f32, ofs: f32) -> bool {
+        let mut xr = f32::abs(p.x - ship.eye_pos().x);
+        if xr > std::f32::consts::PI {
+            xr = std::f32::consts::PI * 2. - xr;
+        }
+        xr *= self.get_radius(0.) / DEFAULT_RAD;
+        !(xr > v * (p.y + ofs))
+    }
+
     pub fn get_torus_length(&self) -> usize {
         self.torus.slice_num
     }
@@ -492,14 +506,14 @@ pub struct Slice {
 
 impl fmt::Debug for Slice {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "( state: {:?}, d1: {:?}, d2: {:?}, point_from: {:?}, center_pos: {:?}, point_ratio: {:?}, point_pos: [", self.state, self.d1, self.d2, self.point_from, self.center_pos, self.point_ratio);
+        write!(f, "( state: {:?}, d1: {:?}, d2: {:?}, point_from: {:?}, center_pos: {:?}, point_ratio: {:?}, point_pos: [", self.state, self.d1, self.d2, self.point_from, self.center_pos, self.point_ratio)?;
         for (i, pos) in self.point_pos.iter().enumerate() {
             if i > 0 {
-                write!(f, ", ");
+                write!(f, ", ")?;
             }
-            write!(f, "{:?})", pos);
+            write!(f, "{:?})", pos)?;
         }
-        write!(f, "], depth: {:?})", self.depth);
+        write!(f, "], depth: {:?})", self.depth)?;
         Ok(())
     }
 }

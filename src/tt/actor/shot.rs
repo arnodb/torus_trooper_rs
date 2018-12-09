@@ -12,6 +12,7 @@ use crate::tt::state::in_game::ScoreAccumulator;
 use crate::tt::tunnel::Tunnel;
 use crate::util::vector::Vector;
 
+use super::bullet::BulletPool;
 use super::enemy::EnemyPool;
 
 const SPEED: f32 = 0.75;
@@ -101,6 +102,7 @@ impl Shot {
         shape: &mut ResizableDrawable<ShotShape>,
         tunnel: &Tunnel,
         ship: &mut Ship,
+        bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
@@ -128,7 +130,17 @@ impl Shot {
         shape.size(self.size);
         if !self.in_charge {
             if charge_shot {
-                // TODO bullets.checkShotHit(pos, shape, this);
+                let hit_release = bullets.check_shot_hit(
+                    self.pos,
+                    shape,
+                    self,
+                    charge_shot,
+                    tunnel,
+                    score_accumulator,
+                );
+                if hit_release {
+                    release = true;
+                }
             }
             let hit_release = enemies.check_shot_hit(
                 self.pos,
@@ -137,6 +149,7 @@ impl Shot {
                 charge_shot,
                 tunnel,
                 ship,
+                bullets,
                 score_accumulator,
             );
             if hit_release {
@@ -262,19 +275,30 @@ impl ShotPool {
         &mut self,
         tunnel: &Tunnel,
         ship: &mut Ship,
+        bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
         score_accumulator: &mut ScoreAccumulator,
     ) {
         for pa in &mut self.pool {
             let release = match pa.state.spec_mut() {
-                ShotSpec::Normal(shape) => {
-                    pa.actor
-                        .mov(false, shape, tunnel, ship, enemies, score_accumulator)
-                }
-                ShotSpec::Charge(shape) => {
-                    pa.actor
-                        .mov(true, shape, tunnel, ship, enemies, score_accumulator)
-                }
+                ShotSpec::Normal(shape) => pa.actor.mov(
+                    false,
+                    shape,
+                    tunnel,
+                    ship,
+                    bullets,
+                    enemies,
+                    score_accumulator,
+                ),
+                ShotSpec::Charge(shape) => pa.actor.mov(
+                    true,
+                    shape,
+                    tunnel,
+                    ship,
+                    bullets,
+                    enemies,
+                    score_accumulator,
+                ),
             };
             if release {
                 pa.release();

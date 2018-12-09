@@ -1,5 +1,6 @@
 use std::ops::{Index, IndexMut};
 
+pub mod bullet;
 pub mod enemy;
 pub mod shot;
 
@@ -141,6 +142,32 @@ impl<T: Default, S> Pool<T, S> {
                 }
             })
             .sum()
+    }
+
+    fn acting_refs(&self) -> Vec<PoolActorRef> {
+        (&self.actors)
+            .into_iter()
+            .enumerate()
+            .filter_map(|(idx, pa)| match pa.state {
+                ActorState::Acting { generation, .. } => Some(PoolActorRef { idx, generation }),
+                ActorState::NotActing => None,
+            })
+            .collect()
+    }
+
+    fn maybe_index_mut(&mut self, index: PoolActorRef) -> Option<&mut PoolActor<T, S>> {
+        let pa = &mut self.actors[index.idx];
+        match &pa.state {
+            ActorState::Acting { generation, .. } => {
+                if *generation != index.generation {
+                    return None;
+                }
+            }
+            ActorState::NotActing => {
+                return None;
+            }
+        }
+        Some(pa)
     }
 }
 

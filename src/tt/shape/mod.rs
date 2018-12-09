@@ -1,3 +1,4 @@
+pub mod bullet_shape;
 pub mod ship_shape;
 pub mod shot_shape;
 pub mod structure;

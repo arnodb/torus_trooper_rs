@@ -5,6 +5,7 @@ authors = ["Arnaud de Bossoreille <arnaud.debossoreille@gmail.com>"]
 
 [dependencies]
 bitflags = "1.0"
+bulletml = { git = "https://github.com/arnodb/bulletml_rs.git" }
 failure = "0.1"
 image = "0.20"
 lazy_static = "1.1"
