@@ -303,7 +303,7 @@ impl<'a> State for InGameState<'a> {
         /*TODO
         particles.draw();
         */
-        params.enemies.draw(params.tunnel);
+        params.enemies.draw(params.tunnel, params.bullets);
         params.ship.draw();
         unsafe {
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);

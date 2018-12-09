@@ -40,13 +40,17 @@ impl Barrage {
         }
     }
 
+    pub fn set_wait(&mut self, prev_wait: u32, post_wait: u32) {
+        self.prev_wait = prev_wait;
+        self.post_wait = post_wait;
+    }
+
     pub fn set_long_range(&mut self, long_range: bool) {
         self.long_range = long_range;
     }
 
-    pub fn set_wait(&mut self, prev_wait: u32, post_wait: u32) {
-        self.prev_wait = prev_wait;
-        self.post_wait = post_wait;
+    pub fn set_no_x_reverse(&mut self) {
+        self.no_x_reverse = true;
     }
 
     pub fn add_bml(&mut self, bml: &Rc<BulletML>, r: f32, re: bool, s: f32) {

@@ -72,6 +72,10 @@ impl Bullet {
         self.set_invisible();
     }
 
+    pub fn unset_aim_top(&mut self) {
+        self.is_aim_top = false;
+    }
+
     fn set_wait(&mut self, prev_wait: u32, post_wait: u32) {
         self.is_wait = true;
         self.wait_cnt = prev_wait;
@@ -529,7 +533,7 @@ impl<'a> BulletsManager<'a> {
 pub struct BulletImpl {
     pub pos: Vector,
     acc: Vector,
-    deg: f32,
+    pub deg: f32,
     speed: f32,
     shape: Rc<Drawable>,
     disap_shape: Rc<Drawable>,

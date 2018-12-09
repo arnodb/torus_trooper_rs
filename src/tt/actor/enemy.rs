@@ -3,6 +3,7 @@ use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::barrage::BarrageManager;
 use crate::tt::screen::Screen;
+use crate::tt::shape::bit_shape::BitShape;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::{self, Ship};
 use crate::tt::state::in_game::ScoreAccumulator;
@@ -34,6 +35,7 @@ pub struct Enemy {
     damaged: bool,
     high_order: bool,
     limit_y: f32,
+    bit_bullet: Vec<PoolActorRef>,
     bit_cnt: u32,
 }
 
@@ -69,7 +71,7 @@ impl Enemy {
         self.damaged = false;
         self.high_order = true;
         self.top_bullet = None;
-        // TODO bitBullet = null;
+        self.bit_bullet.truncate(0);
     }
 
     fn mov(
@@ -189,8 +191,8 @@ impl Enemy {
         // TODO epsilon
         if co != 0. {
             let bm = f32::max(
-                f32::min((-OUT_OF_COURSE_BANK * co - self.bank) * 0.075, -1.),
-                1.,
+                f32::min((-OUT_OF_COURSE_BANK * co - self.bank) * 0.075, 1.),
+                -1.,
             );
             self.speed *= 1. - f32::abs(bm);
             self.bank += bm;
@@ -211,40 +213,38 @@ impl Enemy {
         self.d1 += (sl.d1() - self.d1) * 0.1;
         self.d2 += (sl.d2() - self.d2) * 0.1;
         if !passed && self.top_bullet.is_none() {
-            let tbb = spec.barrage();
-            self.top_bullet = tbb.add_top_bullet(bullets);
-            /* TODO
-            for (int i = 0; i < spec.bitNum; i++) {
-                Barrage bbb = spec.bitBarrage;
-                BulletActor ba = bbb.addTopBullet(bullets, ship);
-                if (ba) {
-                    ba.unsetAimTop();
-                    bitBullet ~= ba;
+            self.top_bullet = spec.barrage().add_top_bullet(bullets);
+            if let Some(bit_spec) = &mut spec.bit_spec {
+                for _ in 0..bit_spec.bit_num {
+                    let ba = bit_spec.bit_barrage.add_top_bullet(bullets);
+                    if let Some(ba) = ba {
+                        let ba_inst = &mut bullets[ba];
+                        ba_inst.actor.unset_aim_top();
+                        self.bit_bullet.push(ba);
+                    }
                 }
             }
-            */
         }
         if let Some(tb_ref) = self.top_bullet {
-            let top_bullet = bullets.maybe_index_mut(tb_ref);
-            if let Some(top_bullet) = top_bullet {
+            if let Some(top_bullet) = bullets.maybe_index_mut(tb_ref) {
                 let tb_spec = top_bullet.state.spec_mut();
                 tb_spec.bullet.pos = self.pos;
                 self.check_bullet_in_range(spec, tunnel, ship, &mut top_bullet.actor);
-            /*TODO
-            float d;
-            int i = 0;
-            if (bitBullet) {
-                foreach (BulletActor bb; bitBullet) {
-                    spec.getBitOffset(bitOffset, d, i, bitCnt);
-                    bb.bullet.pos.x = bitOffset.x + pos.x;
-                    bb.bullet.pos.y = bitOffset.y + pos.y;
-                    bb.bullet.deg = d;
-                    checkBulletInRange(bb);
-                    i++;
-                }
-            }*/
             } else {
                 self.top_bullet = None;
+            }
+            for (i, bb) in self.bit_bullet.iter().enumerate() {
+                let bb_inst = &mut bullets[*bb];
+                let bb_spec = bb_inst.state.spec_mut();
+                let (bit_offset, d) = spec
+                    .bit_spec
+                    .as_ref()
+                    .unwrap()
+                    .get_bit_offset(i as u32, self.bit_cnt);
+                bb_spec.bullet.pos.x = bit_offset.x + self.pos.x;
+                bb_spec.bullet.pos.y = bit_offset.y + self.pos.y;
+                bb_spec.bullet.deg = d;
+                self.check_bullet_in_range(spec, tunnel, ship, &mut bb_inst.actor);
             }
         }
         /* TODO
@@ -349,19 +349,31 @@ impl Enemy {
 
     fn remove_shallow(&mut self) {
         self.top_bullet = None;
-        // TODO
+        self.bit_bullet.clear();
     }
 
     fn remove(&mut self, bullets: &mut BulletPool) {
         if let Some(tb_ref) = self.top_bullet {
+            // TODO might not exist?
             let tb = &mut bullets[tb_ref];
             tb.release();
             self.top_bullet = None;
-            // TODO
         }
+        for bb_ref in &self.bit_bullet {
+            // TODO might not exist?
+            let bb = &mut bullets[*bb_ref];
+            bb.release();
+        }
+        self.bit_bullet.clear();
     }
 
-    pub fn draw(&self, spec: &ShipSpec, tunnel: &Tunnel) {
+    pub fn draw(
+        &self,
+        spec: &ShipSpec,
+        tunnel: &Tunnel,
+        bullets: &BulletPool,
+        bit_shape: &BitShape,
+    ) {
         let sp = tunnel.get_pos_v(self.pos);
         unsafe {
             gl::PushMatrix();
@@ -393,18 +405,23 @@ impl Enemy {
         unsafe {
             gl::PopMatrix();
         }
-        /*TODO
-        if (bitBullet) {
-            foreach (BulletActor bb; bitBullet) {
-                sp = tunnel.getPos(bb.bullet.pos);
-                glPushMatrix();
-                Screen.glTranslate(sp);
-                glRotatef(bitCnt * 7, 0, 1, 0);
-                glRotatef(pos.x * 180 / PI, 0, 0, 1);
-                ShipSpec.bitShape.draw();
-                glPopMatrix();
+        for bb in &self.bit_bullet {
+            let bb_inst = &bullets[*bb];
+            let bb_spec = bb_inst.state.spec();
+            let sp = tunnel.get_pos_v(bb_spec.bullet.pos);
+            unsafe {
+                gl::PushMatrix();
             }
-        }*/
+            sp.gl_translate();
+            unsafe {
+                gl::Rotatef((self.bit_cnt * 7) as f32, 0., 1., 0.);
+                gl::Rotatef(self.pos.x * 180. / std::f32::consts::PI, 0., 0., 1.);
+            }
+            bit_shape.draw();
+            unsafe {
+                gl::PopMatrix();
+            }
+        }
     }
 
     pub fn handle_limit_y(&mut self, y: f32, limit_y: f32) {
@@ -418,12 +435,13 @@ impl Enemy {
 }
 
 pub struct EnemyPool {
-    small_ship_specs: Vec<ShipSpec>,
-    medium_ship_specs: Vec<ShipSpec>,
-    boss_ship_specs: Vec<ShipSpec>,
     pool: Pool<Enemy, EnemySpec>,
     boss_spec_idx: usize,
     rand: Rand,
+    small_ship_specs: Vec<ShipSpec>,
+    medium_ship_specs: Vec<ShipSpec>,
+    boss_ship_specs: Vec<ShipSpec>,
+    bit_shape: BitShape,
 }
 
 enum EnemySpec {
@@ -433,14 +451,15 @@ enum EnemySpec {
 }
 
 impl EnemyPool {
-    pub fn new(n: usize, seed: u64) -> Self {
+    pub fn new(n: usize, seed: u64, screen: &Screen) -> Self {
         EnemyPool {
-            small_ship_specs: Vec::new(),
-            medium_ship_specs: Vec::new(),
-            boss_ship_specs: Vec::new(),
             pool: Pool::new(n),
             boss_spec_idx: 0,
             rand: Rand::new(seed),
+            small_ship_specs: Vec::new(),
+            medium_ship_specs: Vec::new(),
+            boss_ship_specs: Vec::new(),
+            bit_shape: BitShape::new(screen),
         }
     }
 
@@ -598,13 +617,14 @@ impl EnemyPool {
         release_shot
     }
 
-    pub fn draw(&self, tunnel: &Tunnel) {
+    pub fn draw(&self, tunnel: &Tunnel, bullets: &BulletPool) {
         for pa in &self.pool {
-            match pa.state.spec() {
-                EnemySpec::Small(idx) => pa.actor.draw(&self.small_ship_specs[*idx], tunnel),
-                EnemySpec::Medium(idx) => pa.actor.draw(&self.medium_ship_specs[*idx], tunnel),
-                EnemySpec::Boss(idx) => pa.actor.draw(&self.boss_ship_specs[*idx], tunnel),
-            }
+            let spec = match pa.state.spec() {
+                EnemySpec::Small(idx) => &self.small_ship_specs[*idx],
+                EnemySpec::Medium(idx) => &self.medium_ship_specs[*idx],
+                EnemySpec::Boss(idx) => &self.boss_ship_specs[*idx],
+            };
+            pa.actor.draw(spec, tunnel, bullets, &self.bit_shape);
         }
     }
 
@@ -627,6 +647,14 @@ pub mod ship_spec {
     use crate::tt::ship;
     use crate::tt::tunnel::Tunnel;
 
+    #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+    enum BitType {
+        Round,
+        Line,
+    }
+
+    const BIT_TYPES: [BitType; 2] = [BitType::Round, BitType::Line];
+
     const SPEED_CHANGE_RATIO: f32 = 0.2;
 
     pub struct ShipSpec {
@@ -640,7 +668,7 @@ pub mod ship_spec {
         base_bank: f32,
         bank_max: f32,
         score: u32,
-        bit_num: u32,
+        pub bit_spec: Option<BitSpec>,
         aim_ship: bool,
         has_limit_y: bool,
         pub no_fire_depth_limit: bool,
@@ -655,34 +683,35 @@ pub mod ship_spec {
             screen: &Screen,
             barrage_manager: &mut BarrageManager,
         ) -> Self {
+            let base_speed = 0.05 + rand.gen_f32(0.1);
+            let ship_speed_ratio = 0.25 + rand.gen_f32(0.25);
+            let visual_range = 10. + rand.gen_f32(32.);
+            let base_bank = if rand.gen_usize(3) == 0 {
+                0.1 + rand.gen_f32(0.2)
+            } else {
+                0.
+            };
+            let bank_max = 0.3 + rand.gen_f32(0.7);
             let rs = rand.gen_usize(99999) as u64;
             let bi_min = usize::max(usize::min((160.0 / level) as usize, 40), 80)
                 + (ship::GRADE_NUM - 1 - grade as usize) * 8;
             let brg_interval =
                 bi_min + rand.gen_usize(80 + (ship::GRADE_NUM - 1 - grade as usize) * 8 - bi_min);
             let brg_rank = level / (150.0 / brg_interval as f32);
+            let barrage =
+                ShipSpec::create_barrage(rand, brg_rank, 0, brg_interval as u32, barrage_manager);
             Self {
                 shape: ShipShape::new_small(false, screen, rs),
                 damaged_shape: ShipShape::new_small(true, screen, rs),
-                barrage: ShipSpec::create_barrage(
-                    rand,
-                    brg_rank,
-                    0,
-                    brg_interval as u32,
-                    barrage_manager,
-                ),
+                barrage,
                 shield: 1,
-                base_speed: 0.05 + rand.gen_f32(0.1),
-                ship_speed_ratio: 0.25 + rand.gen_f32(0.25),
-                visual_range: 10. + rand.gen_f32(32.),
-                base_bank: if rand.gen_usize(3) == 0 {
-                    0.1 + rand.gen_f32(0.2)
-                } else {
-                    0.
-                },
-                bank_max: 0.3 + rand.gen_f32(0.7),
+                base_speed,
+                ship_speed_ratio,
+                visual_range,
+                base_bank,
+                bank_max,
                 score: 100,
-                bit_num: 0,
+                bit_spec: None,
                 aim_ship: false,
                 has_limit_y: false,
                 no_fire_depth_limit: false,
@@ -696,33 +725,39 @@ pub mod ship_spec {
             screen: &Screen,
             barrage_manager: &mut BarrageManager,
         ) -> Self {
+            let base_speed = 0.1 + rand.gen_f32(0.1);
+            let ship_speed_ratio = 0.4 + rand.gen_f32(0.4);
+            let visual_range = 10. + rand.gen_f32(32.);
+            let base_bank = if rand.gen_usize(4) == 0 {
+                0.05 + rand.gen_f32(0.1)
+            } else {
+                0.
+            };
+            let bank_max = 0.2 + rand.gen_f32(0.5);
             let rs = rand.gen_usize(99999) as u64;
+            let barrage = ShipSpec::create_barrage_full(
+                rand,
+                level,
+                0,
+                0,
+                1.,
+                Some(OsStr::new("middle")),
+                BulletShapeType::Square,
+                false,
+                barrage_manager,
+            );
             Self {
                 shape: ShipShape::new_medium(false, screen, rs),
                 damaged_shape: ShipShape::new_medium(true, screen, rs),
-                barrage: ShipSpec::create_barrage_full(
-                    rand,
-                    level,
-                    0,
-                    0,
-                    1.,
-                    Some(OsStr::new("middle")),
-                    BulletShapeType::Square,
-                    false,
-                    barrage_manager,
-                ),
+                barrage,
                 shield: 10,
-                base_speed: 0.1 + rand.gen_f32(0.1),
-                ship_speed_ratio: 0.4 + rand.gen_f32(0.4),
-                visual_range: 10. + rand.gen_f32(32.),
-                base_bank: if rand.gen_usize(4) == 0 {
-                    0.05 + rand.gen_f32(0.1)
-                } else {
-                    0.
-                },
-                bank_max: 0.2 + rand.gen_f32(0.5),
+                base_speed,
+                ship_speed_ratio,
+                visual_range,
+                base_bank,
+                bank_max,
                 score: 500,
-                bit_num: 0,
+                bit_spec: None,
                 aim_ship: false,
                 has_limit_y: false,
                 no_fire_depth_limit: false,
@@ -738,56 +773,69 @@ pub mod ship_spec {
             screen: &Screen,
             barrage_manager: &mut BarrageManager,
         ) -> Self {
+            let base_speed = 0.1 + rand.gen_f32(0.1);
+            let visual_range = 16. + rand.gen_f32(24.);
+            let bank_max = 0.8 + rand.gen_f32(0.4);
             let rs = rand.gen_usize(99999) as u64;
-            let mut spec = Self {
-                shape: ShipShape::new_large(false, screen, rs),
-                damaged_shape: ShipShape::new_large(true, screen, rs),
-                barrage: ShipSpec::create_barrage_full(
+            let barrage = ShipSpec::create_barrage_full(
+                rand,
+                level,
+                0,
+                0,
+                1.2,
+                Some(OsStr::new("middle")),
+                BulletShapeType::Square,
+                true,
+                barrage_manager,
+            );
+            let bit_spec = if !medium_boss {
+                let bit_num = 2 + rand.gen_usize(3) as u32 * 2;
+                let bit_type = BIT_TYPES[rand.gen_usize(2)];
+                let bit_distance = 0.33 + rand.gen_f32(0.3);
+                let bit_md = 0.02 + rand.gen_f32(0.02);
+                let mut bit_brg_rank = level / (bit_num / 2) as f32;
+                let bi_min = f32::max(f32::min(120.0 / bit_brg_rank, 60.), 20.) as u32;
+                let brg_interval = bi_min + rand.gen_usize(60 - bi_min as usize) as u32;
+                bit_brg_rank /= 60.0 / brg_interval as f32;
+                let mut bit_barrage = ShipSpec::create_barrage_full(
                     rand,
-                    level,
+                    bit_brg_rank,
                     0,
-                    0,
-                    1.2,
-                    Some(OsStr::new("middle")),
-                    BulletShapeType::Square,
+                    brg_interval,
+                    1.,
+                    None,
+                    BulletShapeType::Bar,
                     true,
                     barrage_manager,
-                ),
+                );
+                bit_barrage.set_no_x_reverse();
+                Some(BitSpec {
+                    bit_num,
+                    bit_type,
+                    bit_distance,
+                    bit_md,
+                    bit_barrage,
+                })
+            } else {
+                None
+            };
+            Self {
+                shape: ShipShape::new_large(false, screen, rs),
+                damaged_shape: ShipShape::new_large(true, screen, rs),
+                barrage,
                 shield: 30,
-                base_speed: 0.1 + rand.gen_f32(0.1),
+                base_speed,
                 ship_speed_ratio: speed,
-                visual_range: 16. + rand.gen_f32(24.),
+                visual_range,
                 base_bank: 0.,
-                bank_max: 0.8 + rand.gen_f32(0.4),
+                bank_max,
                 score: 2000,
-                bit_num: 0,
+                bit_spec,
                 aim_ship: true,
                 has_limit_y: true,
                 no_fire_depth_limit: true,
                 is_boss: true,
-            };
-            if !medium_boss {
-                spec.bit_num = 2 + rand.gen_usize(3) as u32 * 2;
             }
-            /* TODO
-            bitType = rand.nextInt(2);
-    bitDistance = 0.33 + rand.nextFloat(0.3);
-    bitMd = 0.02 + rand.nextFloat(0.02);
-    float bitBrgRank = level;
-    bitBrgRank /= (bitNum / 2);
-    int brgInterval;
-    int biMin = cast(int)(120.0f / bitBrgRank);
-    if (biMin > 60)
-      biMin = 60;
-    else if (biMin < 20)
-      biMin = 20;
-    brgInterval = biMin + rand.nextInt(60 - biMin);
-    bitBrgRank /= (60.0f / brgInterval);
-    _bitBarrage = createBarrage(rand, bitBrgRank, 0, brgInterval, 1, null,
-                                BulletShape.BSType.BAR, true);
-    _bitBarrage.setNoXReverse();
-            */
-            spec
         }
 
         fn create_barrage(
@@ -923,7 +971,7 @@ pub mod ship_spec {
             } else if bk < -std::f32::consts::PI {
                 bk += std::f32::consts::PI * 2.;
             }
-            bk = f32::max(f32::min(bk, -self.bank_max), self.bank_max);
+            bk = f32::max(f32::min(bk, self.bank_max), -self.bank_max);
             bank + (bk - bank) * 0.1
         }
 
@@ -961,6 +1009,40 @@ pub mod ship_spec {
 
         pub fn is_boss(&self) -> bool {
             self.is_boss
+        }
+    }
+
+    pub struct BitSpec {
+        pub bit_num: u32,
+        bit_type: BitType,
+        bit_distance: f32,
+        bit_md: f32,
+        pub bit_barrage: Barrage,
+    }
+
+    impl BitSpec {
+        pub fn get_bit_offset(&self, idx: u32, cnt: u32) -> (Vector, f32) {
+            match self.bit_type {
+                BitType::Round => {
+                    let od = std::f32::consts::PI * 2. / self.bit_num as f32;
+                    let d = od * idx as f32 + cnt as f32 * self.bit_md;
+                    (
+                        Vector::new_at(
+                            self.bit_distance * 2. * f32::sin(d),
+                            self.bit_distance * 2. * f32::cos(d) * 5.,
+                        ),
+                        std::f32::consts::PI - f32::sin(d) * 0.05,
+                    )
+                }
+                BitType::Line => {
+                    let of = (idx as i32 % 2) * 2 - 1;
+                    let oi = idx / 2 + 1;
+                    (
+                        Vector::new_at(self.bit_distance * 1.5 * oi as f32 * of as f32, 0.),
+                        std::f32::consts::PI,
+                    )
+                }
+            }
         }
     }
 }

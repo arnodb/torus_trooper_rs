@@ -75,7 +75,7 @@ impl MainLoop {
         let mut barrage_manager = BarrageManager::load(&screen)?;
         let mut shots = ShotPool::new(64, &screen);
         let mut bullets = BulletPool::new(512);
-        let mut enemies = EnemyPool::new(64, seed);
+        let mut enemies = EnemyPool::new(64, seed, &screen);
 
         let mut stage_manager = StageManager::new(seed);
 

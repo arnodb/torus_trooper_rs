@@ -23,8 +23,8 @@ pub struct Camera {
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 enum MoveType {
-    Float = 0,
-    Fix = 1,
+    Float,
+    Fix,
 }
 
 const MOVE_TYPES: [MoveType; 2] = [MoveType::Float, MoveType::Fix];
