@@ -235,15 +235,17 @@ impl ShotPool {
     where
         O: FnMut(&mut Shot),
     {
-        let inst = self.pool.get_instance(ShotSpec::Normal);
-        if let Some(inst) = inst {
-            let pa = &mut self.pool[inst];
+        let inst = self.pool.get_instance();
+        if let Some((pa, pa_ref)) = inst {
+            pa.prepare(pa_ref, ShotSpec::Normal);
             op(&mut pa.actor);
         }
     }
 
     pub fn get_charging_instance(&mut self) -> PoolActorRef {
-        self.pool.get_instance_forced(ShotSpec::Charge)
+        let (pa, pa_ref) = self.pool.get_instance_forced();
+        pa.prepare(pa_ref, ShotSpec::Charge);
+        pa_ref
     }
 
     pub fn clear(&mut self) {
@@ -258,7 +260,7 @@ impl ShotPool {
         score_accumulator: &mut ScoreAccumulator,
     ) {
         for pa in &mut self.pool {
-            let release = match pa.state.unwrap() {
+            let release = match pa.state.spec() {
                 ShotSpec::Normal => pa.actor.mov(
                     false,
                     &self.shot_shape,
@@ -284,7 +286,7 @@ impl ShotPool {
 
     pub fn draw(&self, tunnel: &Tunnel) {
         for pa in &self.pool {
-            match pa.state.unwrap() {
+            match pa.state.spec() {
                 ShotSpec::Normal => pa.actor.draw(&self.shot_shape, tunnel),
                 ShotSpec::Charge => pa.actor.draw(&self.charge_shot_shape, tunnel),
             }

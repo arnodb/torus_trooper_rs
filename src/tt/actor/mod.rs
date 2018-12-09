@@ -9,6 +9,17 @@ pub struct PoolActor<T, S> {
 }
 
 impl<T, S> PoolActor<T, S> {
+    fn prepare(&mut self, pa_ref: PoolActorRef, spec: S) {
+        if let ActorState::NotActing = self.state {
+            self.state = ActorState::Acting {
+                spec,
+                generation: pa_ref.generation,
+            }
+        } else {
+            panic!("called `PoolActor::prepare()` on an `Acting` value");
+        }
+    }
+
     pub fn release(&mut self) {
         self.state = ActorState::NotActing;
     }
@@ -21,10 +32,10 @@ enum ActorState<S> {
 
 impl<S> ActorState<S> {
     #[inline]
-    pub fn unwrap(&self) -> &S {
-        match &self {
+    pub fn spec(&self) -> &S {
+        match self {
             ActorState::Acting { spec, .. } => spec,
-            ActorState::NotActing => panic!("called `Option::unwrap()` on a `NotActing` value"),
+            ActorState::NotActing => panic!("called `ActorState::spec()` on a `NotActing` value"),
         }
     }
 }
@@ -57,7 +68,7 @@ impl<T: Default, S> Pool<T, S> {
         }
     }
 
-    pub fn get_instance(&mut self, spec: S) -> Option<PoolActorRef> {
+    pub fn get_instance(&mut self) -> Option<(&mut PoolActor<T, S>, PoolActorRef)> {
         let mut found = false;
         let mut idx = self.idx;
         {
@@ -66,7 +77,6 @@ impl<T: Default, S> Pool<T, S> {
                 idx = (idx + 1) % len;
                 let pa = &self.actors[idx];
                 if let ActorState::NotActing = pa.state {
-                    self.idx = idx;
                     found = true;
                     break;
                 }
@@ -74,34 +84,33 @@ impl<T: Default, S> Pool<T, S> {
         }
         self.idx = idx;
         if found {
-            let pa = &mut self.actors[idx];
             self.generation += 1;
-            pa.state = ActorState::Acting {
-                spec,
-                generation: self.generation,
-            };
-            Some(PoolActorRef {
-                idx,
-                generation: self.generation,
-            })
+            Some((
+                &mut self.actors[idx],
+                PoolActorRef {
+                    idx,
+                    generation: self.generation,
+                },
+            ))
         } else {
+            println!("cannot get instance");
             None
         }
     }
 
-    pub fn get_instance_forced(&mut self, spec: S) -> PoolActorRef {
+    pub fn get_instance_forced(&mut self) -> (&mut PoolActor<T, S>, PoolActorRef) {
         let idx = (self.idx + 1) % self.actors.len();
         self.idx = idx;
-        let pa = &mut self.actors[idx];
         self.generation += 1;
-        pa.state = ActorState::Acting {
-            spec,
-            generation: self.generation,
-        };
-        PoolActorRef {
-            idx,
-            generation: self.generation,
-        }
+        let pa = &mut self.actors[idx];
+        pa.state = ActorState::NotActing;
+        (
+            pa,
+            PoolActorRef {
+                idx,
+                generation: self.generation,
+            },
+        )
     }
 
     pub fn clear(&mut self) {
@@ -121,7 +130,8 @@ impl<T: Default, S> Pool<T, S> {
                 } else {
                     0
                 }
-            }).sum()
+            })
+            .sum()
     }
 }
 

@@ -1,11 +1,11 @@
-use crate::util::rand::Rand;
-use crate::util::vector::Vector;
 use crate::tt::actor::Pool;
 use crate::tt::screen::Screen;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::{self, Ship};
 use crate::tt::state::in_game::ScoreAccumulator;
 use crate::tt::tunnel::{self, Tunnel};
+use crate::util::rand::Rand;
+use crate::util::vector::Vector;
 
 use crate::gl;
 
@@ -40,7 +40,15 @@ impl Enemy {
         self.set_ps_bank(spec, x, y, false, 0., rand)
     }
 
-    fn set_ps_bank(&mut self, spec: &ShipSpec, x: f32, y: f32, passed: bool, base_bank: f32, rand: &mut Rand) {
+    fn set_ps_bank(
+        &mut self,
+        spec: &ShipSpec,
+        x: f32,
+        y: f32,
+        passed: bool,
+        base_bank: f32,
+        rand: &mut Rand,
+    ) {
         self.pos.x = x;
         self.limit_y = y;
         self.pos.y = y;
@@ -62,7 +70,13 @@ impl Enemy {
         // TODO bitBullet = null;
     }
 
-    fn mov(&mut self, passed: bool, spec: &ShipSpec, tunnel: &Tunnel, ship: &mut Ship) -> (bool, bool) {
+    fn mov(
+        &mut self,
+        passed: bool,
+        spec: &ShipSpec,
+        tunnel: &Tunnel,
+        ship: &mut Ship,
+    ) -> (bool, bool) {
         let mut goto_next_zone = false;
         if !passed {
             if self.high_order {
@@ -147,7 +161,11 @@ impl Enemy {
             }
             ax *= (tunnel.get_radius(0.) / tunnel::DEFAULT_RAD) * 3.;
             let ay = f32::abs(self.pos.y - ship.rel_pos().y);
-            if ship.has_collision() && spec.shape().check_collision_shape(ax, ay, ship.shape(), ship.speed()) {
+            if ship.has_collision()
+                && spec
+                    .shape()
+                    .check_collision_shape(ax, ay, ship.shape(), ship.speed())
+            {
                 let mut ox = self.ppos.x - ship.pos().x;
                 if ox > std::f32::consts::PI {
                     ox -= std::f32::consts::PI * 2.;
@@ -159,7 +177,7 @@ impl Enemy {
                 self.flip_mv_cnt = 48;
                 self.flip_mv = Vector::new_at(
                     f32::sin(od) * ship.speed() * 0.4,
-                    f32::cos(od) * ship.speed() * 7.
+                    f32::cos(od) * ship.speed() * 7.,
                 );
             }
         }
@@ -167,7 +185,10 @@ impl Enemy {
         let co = tunnel.check_in_course(self.pos);
         // TODO epsilon
         if co != 0. {
-            let bm = f32::max(f32::min((-OUT_OF_COURSE_BANK * co - self.bank) * 0.075, -1.), 1.);
+            let bm = f32::max(
+                f32::min((-OUT_OF_COURSE_BANK * co - self.bank) * 0.075, -1.),
+                1.,
+            );
             self.speed *= 1. - f32::abs(bm);
             self.bank += bm;
             let mut lo = f32::abs(self.pos.x - sl.get_left_edge_deg());
@@ -222,7 +243,9 @@ impl Enemy {
         */
         let mut remove = false;
         if !passed {
-            if (!spec.has_limit_y() && self.pos.y > ship::IN_SIGHT_DEPTH_DEFAULT * 5.) || self.pos.y < DISAP_DEPTH {
+            if (!spec.has_limit_y() && self.pos.y > ship::IN_SIGHT_DEPTH_DEFAULT * 5.)
+                || self.pos.y < DISAP_DEPTH
+            {
                 /* TODO
                 if (Ship.replayMode && pos.y < DISAP_DEPTH) {
                     Enemy en = passedEnemies.getInstance();
@@ -239,7 +262,17 @@ impl Enemy {
         (remove, goto_next_zone)
     }
 
-    pub fn check_shot_hit(&mut self, spec: &ShipSpec, p: Vector, shape: &Collidable, shot: &mut Shot, charge_shot: bool, tunnel: &Tunnel, ship: &mut Ship, score_accumulator: &mut ScoreAccumulator) -> (bool, bool) {
+    pub fn check_shot_hit(
+        &mut self,
+        spec: &ShipSpec,
+        p: Vector,
+        shape: &Collidable,
+        shot: &mut Shot,
+        charge_shot: bool,
+        tunnel: &Tunnel,
+        ship: &mut Ship,
+        score_accumulator: &mut ScoreAccumulator,
+    ) -> (bool, bool) {
         let mut ox = f32::abs(self.pos.x - p.x);
         let oy = f32::abs(self.pos.y - p.y);
         if ox > std::f32::consts::PI {
@@ -282,7 +315,12 @@ impl Enemy {
         }
         sp.gl_translate();
         unsafe {
-            gl::Rotatef((self.pos.x - self.bank) * 180. / std::f32::consts::PI, 0., 0., 1.);
+            gl::Rotatef(
+                (self.pos.x - self.bank) * 180. / std::f32::consts::PI,
+                0.,
+                0.,
+                1.,
+            );
         }
         if sp.z > 200. {
             let sz = 1. - (sp.z - 200.) * 0.0025;
@@ -349,11 +387,18 @@ impl EnemyPool {
             boss_ship_specs: Vec::new(),
             pool: Pool::new(n),
             boss_spec_idx: 0,
-            rand: Rand::new(seed)
+            rand: Rand::new(seed),
         }
     }
 
-    pub fn renew_ship_specs(&mut self, level: f32, grade: u32, medium_boss_zone: bool, boss_num: u32, screen: &Screen) {
+    pub fn renew_ship_specs(
+        &mut self,
+        level: f32,
+        grade: u32,
+        medium_boss_zone: bool,
+        boss_num: u32,
+        screen: &Screen,
+    ) {
         for _ in 0..(2 + self.rand.gen_usize(2)) {
             let ss = ShipSpec::new_small(&mut self.rand, level * 1.8, grade, screen);
             self.small_ship_specs.push(ss);
@@ -380,9 +425,9 @@ impl EnemyPool {
     {
         let idx = self.rand.gen_usize(self.small_ship_specs.len());
         let spec = &self.small_ship_specs[idx];
-        let inst = self.pool.get_instance(EnemySpec::Small(idx));
-        if let Some(inst) = inst {
-            let pa = &mut self.pool[inst];
+        let inst = self.pool.get_instance();
+        if let Some((pa, pa_ref)) = inst {
+            pa.prepare(pa_ref, EnemySpec::Small(idx));
             op(&mut pa.actor, spec);
         }
     }
@@ -393,9 +438,9 @@ impl EnemyPool {
     {
         let idx = self.rand.gen_usize(self.medium_ship_specs.len());
         let spec = &self.medium_ship_specs[idx];
-        let inst = self.pool.get_instance(EnemySpec::Medium(idx));
-        if let Some(inst) = inst {
-            let pa = &mut self.pool[inst];
+        let inst = self.pool.get_instance();
+        if let Some((pa, pa_ref)) = inst {
+            pa.prepare(pa_ref, EnemySpec::Medium(idx));
             op(&mut pa.actor, spec);
         }
     }
@@ -407,9 +452,9 @@ impl EnemyPool {
         let idx = self.boss_spec_idx;
         self.boss_spec_idx += 1;
         let spec = &self.boss_ship_specs[idx];
-        let inst = self.pool.get_instance(EnemySpec::Boss(idx));
-        if let Some(inst) = inst {
-            let pa = &mut self.pool[inst];
+        let inst = self.pool.get_instance();
+        if let Some((pa, pa_ref)) = inst {
+            pa.prepare(pa_ref, EnemySpec::Boss(idx));
             op(&mut pa.actor, spec);
         }
     }
@@ -425,20 +470,12 @@ impl EnemyPool {
     pub fn mov(&mut self, tunnel: &Tunnel, ship: &mut Ship) -> bool {
         let mut goto_next_zone = false;
         for pa in &mut self.pool {
-            let (release, goto_nz) = match pa.state.unwrap() {
-                EnemySpec::Small(idx) => {
-                    pa.actor
-                        .mov(false, &self.small_ship_specs[*idx], tunnel, ship)
-                }
-                EnemySpec::Medium(idx) => {
-                    pa.actor
-                        .mov(false, &self.medium_ship_specs[*idx], tunnel, ship)
-                }
-                EnemySpec::Boss(idx) => {
-                    pa.actor
-                        .mov(false, &self.boss_ship_specs[*idx], tunnel, ship)
-                }
+            let spec = match pa.state.spec() {
+                EnemySpec::Small(idx) => &self.small_ship_specs[*idx],
+                EnemySpec::Medium(idx) => &self.medium_ship_specs[*idx],
+                EnemySpec::Boss(idx) => &self.boss_ship_specs[*idx],
             };
+            let (release, goto_nz) = pa.actor.mov(false, spec, tunnel, ship);
             if goto_nz {
                 goto_next_zone = true;
             }
@@ -461,38 +498,21 @@ impl EnemyPool {
     ) -> bool {
         let mut release_shot = false;
         for pa in &mut self.pool {
-            let (release_enemy, rel_shot) = match pa.state.unwrap() {
-                EnemySpec::Small(idx) => pa.actor.check_shot_hit(
-                    &self.small_ship_specs[*idx],
-                    p,
-                    shape,
-                    shot,
-                    charge_shot,
-                    tunnel,
-                    ship,
-                    score_accumulator,
-                ),
-                EnemySpec::Medium(idx) => pa.actor.check_shot_hit(
-                    &self.medium_ship_specs[*idx],
-                    p,
-                    shape,
-                    shot,
-                    charge_shot,
-                    tunnel,
-                    ship,
-                    score_accumulator,
-                ),
-                EnemySpec::Boss(idx) => pa.actor.check_shot_hit(
-                    &self.boss_ship_specs[*idx],
-                    p,
-                    shape,
-                    shot,
-                    charge_shot,
-                    tunnel,
-                    ship,
-                    score_accumulator,
-                ),
+            let spec = match pa.state.spec() {
+                EnemySpec::Small(idx) => &self.small_ship_specs[*idx],
+                EnemySpec::Medium(idx) => &self.medium_ship_specs[*idx],
+                EnemySpec::Boss(idx) => &self.boss_ship_specs[*idx],
             };
+            let (release_enemy, rel_shot) = pa.actor.check_shot_hit(
+                spec,
+                p,
+                shape,
+                shot,
+                charge_shot,
+                tunnel,
+                ship,
+                score_accumulator,
+            );
             if rel_shot {
                 release_shot = true;
             }
@@ -505,7 +525,7 @@ impl EnemyPool {
 
     pub fn draw(&self, tunnel: &Tunnel) {
         for pa in &self.pool {
-            match pa.state.unwrap() {
+            match pa.state.spec() {
                 EnemySpec::Small(idx) => pa.actor.draw(&self.small_ship_specs[*idx], tunnel),
                 EnemySpec::Medium(idx) => pa.actor.draw(&self.medium_ship_specs[*idx], tunnel),
                 EnemySpec::Boss(idx) => pa.actor.draw(&self.boss_ship_specs[*idx], tunnel),
@@ -549,8 +569,10 @@ pub mod ship_spec {
     impl ShipSpec {
         pub fn new_small(rand: &mut Rand, level: f32, grade: u32, screen: &Screen) -> Self {
             let rs = rand.gen_usize(99999) as u64;
-            let bi_min = usize::max(usize::min((160.0 / level) as usize, 40), 80) + (ship::GRADE_NUM - 1 - grade as usize) * 8;
-            let brg_interval = bi_min + rand.gen_usize(80 + (ship::GRADE_NUM - 1 - grade as usize) * 8 - bi_min);
+            let bi_min = usize::max(usize::min((160.0 / level) as usize, 40), 80)
+                + (ship::GRADE_NUM - 1 - grade as usize) * 8;
+            let brg_interval =
+                bi_min + rand.gen_usize(80 + (ship::GRADE_NUM - 1 - grade as usize) * 8 - bi_min);
             let brg_rank = level / (150.0 / brg_interval as f32);
             Self {
                 shape: ShipShape::new_small(false, screen, rs),
@@ -559,7 +581,11 @@ pub mod ship_spec {
                 base_speed: 0.05 + rand.gen_f32(0.1),
                 ship_speed_ratio: 0.25 + rand.gen_f32(0.25),
                 visual_range: 10. + rand.gen_f32(32.),
-                base_bank: if rand.gen_usize(3) == 0 { 0.1 + rand.gen_f32(0.2) } else { 0. },
+                base_bank: if rand.gen_usize(3) == 0 {
+                    0.1 + rand.gen_f32(0.2)
+                } else {
+                    0.
+                },
                 bank_max: 0.3 + rand.gen_f32(0.7),
                 score: 100,
                 bit_num: 0,
@@ -580,7 +606,11 @@ pub mod ship_spec {
                 base_speed: 0.1 + rand.gen_f32(0.1),
                 ship_speed_ratio: 0.4 + rand.gen_f32(0.4),
                 visual_range: 10. + rand.gen_f32(32.),
-                base_bank: if rand.gen_usize(4) == 0 { 0.05 + rand.gen_f32(0.1) } else { 0. },
+                base_bank: if rand.gen_usize(4) == 0 {
+                    0.05 + rand.gen_f32(0.1)
+                } else {
+                    0.
+                },
                 bank_max: 0.2 + rand.gen_f32(0.5),
                 score: 500,
                 bit_num: 0,
@@ -592,7 +622,13 @@ pub mod ship_spec {
             // TODO _barrage = createBarrage(rand, level, 0, 0, 1, "middle", BulletShape.BSType.SQUARE);
         }
 
-        pub fn new_boss(rand: &mut Rand, level: f32, speed: f32, medium_boss: bool, screen: &Screen) -> Self {
+        pub fn new_boss(
+            rand: &mut Rand,
+            level: f32,
+            speed: f32,
+            medium_boss: bool,
+            screen: &Screen,
+        ) -> Self {
             let rs = rand.gen_usize(99999) as u64;
             let mut spec = Self {
                 shape: ShipShape::new_large(false, screen, rs),
@@ -695,18 +731,32 @@ pub mod ship_spec {
             rand.gen_signed_f32(self.base_bank)
         }
 
-        pub fn shape(&self) -> &ShipShape { &self.shape }
+        pub fn shape(&self) -> &ShipShape {
+            &self.shape
+        }
 
-        pub fn damaged_shape(&self) -> &ShipShape { &self.damaged_shape }
+        pub fn damaged_shape(&self) -> &ShipShape {
+            &self.damaged_shape
+        }
 
-        pub fn shield(&self) -> i32 { self.shield }
+        pub fn shield(&self) -> i32 {
+            self.shield
+        }
 
-        pub fn score(&self) -> u32 { self.score }
+        pub fn score(&self) -> u32 {
+            self.score
+        }
 
-        pub fn aim_ship(&self) -> bool { self.aim_ship }
+        pub fn aim_ship(&self) -> bool {
+            self.aim_ship
+        }
 
-        pub fn has_limit_y(&self) -> bool { self.has_limit_y }
+        pub fn has_limit_y(&self) -> bool {
+            self.has_limit_y
+        }
 
-        pub fn is_boss(&self) -> bool { self.is_boss }
+        pub fn is_boss(&self) -> bool {
+            self.is_boss
+        }
     }
 }
