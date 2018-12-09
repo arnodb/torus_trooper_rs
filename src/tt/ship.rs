@@ -4,8 +4,8 @@ use crate::glu;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
 
-use crate::tt::actor::PoolActorRef;
 use crate::tt::actor::shot::ShotPool;
+use crate::tt::actor::PoolActorRef;
 use crate::tt::bullet::BulletTarget;
 use crate::tt::camera::Camera;
 use crate::tt::pad::{Pad, PadButtons, PadDirection};
@@ -14,7 +14,7 @@ use crate::tt::shape::ship_shape::ShipShape;
 use crate::tt::shape::Drawable;
 use crate::tt::state::in_game::ScoreAccumulator;
 use crate::tt::tunnel::{Tunnel, DEFAULT_RAD};
-use crate::tt::DrawParams;
+use crate::tt::ActionParams;
 
 pub const GRADE_NUM: usize = 3;
 pub const GRADE_LETTER: [&str; 3] = ["N", "H", "E"];
@@ -185,7 +185,7 @@ impl Ship {
         camera: &mut Camera,
         tunnel: &mut Tunnel,
         shots: &mut ShotPool,
-        score_accumulator: &mut ScoreAccumulator
+        score_accumulator: &mut ScoreAccumulator,
     ) {
         self.cnt += 1;
         let (mut btn, mut dir) = if !self.replay_mode {
@@ -583,7 +583,7 @@ impl Ship {
         }
     }
 
-    pub fn draw_front(&self, params: &DrawParams) {
+    pub fn draw_front(&self, params: &ActionParams) {
         let letter = params.letter;
         letter.draw_num((self.speed * 2500.) as usize, 490., 420., 20.);
         letter.draw_string("KM/H", 540., 445., 12.);
@@ -594,7 +594,8 @@ impl Ship {
         Letter.drawNum(lap, 120, 388, 8);
         Letter.drawString(".", 130, 386, 8);
         Letter.drawNum(cast(int) (pos.y * 1000000 / tunnel.getTorusLength()), 230, 388, 8,
-        Letter.Direction.TO_RIGHT, 0, 6);*/    }
+        Letter.Direction.TO_RIGHT, 0, 6);*/
+    }
 
     pub fn is_replay_mode(&self) -> bool {
         self.replay_mode
@@ -624,13 +625,21 @@ impl Ship {
         self.rel_pos
     }
 
-    pub fn speed(&self) -> f32 { self.speed }
+    pub fn speed(&self) -> f32 {
+        self.speed
+    }
 
-    pub fn in_boss_mode(&self) -> bool { self.in_boss_mode }
+    pub fn in_boss_mode(&self) -> bool {
+        self.in_boss_mode
+    }
 
-    pub fn is_boss_mode_end(&self) -> bool { self.is_boss_mode_end }
+    pub fn is_boss_mode_end(&self) -> bool {
+        self.is_boss_mode_end
+    }
 
-    pub fn shape(&self) -> &ShipShape { &self.shape }
+    pub fn shape(&self) -> &ShipShape {
+        &self.shape
+    }
 }
 
 impl BulletTarget for Ship {

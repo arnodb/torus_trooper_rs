@@ -8,7 +8,7 @@ use crate::tt::manager::stage::StageManager;
 use crate::tt::manager::MoveAction;
 use crate::tt::pad::PadButtons;
 use crate::tt::ship::Ship;
-use crate::tt::{DrawParams, MoveParams, StartParams};
+use crate::tt::ActionParams;
 
 use super::State;
 
@@ -135,7 +135,7 @@ impl<'a> InGameState<'a> {
 }
 
 impl<'a> State for InGameState<'a> {
-    fn start(&mut self, params: &mut StartParams) {
+    fn start(&mut self, seed: u64, params: &mut ActionParams) {
         self.grade = params.pref_manager.selected_grade();
         self.level = params.pref_manager.selected_level() as f32;
         params.shots.clear();
@@ -161,11 +161,17 @@ impl<'a> State for InGameState<'a> {
         Shot.setRandSeed(_seed);
         SoundManager.setRandSeed(_seed);
         */
-        params.enemies.set_seed(params.seed);
-        params.ship.start(false, self.grade, params.seed, params.camera);
-        params
-            .stage_manager
-            .start(self.level, self.grade, params.seed, params.screen, params.tunnel, params.ship, params.enemies);
+        params.enemies.set_seed(seed);
+        params.ship.start(false, self.grade, seed, params.camera);
+        params.stage_manager.start(
+            self.level,
+            self.grade,
+            seed,
+            params.screen,
+            params.tunnel,
+            params.ship,
+            params.enemies,
+        );
         self.init_game_state(params.stage_manager);
         /* TODO sound
         SoundManager.playBgm();
@@ -179,8 +185,8 @@ impl<'a> State for InGameState<'a> {
         // TODO sound SoundManager.enableSe();
     }
 
-    fn mov(&mut self, params: &mut MoveParams) -> MoveAction {
-        let pad = params.pad;
+    fn mov(&mut self, params: &mut ActionParams) -> MoveAction {
+        let pad = &params.pad;
         if pad.pause_pressed() {
             if !self.pause_pressed {
                 if self.pause_cnt <= 0 && !params.ship.is_game_over() {
@@ -207,7 +213,7 @@ impl<'a> State for InGameState<'a> {
         let mut score_accumulator = ScoreAccumulator {
             score: 0,
         };
-        params.ship.mov(pad, params.camera, params.tunnel, params.shots, &mut score_accumulator);
+        params.ship.mov(*pad, params.camera, params.tunnel, params.shots, &mut score_accumulator);
         self.add_score(score_accumulator, params.ship.is_game_over(), params.stage_manager.level());
         params.stage_manager.mov(params.screen, params.tunnel, params.ship, params.enemies);
         if params.enemies.mov(params.tunnel, params.ship) {
@@ -258,7 +264,7 @@ impl<'a> State for InGameState<'a> {
         action
     }
 
-    fn draw(&self, params: &mut DrawParams, _render_args: &RenderArgs) {
+    fn draw(&self, params: &mut ActionParams, _render_args: &RenderArgs) {
         unsafe {
             gl::Enable(gl::GL_CULL_FACE);
         }
@@ -288,7 +294,7 @@ impl<'a> State for InGameState<'a> {
         params.shots.draw(params.tunnel);
     }
 
-    fn draw_front(&self, params: &DrawParams, _render_args: &RenderArgs) {
+    fn draw_front(&self, params: &ActionParams, _render_args: &RenderArgs) {
         let ship = &params.ship;
         ship.draw_front(params);
         let letter = params.letter;

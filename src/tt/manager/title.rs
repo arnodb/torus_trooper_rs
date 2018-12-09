@@ -12,7 +12,7 @@ use crate::tt::manager::MoveAction;
 use crate::tt::pad::{PadButtons, PadDirection};
 use crate::tt::screen::Screen;
 use crate::tt::ship;
-use crate::tt::{DrawParams, MoveParams, StartParams};
+use crate::tt::ActionParams;
 
 use super::Manager;
 
@@ -51,7 +51,7 @@ impl TitleManager {
         })
     }
 
-    pub fn mov(&mut self, has_replay_data: bool, params: &mut MoveParams) -> MoveAction {
+    pub fn mov(&mut self, has_replay_data: bool, params: &mut ActionParams) -> MoveAction {
         let pref_manager = &mut params.pref_manager;
         let dir = params.pad.get_direction();
         if !self.replay_mode {
@@ -347,7 +347,7 @@ impl TitleManager {
 }
 
 impl Manager for TitleManager {
-    fn start(&mut self, params: &mut StartParams) {
+    fn start(&mut self, seed: u64, params: &mut ActionParams) {
         let pref_manager = &params.pref_manager;
         self.cnt = 0;
         self.grade = pref_manager.selected_grade();
@@ -359,7 +359,7 @@ impl Manager for TitleManager {
         self.replay_mode = false;
     }
 
-    fn draw(&self, params: &mut DrawParams, _render_args: &RenderArgs) {
+    fn draw(&self, params: &mut ActionParams, _render_args: &RenderArgs) {
         /* TODO
         if (_replayChangeRatio >= 1.0f)
             return;
@@ -371,7 +371,7 @@ impl Manager for TitleManager {
         unsafe {
             gl::Disable(gl::GL_BLEND);
         }
-        let screen = params.screen;
+        let screen = &params.screen;
         screen.set_color_rgb(0., 0., 0.);
         let mut rcr = self.replay_change_ratio * 2.;
         if rcr > 1. {
@@ -415,7 +415,7 @@ impl Manager for TitleManager {
         }
     }
 
-    fn draw_front(&self, params: &DrawParams, _render_args: &RenderArgs) {
+    fn draw_front(&self, params: &ActionParams, _render_args: &RenderArgs) {
         /*TODO
           if (_replayChangeRatio > 0)
         return;
@@ -432,7 +432,7 @@ impl Manager for TitleManager {
             gl::LineWidth(1.);
             gl::PopMatrix();
         }
-        let screen = params.screen;
+        let screen = &params.screen;
         screen.set_color_rgb(1., 1., 1.);
         unsafe {
             gl::Enable(gl::GL_TEXTURE_2D);
@@ -451,7 +451,6 @@ impl Manager for TitleManager {
             gl::End();
             gl::Disable(gl::GL_TEXTURE_2D);
         }
-        let pref_manager = params.pref_manager;
         let letter = params.letter;
         for i in 0..ship::GRADE_NUM {
             unsafe {
@@ -468,7 +467,7 @@ impl Manager for TitleManager {
             unsafe {
                 gl::LineWidth(1.);
             }
-            let ml = pref_manager.max_level(i as u32);
+            let ml = params.pref_manager.max_level(i as u32);
             if ml > 1 {
                 let e_cursor_pos = TitleManager::calc_cursor_pos(i, ml);
                 self.draw_cursor_ring(e_cursor_pos, 15.);
@@ -492,7 +491,7 @@ impl Manager for TitleManager {
         letter.draw_string(grade_str, 560. - grade_str.len() as f32 * 19., 4., 9.);
         letter.draw_num(self.level as usize, 620., 10., 6.);
         letter.draw_string("LV", 570., 10., 6.);
-        let gd = pref_manager.grade_data(self.grade);
+        let gd = params.pref_manager.grade_data(self.grade);
         letter.draw_num(gd.hi_score as usize, 620., 45., 8.);
         letter.draw_num(gd.start_level as usize, 408., 54., 5.);
         letter.draw_num(gd.end_level as usize, 453., 54., 5.);

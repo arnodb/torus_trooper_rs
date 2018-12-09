@@ -34,12 +34,12 @@ use crate::tt::errors::GameError;
 use crate::tt::letter::Letter;
 use crate::tt::manager::stage::StageManager;
 use crate::tt::manager::{GameManager, Manager, MoveAction};
-use crate::tt::pad::{GamePad, Pad};
+use crate::tt::pad::GamePad;
 use crate::tt::prefs::PrefManager;
 use crate::tt::screen::Screen;
 use crate::tt::ship::Ship;
 use crate::tt::tunnel::{Torus, Tunnel};
-use crate::tt::{DrawParams, MoveParams, StartParams};
+use crate::tt::ActionParams;
 use crate::util::rand::Rand;
 
 struct MainLoop {
@@ -78,23 +78,27 @@ impl MainLoop {
 
         let mut events = Events::new(EventSettings::new().swap_buffers(true));
 
-        manager.start(&mut StartParams {
-            seed: rand.gen_usize(usize::max_value()) as u64,
+        let mut params = ActionParams {
             pref_manager: &mut pref_manager,
-            screen: &screen,
+            screen: &mut screen,
+            letter: &letter,
+            pad: &mut pad,
             stage_manager: &mut stage_manager,
             camera: &mut camera,
             ship: &mut ship,
             tunnel: &mut tunnel,
             shots: &mut shots,
             enemies: &mut enemies,
-        });
+        };
+
+        manager.start(rand.gen_usize(usize::max_value()) as u64, &mut params);
 
         let start_time = Instant::now();
         let mut prev_millis = 0;
 
         while let Some(e) = events.next(
-            screen
+            params
+                .screen
                 .window_mut()
                 .ok_or_else(|| GameError::Fatal("No window".to_string(), Backtrace::new()))?,
         ) {
@@ -115,46 +119,18 @@ impl MainLoop {
             }
 
             for _i in 0..frame {
-                let action = manager.mov(&mut MoveParams {
-                    pref_manager: &mut pref_manager,
-                    screen: &screen,
-                    pad: &pad,
-                    stage_manager: &mut stage_manager,
-                    camera: &mut camera,
-                    ship: &mut ship,
-                    tunnel: &mut tunnel,
-                    shots: &mut shots,
-                    enemies: &mut enemies,
-                });
+                let action = manager.mov(&mut params);
                 match action {
                     MoveAction::StartTitle(from_game_over) => {
                         manager.start_title(
-                            &mut StartParams {
-                                seed: rand.gen_usize(usize::max_value()) as u64,
-                                pref_manager: &mut pref_manager,
-                                screen: &screen,
-                                stage_manager: &mut stage_manager,
-                                camera: &mut camera,
-                                ship: &mut ship,
-                                tunnel: &mut tunnel,
-                                shots: &mut shots,
-                                enemies: &mut enemies,
-                            },
+                            rand.gen_usize(usize::max_value()) as u64,
+                            &mut params,
                             from_game_over,
                         );
                     }
                     MoveAction::StartInGame => {
-                        manager.start_in_game(&mut StartParams {
-                            seed: rand.gen_usize(usize::max_value()) as u64,
-                            pref_manager: &mut pref_manager,
-                            screen: &screen,
-                            stage_manager: &mut stage_manager,
-                            camera: &mut camera,
-                            ship: &mut ship,
-                            tunnel: &mut tunnel,
-                            shots: &mut shots,
-                            enemies: &mut enemies,
-                        });
+                        manager
+                            .start_in_game(rand.gen_usize(usize::max_value()) as u64, &mut params);
                     }
                     MoveAction::BreakLoop => self.done = true,
                     MoveAction::None => (),
@@ -162,32 +138,19 @@ impl MainLoop {
             }
 
             if let Some(r) = e.resize_args() {
-                screen.resized(r);
+                params.screen.resized(r);
             }
 
             if let Some(r) = e.render_args() {
-                manager.draw(
-                    &mut DrawParams {
-                        pref_manager: &pref_manager,
-                        screen: &screen,
-                        letter: &letter,
-                        stage_manager: &stage_manager,
-                        camera: &mut camera,
-                        ship: &mut ship,
-                        tunnel: &mut tunnel,
-                        shots: &mut shots,
-                        enemies: &enemies,
-                    },
-                    &r,
-                );
+                manager.draw(&mut params, &r);
             }
 
             if let Some(b) = e.button_args() {
-                pad.handle_button_event(&b);
+                params.pad.handle_button_event(&b);
             }
 
             if let Some(f) = e.focus_args() {
-                pad.handle_focus_event(f);
+                params.pad.handle_focus_event(f);
             }
 
             if self.done {
@@ -195,7 +158,7 @@ impl MainLoop {
             }
         }
 
-        manager.quit_last(&pref_manager)
+        manager.quit_last(params.pref_manager)
     }
 }
 

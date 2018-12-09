@@ -12,53 +12,20 @@ pub mod ship;
 pub mod state;
 pub mod tunnel;
 
-// TODO merge all these
-
-pub struct StartParams<'a> {
-    pub seed: u64,
+pub struct ActionParams<'a> {
     pub pref_manager: &'a mut prefs::PrefManager,
 
-    pub screen: &'a screen::Screen,
-
-    pub stage_manager: &'a mut manager::stage::StageManager,
-
-    pub camera: &'a mut camera::Camera,
-    pub ship: &'a mut ship::Ship,
-    pub tunnel: &'a mut tunnel::Tunnel,
-
-    pub shots: &'a mut actor::shot::ShotPool,
-    pub enemies: &'a mut actor::enemy::EnemyPool,
-}
-
-pub struct MoveParams<'a> {
-    pub pref_manager: &'a mut prefs::PrefManager,
-
-    pub screen: &'a screen::Screen,
-
-    pub pad: &'a pad::Pad,
-
-    pub stage_manager: &'a mut manager::stage::StageManager,
-
-    pub camera: &'a mut camera::Camera,
-    pub ship: &'a mut ship::Ship,
-    pub tunnel: &'a mut tunnel::Tunnel,
-
-    pub shots: &'a mut actor::shot::ShotPool,
-    pub enemies: &'a mut actor::enemy::EnemyPool,
-}
-
-pub struct DrawParams<'a> {
-    pub pref_manager: &'a prefs::PrefManager,
-
-    pub screen: &'a screen::Screen,
+    pub screen: &'a mut screen::Screen,
     pub letter: &'a letter::Letter,
 
-    pub stage_manager: &'a manager::stage::StageManager,
+    pub pad: &'a mut pad::Pad,
 
-    pub camera: &'a camera::Camera,
+    pub stage_manager: &'a mut manager::stage::StageManager,
+
+    pub camera: &'a mut camera::Camera,
     pub ship: &'a mut ship::Ship,
     pub tunnel: &'a mut tunnel::Tunnel,
 
     pub shots: &'a mut actor::shot::ShotPool,
-    pub enemies: &'a actor::enemy::EnemyPool,
+    pub enemies: &'a mut actor::enemy::EnemyPool,
 }

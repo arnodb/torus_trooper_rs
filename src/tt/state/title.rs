@@ -6,7 +6,7 @@ use crate::tt::errors::GameError;
 use crate::tt::manager::title::TitleManager;
 use crate::tt::manager::{Manager, MoveAction};
 use crate::tt::screen::Screen;
-use crate::tt::{DrawParams, MoveParams, StartParams};
+use crate::tt::ActionParams;
 
 use super::State;
 
@@ -25,16 +25,16 @@ impl TitleState {
 }
 
 impl State for TitleState {
-    fn start(&mut self, params: &mut StartParams) {
+    fn start(&mut self, seed: u64, params: &mut ActionParams) {
         // TODO SoundManager.haltBgm();
         // TODO SoundManager.disableSe();
-        self.manager.start(params);
+        self.manager.start(seed, params);
         // TODO clearAll();
         // TODO if (replayData)
         // TODO startReplay();
     }
 
-    fn mov(&mut self, params: &mut MoveParams) -> MoveAction {
+    fn mov(&mut self, params: &mut ActionParams) -> MoveAction {
         if params.ship.is_game_over() {
             self.game_over_cnt += 1;
             if self.game_over_cnt > 120 {
@@ -61,7 +61,7 @@ impl State for TitleState {
         action
     }
 
-    fn draw(&self, params: &mut DrawParams, render_args: &RenderArgs) {
+    fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs) {
         /*TODO
             if (replayData) {
           float rcr = titleManager.replayChangeRatio * 2.4f;
@@ -87,9 +87,9 @@ impl State for TitleState {
           shots.draw();
         }
         */
-        let screen = params.screen;
-        let p_size = screen.physical_size();
         unsafe {
+            let screen = &params.screen;
+            let p_size = screen.physical_size();
             gl::Viewport(0, 0, p_size.0 as i32, p_size.1 as i32);
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::LoadIdentity();
@@ -121,7 +121,7 @@ impl State for TitleState {
         self.manager.draw(params, render_args)
     }
 
-    fn draw_front(&self, params: &DrawParams, render_args: &RenderArgs) {
+    fn draw_front(&self, params: &ActionParams, render_args: &RenderArgs) {
         self.manager.draw_front(params, render_args);
         /*TODO
         if (!ship.drawFrontMode || titleManager.replayChangeRatio < 1)

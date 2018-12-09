@@ -9,14 +9,14 @@ use crate::tt::screen::Screen;
 use crate::tt::state::in_game::InGameState;
 use crate::tt::state::title::TitleState;
 use crate::tt::state::State;
-use crate::tt::{DrawParams, MoveParams, StartParams};
+use crate::tt::ActionParams;
 
 use crate::gl;
 
 pub trait Manager {
-    fn start(&mut self, params: &mut StartParams);
-    fn draw(&self, params: &mut DrawParams, render_args: &RenderArgs);
-    fn draw_front(&self, params: &DrawParams, render_args: &RenderArgs);
+    fn start(&mut self, seed: u64, params: &mut ActionParams);
+    fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs);
+    fn draw_front(&self, params: &ActionParams, render_args: &RenderArgs);
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -59,27 +59,27 @@ impl<'a> GameManager<'a> {
         Ok(())
     }
 
-    pub fn start_title(&mut self, params: &mut StartParams, _from_game_over: bool) {
+    pub fn start_title(&mut self, seed: u64, params: &mut ActionParams, _from_game_over: bool) {
         //TODO if (fromGameover)
         //TODO saveLastReplay();
         // TODO titleState.setReplayData(inGameState.replayData);
         self.state = GameState::Title;
-        self.start_state(params);
+        self.start_state(seed, params);
     }
 
-    pub fn start_in_game(&mut self, params: &mut StartParams) {
+    pub fn start_in_game(&mut self, seed: u64, params: &mut ActionParams) {
         self.state = GameState::InGame;
-        self.start_state(params);
+        self.start_state(seed, params);
     }
 
-    fn start_state(&mut self, params: &mut StartParams) {
+    fn start_state(&mut self, seed: u64, params: &mut ActionParams) {
         match self.state {
-            GameState::Title => self.title_state.start(params),
-            GameState::InGame => self.in_game_state.start(params),
+            GameState::Title => self.title_state.start(seed, params),
+            GameState::InGame => self.in_game_state.start(seed, params),
         }
     }
 
-    pub fn mov(&mut self, params: &mut MoveParams) -> MoveAction {
+    pub fn mov(&mut self, params: &mut ActionParams) -> MoveAction {
         let mut action = MoveAction::None;
         if params.pad.esc_pressed() {
             if !self.esc_pressed {
@@ -103,12 +103,12 @@ impl<'a> GameManager<'a> {
 }
 
 impl<'a> Manager for GameManager<'a> {
-    fn start(&mut self, params: &mut StartParams) {
+    fn start(&mut self, seed: u64, params: &mut ActionParams) {
         // TODO loadLastReplay();
-        self.start_title(params, false);
+        self.start_title(seed, params, false);
     }
 
-    fn draw(&self, params: &mut DrawParams, render_args: &RenderArgs) {
+    fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs) {
         /* TODO
         if (screen.startRenderToLuminousScreen()) {
             glPushMatrix();
@@ -140,5 +140,5 @@ impl<'a> Manager for GameManager<'a> {
         Screen::view_perspective();
     }
 
-    fn draw_front(&self, _params: &DrawParams, _render_args: &RenderArgs) {}
+    fn draw_front(&self, _params: &ActionParams, _render_args: &RenderArgs) {}
 }
