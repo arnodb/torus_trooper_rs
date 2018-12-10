@@ -149,9 +149,9 @@ impl BarrageManager {
         &self.bmls[&dir_name.to_os_string()][&file_name.to_os_string()]
     }
 
-    pub fn get_instance_list(&self, dir_name: &OsStr) -> Vec<&Rc<BulletML>> {
+    pub fn get_instance_list(&self, dir_name: &OsStr) -> Vec<(&OsString, &Rc<BulletML>)> {
         let dir_entry = &self.bmls[&dir_name.to_os_string()];
-        dir_entry.values().collect()
+        dir_entry.iter().collect()
     }
 
     pub fn get_shape(&self, shape_type: BulletShapeType) -> (&Rc<BulletShape>, &Rc<BulletShape>) {

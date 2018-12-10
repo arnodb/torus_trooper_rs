@@ -71,7 +71,7 @@ impl Enemy {
         self.damaged = false;
         self.high_order = true;
         self.top_bullet = None;
-        self.bit_bullet.truncate(0);
+        self.bit_bullet.clear();
     }
 
     fn mov(
@@ -896,7 +896,7 @@ pub mod ship_spec {
             if let Some(base_dir) = base_dir {
                 let ps = barrage_manager.get_instance_list(base_dir);
                 let pi = rand.gen_usize(ps.len());
-                br.add_bml(&ps[pi], rank, true, speed_rank);
+                br.add_bml(&ps[pi].1, rank, true, speed_rank);
             } else {
                 br.add_bml(
                     barrage_manager.get_instance(OsStr::new("basic"), OsStr::new("straight.xml")),
@@ -913,7 +913,7 @@ pub mod ship_spec {
                 while used_ps[pi] {
                     pi = (pi + psn - 1) % psn;
                 }
-                br.add_bml(&ps[pi], morph_rank, true, speed_rank);
+                br.add_bml(&ps[pi].1, morph_rank, true, speed_rank);
                 used_ps[pi] = true;
             }
             br
