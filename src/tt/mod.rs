@@ -1,6 +1,5 @@
 pub mod actor;
 pub mod barrage;
-pub mod bullet;
 pub mod camera;
 pub mod errors;
 pub mod letter;

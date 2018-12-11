@@ -6,7 +6,6 @@ use crate::util::vector::{Vector, Vector3};
 
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::actor::PoolActorRef;
-use crate::tt::bullet::BulletTarget;
 use crate::tt::camera::Camera;
 use crate::tt::pad::{Pad, PadButtons, PadDirection};
 use crate::tt::screen::Screen;
@@ -452,6 +451,10 @@ impl Ship {
         }
     }
 
+    pub fn get_target_pos(&self) -> Vector {
+        self.rel_pos
+    }
+
     pub fn set_eye_pos(&mut self, screen: &Screen, camera: &Camera, tunnel: &Tunnel) {
         let mut e;
         let mut l;
@@ -682,11 +685,5 @@ impl Ship {
 
     pub fn shape(&self) -> &ShipShape {
         &self.shape
-    }
-}
-
-impl BulletTarget for Ship {
-    fn get_target_pos(&self) -> Vector {
-        self.rel_pos
     }
 }

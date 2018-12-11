@@ -69,7 +69,7 @@ impl Barrage {
             (self.rand.gen_usize(2) as isize * 2 - 1) as f32
         };
         bullets.add_top_bullet(
-            /*TODO*/ &self.bml_params,
+            &self.bml_params,
             Vector::default(),
             std::f32::consts::PI,
             0.,
@@ -165,5 +165,3 @@ impl BarrageManager {
         }
     }
 }
-
-// TODO Drop

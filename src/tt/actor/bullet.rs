@@ -10,7 +10,6 @@ use crate::util::vector::Vector;
 
 use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActor, PoolActorRef};
-use crate::tt::bullet::BulletTarget;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::Ship;
 use crate::tt::state::in_game::ScoreAccumulator;
@@ -292,14 +291,12 @@ impl BulletPool {
                 BulletSpec {
                     bml_params: bml_params.clone(),
                     runner,
-                    // TODO?
                     bullet: BulletImpl::new_param(
                         &orig_bullet.shape,
                         &orig_bullet.disap_shape,
                         orig_bullet.x_reverse,
                         orig_bullet.y_reverse,
                         orig_bullet.long_range,
-                        /*TODO*/
                     ),
                 },
             );
@@ -343,14 +340,12 @@ impl BulletPool {
                 BulletSpec {
                     bml_params: bml_params.clone(),
                     runner,
-                    // TODO?
                     bullet: BulletImpl::new_param(
                         &orig_bullet.shape,
                         &orig_bullet.disap_shape,
                         orig_bullet.x_reverse,
                         orig_bullet.y_reverse,
                         orig_bullet.long_range,
-                        /*TODO*/
                     ),
                 },
             );
@@ -392,7 +387,6 @@ impl BulletPool {
                         x_reverse,
                         y_reverse,
                         long_range,
-                        /*TODO*/
                         Some(pa_ref),
                     ),
                 },

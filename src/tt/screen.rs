@@ -9,8 +9,6 @@ use crate::gl;
 
 use crate::tt::errors::GameError;
 
-const CAPTION: &str = "Torus Trooper";
-
 pub struct Screen {
     brightness: f32,
     size: Size,
@@ -114,10 +112,6 @@ impl Screen {
         self.screen_resized();
     }
 
-    pub fn set_caption(&self, _name: &str) {
-        // TODO
-    }
-
     pub fn set_color_rgb(&self, r: f32, g: f32, b: f32) {
         self.set_color_rgba(r, g, b, 1.)
     }
@@ -155,7 +149,6 @@ impl Screen {
     }
 
     fn init(&mut self) {
-        self.set_caption(CAPTION);
         unsafe {
             gl::LineWidth(1.);
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE);

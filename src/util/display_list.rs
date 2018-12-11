@@ -46,4 +46,10 @@ impl DisplayList {
     }
 }
 
-// TODO Drop
+impl Drop for DisplayList {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteLists(self.idx, self.num as i32);
+        }
+    }
+}
