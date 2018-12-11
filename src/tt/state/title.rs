@@ -27,8 +27,8 @@ impl TitleState {
         params.shots.clear();
         params.bullets.clear();
         params.enemies.clear_shallow();
+        params.particles.clear();
         /*TODO
-        particles.clear();
         floatLetters.clear();
         passedEnemies.clear();
         */

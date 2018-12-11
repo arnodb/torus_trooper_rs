@@ -1,4 +1,5 @@
 use crate::tt::actor::bullet::{Bullet, BulletPool};
+use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::barrage::BarrageManager;
@@ -81,6 +82,7 @@ impl Enemy {
         tunnel: &Tunnel,
         ship: &mut Ship,
         bullets: &mut BulletPool,
+        particles: &mut ParticlePool,
     ) -> (bool, bool) {
         let mut goto_next_zone = false;
         if !passed {
@@ -247,11 +249,9 @@ impl Enemy {
                 self.check_bullet_in_range(spec, tunnel, ship, &mut bb_inst.actor);
             }
         }
-        /* TODO
         if !passed && self.pos.y <= ship.in_sight_depth() {
-            spec.shape().add_particles(pos, particles);
+            spec.shape().add_particles(self.pos, tunnel, particles);
         }
-        */
         let mut release = false;
         if !passed {
             if (!spec.has_limit_y() && self.pos.y > ship::IN_SIGHT_DEPTH_DEFAULT * 5.)
@@ -310,7 +310,9 @@ impl Enemy {
         charge_shot: bool,
         tunnel: &Tunnel,
         ship: &mut Ship,
+        particles: &mut ParticlePool,
         score_accumulator: &mut ScoreAccumulator,
+        rand: &mut Rand,
     ) -> (bool, bool) {
         let mut ox = f32::abs(self.pos.x - p.x);
         let oy = f32::abs(self.pos.y - p.y);
@@ -323,19 +325,82 @@ impl Enemy {
         if spec.shape().check_collision_shape(ox, oy, shape, 1.) {
             self.shield -= shot.damage();
             if self.shield <= 0 {
-                self.destroyed(spec, ship);
+                self.destroyed(spec, tunnel, ship, particles, rand);
                 release_enemy = true;
             } else {
                 self.damaged = true;
-                // TODO
+                for _ in 0..4 {
+                    particles.get_instance_and(ParticleSpec::Spark, |spec, pt, particles_rand| {
+                        pt.set(
+                            spec,
+                            self.pos,
+                            1.,
+                            rand.gen_signed_f32(0.1),
+                            rand.gen_signed_f32(1.6),
+                            0.75,
+                            1.,
+                            0.4 + rand.gen_f32(0.4),
+                            0.3,
+                            16,
+                            tunnel,
+                            particles_rand,
+                        );
+                    });
+                    particles.get_instance_and(ParticleSpec::Spark, |spec, pt, particles_rand| {
+                        pt.set(
+                            spec,
+                            self.pos,
+                            1.,
+                            rand.gen_signed_f32(0.1) + std::f32::consts::PI,
+                            rand.gen_signed_f32(1.6),
+                            0.75,
+                            1.,
+                            0.4 + rand.gen_f32(0.4),
+                            0.3,
+                            16,
+                            tunnel,
+                            particles_rand,
+                        );
+                    });
+                }
+                // TODO SoundManager.playSe("hit.wav");
             }
             release_shot = shot.add_score(charge_shot, spec.score(), self.pos, score_accumulator);
         }
         (release_enemy, release_shot)
     }
 
-    fn destroyed(&self, spec: &ShipSpec, ship: &mut Ship) {
-        // TODO
+    fn destroyed(
+        &self,
+        spec: &ShipSpec,
+        tunnel: &Tunnel,
+        ship: &mut Ship,
+        particles: &mut ParticlePool,
+        rand: &mut Rand,
+    ) {
+        for _ in 0..30 {
+            let got_pt =
+                particles.get_instance_and(ParticleSpec::Spark, |spec, pt, particles_rand| {
+                    pt.set(
+                        spec,
+                        self.pos,
+                        1.,
+                        rand.gen_f32(std::f32::consts::PI * 2.),
+                        rand.gen_signed_f32(1.),
+                        0.01 + rand.gen_f32(0.1),
+                        1.,
+                        0.2 + rand.gen_f32(0.8),
+                        0.4,
+                        24,
+                        tunnel,
+                        particles_rand,
+                    );
+                });
+            if !got_pt {
+                break;
+            }
+        }
+        spec.shape.add_fragments(self.pos, tunnel, particles, rand);
         ship.rank_up(spec.is_boss());
         if self.first_shield == 1 {
             // TODO SoundManager.playSe("small_dest.wav");
@@ -558,7 +623,13 @@ impl EnemyPool {
         self.rand.set_seed(seed);
     }
 
-    pub fn mov(&mut self, tunnel: &Tunnel, ship: &mut Ship, bullets: &mut BulletPool) -> bool {
+    pub fn mov(
+        &mut self,
+        tunnel: &Tunnel,
+        ship: &mut Ship,
+        bullets: &mut BulletPool,
+        particles: &mut ParticlePool,
+    ) -> bool {
         let mut goto_next_zone = false;
         for pa in &mut self.pool {
             let spec = match pa.state.spec() {
@@ -566,7 +637,7 @@ impl EnemyPool {
                 EnemySpec::Medium(idx) => &mut self.medium_ship_specs[*idx],
                 EnemySpec::Boss(idx) => &mut self.boss_ship_specs[*idx],
             };
-            let (release, goto_nz) = pa.actor.mov(false, spec, tunnel, ship, bullets);
+            let (release, goto_nz) = pa.actor.mov(false, spec, tunnel, ship, bullets, particles);
             if goto_nz {
                 goto_next_zone = true;
             }
@@ -587,6 +658,7 @@ impl EnemyPool {
         tunnel: &Tunnel,
         ship: &mut Ship,
         bullets: &mut BulletPool,
+        particles: &mut ParticlePool,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         let mut release_shot = false;
@@ -604,7 +676,9 @@ impl EnemyPool {
                 charge_shot,
                 tunnel,
                 ship,
+                particles,
                 score_accumulator,
+                &mut self.rand,
             );
             if rel_shot {
                 release_shot = true;
@@ -658,7 +732,7 @@ pub mod ship_spec {
     const SPEED_CHANGE_RATIO: f32 = 0.2;
 
     pub struct ShipSpec {
-        shape: ShipShape,
+        pub shape: ShipShape,
         damaged_shape: ShipShape,
         barrage: Barrage,
         shield: i32,

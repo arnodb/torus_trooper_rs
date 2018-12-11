@@ -2,6 +2,7 @@ use std::ops::{Index, IndexMut};
 
 pub mod bullet;
 pub mod enemy;
+pub mod particle;
 pub mod shot;
 
 pub struct PoolActor<T, S> {

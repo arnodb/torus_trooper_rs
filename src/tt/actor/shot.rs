@@ -3,6 +3,9 @@ use std::rc::Rc;
 
 use crate::gl;
 
+use crate::tt::actor::bullet::BulletPool;
+use crate::tt::actor::enemy::EnemyPool;
+use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::{Pool, PoolActor, PoolActorRef};
 use crate::tt::screen::Screen;
 use crate::tt::shape::shot_shape::ShotShape;
@@ -10,10 +13,8 @@ use crate::tt::shape::{Drawable, ResizableDrawable};
 use crate::tt::ship::{self, Ship};
 use crate::tt::state::in_game::ScoreAccumulator;
 use crate::tt::tunnel::Tunnel;
+use crate::util::rand::Rand;
 use crate::util::vector::Vector;
-
-use super::bullet::BulletPool;
-use super::enemy::EnemyPool;
 
 const SPEED: f32 = 0.75;
 
@@ -104,7 +105,9 @@ impl Shot {
         ship: &mut Ship,
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
+        particles: &mut ParticlePool,
         score_accumulator: &mut ScoreAccumulator,
+        rand: &mut Rand,
     ) -> bool {
         let mut release = false;
         if self.in_charge {
@@ -150,6 +153,7 @@ impl Shot {
                 tunnel,
                 ship,
                 bullets,
+                particles,
                 score_accumulator,
             );
             if hit_release {
@@ -158,12 +162,23 @@ impl Shot {
         }
         if self.star_shell || self.charge_cnt as f32 > MAX_CHARGE as f32 * CHARGE_RELEASE_RATIO {
             let pn = if charge_shot { 3 } else { 1 };
-            for _i in 0..pn {
-                /*TODO Particle pt = particles.getInstance();
-                if (pt)
-                pt.set(pos, 1, rand.nextSignedFloat(PI / 2) + PI, rand.nextSignedFloat(0.5), 0.05,
-                       0.6, 1, 0.8, chargeCnt * 32 / MAX_CHARGE + 4);
-                       */
+            for _ in 0..pn {
+                particles.get_instance_and(ParticleSpec::Spark, |spec, pt, particles_rand| {
+                    pt.set(
+                        spec,
+                        self.pos,
+                        1.,
+                        rand.gen_signed_f32(std::f32::consts::PI / 2.) + std::f32::consts::PI,
+                        rand.gen_signed_f32(0.5),
+                        0.05,
+                        0.6,
+                        1.,
+                        0.8,
+                        (self.charge_cnt * 32 / MAX_CHARGE + 4) as i32,
+                        tunnel,
+                        particles_rand,
+                    );
+                });
             }
         }
         self.cnt += 1;
@@ -228,6 +243,7 @@ pub struct ShotPool {
     pool: Pool<Shot, ShotSpec>,
     shot_shape: Rc<ShotShape>,
     charge_shot_shape: Rc<ShotShape>,
+    rand: Rand,
 }
 
 pub enum ShotSpec {
@@ -241,6 +257,7 @@ impl ShotPool {
             pool: Pool::new(n),
             shot_shape: Rc::new(ShotShape::new(false, screen)),
             charge_shot_shape: Rc::new(ShotShape::new(true, screen)),
+            rand: Rand::new(Rand::rand_seed()),
         }
     }
 
@@ -277,6 +294,7 @@ impl ShotPool {
         ship: &mut Ship,
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
+        particles: &mut ParticlePool,
         score_accumulator: &mut ScoreAccumulator,
     ) {
         for pa in &mut self.pool {
@@ -288,7 +306,9 @@ impl ShotPool {
                     ship,
                     bullets,
                     enemies,
+                    particles,
                     score_accumulator,
+                    &mut self.rand,
                 ),
                 ShotSpec::Charge(shape) => pa.actor.mov(
                     true,
@@ -297,7 +317,9 @@ impl ShotPool {
                     ship,
                     bullets,
                     enemies,
+                    particles,
                     score_accumulator,
+                    &mut self.rand,
                 ),
             };
             if release {

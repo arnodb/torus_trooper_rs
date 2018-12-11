@@ -30,4 +30,5 @@ pub struct ActionParams<'a> {
     pub shots: &'a mut actor::shot::ShotPool,
     pub bullets: &'a mut actor::bullet::BulletPool,
     pub enemies: &'a mut actor::enemy::EnemyPool,
+    pub particles: &'a mut actor::particle::ParticlePool,
 }

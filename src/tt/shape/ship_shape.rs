@@ -1,6 +1,8 @@
 use std::vec::Vec;
 
+use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::screen::Screen;
+use crate::tt::tunnel::Tunnel;
 use crate::util::display_list::DisplayList;
 use crate::util::rand::Rand;
 use crate::util::vector::Vector;
@@ -12,6 +14,7 @@ pub struct ShipShape {
     collision: Vector,
     display_list: DisplayList,
     rocket_x: Vec<f32>,
+    color: usize,
 }
 
 impl ShipShape {
@@ -101,6 +104,7 @@ impl ShipShape {
             collision,
             display_list,
             rocket_x,
+            color: cl,
         }
     }
 
@@ -263,6 +267,7 @@ impl ShipShape {
             collision,
             display_list,
             rocket_x,
+            color: cl,
         }
     }
 
@@ -497,6 +502,7 @@ impl ShipShape {
             collision,
             display_list,
             rocket_x,
+            color: cl,
         }
     }
 
@@ -584,6 +590,78 @@ impl ShipShape {
             sts.push(st);
         }
         sts
+    }
+
+    pub fn add_particles(&self, pos: Vector, tunnel: &Tunnel, particles: &mut ParticlePool) {
+        for rx in &self.rocket_x {
+            let got_pt =
+                particles.get_instance_and(ParticleSpec::Jet, |spec, pt, particles_rand| {
+                    let rocket_pos = Vector::new_at(pos.x + rx, pos.y - 0.15);
+                    pt.set(
+                        spec,
+                        rocket_pos,
+                        1.,
+                        std::f32::consts::PI,
+                        0.,
+                        0.2,
+                        0.3,
+                        0.4,
+                        1.0,
+                        16,
+                        tunnel,
+                        particles_rand,
+                    );
+                });
+            if !got_pt {
+                break;
+            }
+        }
+    }
+
+    // TODO this is not the correct Rand instance
+    pub fn add_fragments(
+        &self,
+        pos: Vector,
+        tunnel: &Tunnel,
+        particles: &mut ParticlePool,
+        rand: &mut Rand,
+    ) {
+        if self.collision.x < 0.5 {
+            return;
+        }
+        for _ in 0..(self.collision.x * 40.) as usize {
+            let wb = self.collision.x;
+            let hb = self.collision.y;
+            let got_pt = particles.get_instance_and(
+                ParticleSpec::Fragment {
+                    d1: 0.,
+                    d2: 0.,
+                    md1: 0.,
+                    md2: 0.,
+                    width: wb + rand.gen_f32(wb),
+                    height: hb + rand.gen_f32(hb),
+                },
+                |spec, pt, particles_rand| {
+                    pt.set(
+                        spec,
+                        pos,
+                        1.,
+                        rand.gen_signed_f32(0.1),
+                        1. + rand.gen_signed_f32(1.),
+                        0.2 + rand.gen_f32(0.2),
+                        structure::COLOR_RGB[self.color][0],
+                        structure::COLOR_RGB[self.color][1],
+                        structure::COLOR_RGB[self.color][2],
+                        (32 + rand.gen_usize(16)) as i32,
+                        tunnel,
+                        particles_rand,
+                    );
+                },
+            );
+            if !got_pt {
+                break;
+            }
+        }
     }
 }
 

@@ -141,8 +141,8 @@ impl<'a> State for InGameState<'a> {
         params.shots.clear();
         params.bullets.clear();
         params.enemies.clear_shallow();
+        params.particles.clear();
         /* TODO
-        particles.clear();
         floatLetters.clear();
         RecordablePad rp = cast(RecordablePad) pad;
         rp.startRecord();
@@ -216,6 +216,7 @@ impl<'a> State for InGameState<'a> {
             params.camera,
             params.tunnel,
             params.shots,
+            params.particles,
             &mut score_accumulator,
         );
         self.add_score(
@@ -233,7 +234,7 @@ impl<'a> State for InGameState<'a> {
         );
         if params
             .enemies
-            .mov(params.tunnel, params.ship, params.bullets)
+            .mov(params.tunnel, params.ship, params.bullets, params.particles)
         {
             self.goto_next_zone(false, params.stage_manager);
         }
@@ -243,6 +244,7 @@ impl<'a> State for InGameState<'a> {
             params.ship,
             params.bullets,
             params.enemies,
+            params.particles,
             &mut score_accumulator,
         );
         self.add_score(
@@ -251,10 +253,10 @@ impl<'a> State for InGameState<'a> {
             params.stage_manager.level(),
         );
         params.bullets.mov(params.tunnel, params.ship);
+        params.particles.mov(params.ship.speed(), params.tunnel);
         /* TODO
-       particles.move();
-       floatLetters.move();
-       */
+        floatLetters.move();
+        */
         self.decrement_time(params.ship);
         let mut action = MoveAction::None;
         if self.time < 0 {
@@ -300,9 +302,7 @@ impl<'a> State for InGameState<'a> {
         unsafe {
             gl::Disable(gl::GL_CULL_FACE);
         }
-        /*TODO
-        particles.draw();
-        */
+        params.particles.draw(params.screen);
         params.enemies.draw(params.tunnel, params.bullets);
         params.ship.draw();
         unsafe {

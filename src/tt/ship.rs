@@ -4,6 +4,7 @@ use crate::glu;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
 
+use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::actor::PoolActorRef;
 use crate::tt::camera::Camera;
@@ -186,6 +187,7 @@ impl Ship {
         camera: &mut Camera,
         tunnel: &mut Tunnel,
         shots: &mut ShotPool,
+        particles: &mut ParticlePool,
         score_accumulator: &mut ScoreAccumulator,
     ) {
         self.cnt += 1;
@@ -425,24 +427,41 @@ impl Ship {
         if let Some(charging_shot) = self.charging_shot {
             shots[charging_shot].actor.update(self.rocket_pos);
         }
-        /* TODO
         if self.cnt >= -INVINCIBLE_CNT {
-            shape.addParticles(rocketPos, particles);
+            self.shape.add_particles(self.rocket_pos, tunnel, particles);
         }
-        nextStarAppDist -= speed;
-        if (nextStarAppDist <= 0) {
-            for (int i = 0; i < 5; i++) {
-                Particle pt = particles.getInstance();
-                if (!pt)
-                break;
-                starPos.x = relPos.x + rand.nextSignedFloat(PI / 2) + PI;
-                starPos.y = 32;
-                pt.set(starPos, -8 - rand.nextFloat(56), PI, 0, 0,
-                       0.6, 0.7, 0.9, 100, Particle.PType.STAR);
+        self.next_star_app_dist -= self.speed;
+        if self.next_star_app_dist <= 0. {
+            for _ in 0..5 {
+                let got_pt =
+                    particles.get_instance_and(ParticleSpec::Star, |spec, pt, particles_rand| {
+                        let star_pos = Vector::new_at(
+                            self.rel_pos.x
+                                + self.rand.gen_signed_f32(std::f32::consts::PI / 2.)
+                                + std::f32::consts::PI,
+                            32.,
+                        );
+                        pt.set(
+                            spec,
+                            star_pos,
+                            -8. - self.rand.gen_f32(56.),
+                            std::f32::consts::PI,
+                            0.,
+                            0.,
+                            0.6,
+                            0.7,
+                            0.9,
+                            100,
+                            tunnel,
+                            particles_rand,
+                        );
+                    });
+                if !got_pt {
+                    break;
+                }
             }
-            nextStarAppDist = 1;
+            self.next_star_app_dist = 1.;
         }
-        */
         if self.screen_shake_cnt > 0 {
             self.screen_shake_cnt -= 1;
         }
