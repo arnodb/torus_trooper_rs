@@ -247,7 +247,7 @@ impl StageManager {
             }
             if self.boss_mode_end_cnt >= 0 {
                 self.boss_mode_end_cnt -= 1;
-                // TODO ship.clearVisibleBullets();
+                bullets.clear_visible();
                 if self.boss_mode_end_cnt < 0 {
                     self.create_next_zone(screen, ship, bullets, enemies, barrage_manager);
                     ship.start_next_zone();

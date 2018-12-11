@@ -2,6 +2,7 @@ use piston::input::RenderArgs;
 
 use crate::gl;
 
+use crate::tt::actor::bullet::BulletPool;
 use crate::tt::errors::GameError;
 use crate::tt::letter::Direction;
 use crate::tt::manager::stage::StageManager;
@@ -63,16 +64,16 @@ impl<'a> InGameState<'a> {
         })
     }
 
-    fn init_game_state(&mut self, stage_manager: &StageManager) {
+    fn init_game_state(&mut self, stage_manager: &StageManager, bullets: &mut BulletPool) {
         self.score = 0;
         self.next_extend = 0;
         self.set_next_extend(stage_manager.level());
         self.time_changed_show_cnt = -1;
-        self.goto_next_zone(true, stage_manager);
+        self.goto_next_zone(true, stage_manager, bullets);
     }
 
-    fn goto_next_zone(&mut self, is_first: bool, stage_manager: &StageManager) {
-        //TODO clearVisibleBullets();
+    fn goto_next_zone(&mut self, is_first: bool, stage_manager: &StageManager, bullets: &mut BulletPool) {
+        bullets.clear_visible();
         if is_first {
             self.time = DEFAULT_TIME;
             self.next_beep_time = BEEP_START_TIME;
@@ -172,7 +173,7 @@ impl<'a> State for InGameState<'a> {
             params.enemies,
             params.barrage_manager,
         );
-        self.init_game_state(params.stage_manager);
+        self.init_game_state(params.stage_manager, params.bullets);
         /* TODO sound
         SoundManager.playBgm();
         startBgmCnt = -1;
@@ -216,6 +217,7 @@ impl<'a> State for InGameState<'a> {
             params.camera,
             params.tunnel,
             params.shots,
+            params.bullets,
             params.particles,
             &mut score_accumulator,
         );
@@ -236,7 +238,7 @@ impl<'a> State for InGameState<'a> {
             .enemies
             .mov(params.tunnel, params.ship, params.bullets, params.particles)
         {
-            self.goto_next_zone(false, params.stage_manager);
+            self.goto_next_zone(false, params.stage_manager, params.bullets);
         }
         let mut score_accumulator = ScoreAccumulator { score: 0 };
         params.shots.mov(

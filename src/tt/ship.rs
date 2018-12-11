@@ -4,6 +4,7 @@ use crate::glu;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
 
+use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::actor::PoolActorRef;
@@ -187,6 +188,7 @@ impl Ship {
         camera: &mut Camera,
         tunnel: &mut Tunnel,
         shots: &mut ShotPool,
+        bullets: &mut BulletPool,
         particles: &mut ParticlePool,
         score_accumulator: &mut ScoreAccumulator,
     ) {
@@ -216,7 +218,7 @@ impl Ship {
             btn = PadButtons::NONE;
             dir = PadDirection::NONE;
             self.speed *= 0.9;
-            // TODO clearVisibleBullets();
+            bullets.clear_visible();
             if self.cnt < -INVINCIBLE_CNT {
                 self.cnt = -RESTART_CNT;
             }
@@ -224,7 +226,7 @@ impl Ship {
             btn = PadButtons::NONE;
             dir = PadDirection::NONE;
             self.rel_pos.y *= 0.99;
-            //TODO clearVisibleBullets();
+            bullets.clear_visible();
         }
         let mut aspeed = self.target_speed;
         if btn & PadButtons::B != PadButtons::NONE {

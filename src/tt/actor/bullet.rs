@@ -444,6 +444,12 @@ impl BulletPool {
         self.cnt
     }
 
+    pub fn clear_visible(&mut self) {
+        for pa in &mut self.pool {
+            pa.actor.start_disappear();
+        }
+    }
+
     pub fn check_shot_hit(
         &mut self,
         p: Vector,
