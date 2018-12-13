@@ -1,4 +1,5 @@
 use crate::tt::actor::bullet::{Bullet, BulletPool};
+use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActorRef};
@@ -323,6 +324,7 @@ impl Enemy {
         tunnel: &Tunnel,
         ship: &mut Ship,
         particles: &mut ParticlePool,
+        float_letters: &mut FloatLetterPool,
         score_accumulator: &mut ScoreAccumulator,
         rand: &mut Rand,
     ) -> (bool, bool) {
@@ -380,7 +382,7 @@ impl Enemy {
                 }
                 // TODO SoundManager.playSe("hit.wav");
             }
-            release_shot = shot.add_score(spec.score(), self.pos, score_accumulator);
+            release_shot = shot.add_score(spec.score(), self.pos, float_letters, score_accumulator);
         }
         (release_enemy, release_shot)
     }
@@ -667,6 +669,7 @@ impl EnemyPool {
         ship: &mut Ship,
         bullets: &mut BulletPool,
         particles: &mut ParticlePool,
+        float_letters: &mut FloatLetterPool,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         let mut release_shot = false;
@@ -684,6 +687,7 @@ impl EnemyPool {
                     tunnel,
                     ship,
                     particles,
+                    float_letters,
                     score_accumulator,
                     &mut self.rand,
                 );

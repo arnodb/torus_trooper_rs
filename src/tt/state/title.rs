@@ -28,8 +28,8 @@ impl TitleState {
         params.bullets.clear();
         params.enemies.clear_shallow();
         params.particles.clear();
+        params.float_letters.clear();
         /*TODO
-        floatLetters.clear();
         passedEnemies.clear();
         */
     }

@@ -143,8 +143,8 @@ impl<'a> State for InGameState<'a> {
         params.bullets.clear();
         params.enemies.clear_shallow();
         params.particles.clear();
+        params.float_letters.clear();
         /* TODO
-        floatLetters.clear();
         RecordablePad rp = cast(RecordablePad) pad;
         rp.startRecord();
         _replayData = new ReplayData;
@@ -247,6 +247,7 @@ impl<'a> State for InGameState<'a> {
             params.bullets,
             params.enemies,
             params.particles,
+            &mut params.float_letters,
             &mut score_accumulator,
         );
         self.add_score(
@@ -256,9 +257,7 @@ impl<'a> State for InGameState<'a> {
         );
         params.bullets.mov(params.tunnel, params.ship);
         params.particles.mov(params.ship.speed(), params.tunnel);
-        /* TODO
-        floatLetters.move();
-        */
+        params.float_letters.mov();
         self.decrement_time(params.ship);
         let mut action = MoveAction::None;
         if self.time < 0 {
@@ -310,7 +309,7 @@ impl<'a> State for InGameState<'a> {
         unsafe {
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
         }
-        // TODO floatLetters.draw();
+        params.float_letters.draw(params.screen, params.letter, params.tunnel);
         unsafe {
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE);
             gl::Disable(gl::GL_BLEND);

@@ -5,6 +5,7 @@ use crate::gl;
 
 use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::EnemyPool;
+use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::screen::Screen;
@@ -106,6 +107,7 @@ impl Shot {
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
         particles: &mut ParticlePool,
+        float_letters: &mut FloatLetterPool,
         score_accumulator: &mut ScoreAccumulator,
         rand: &mut Rand,
     ) -> bool {
@@ -133,13 +135,21 @@ impl Shot {
         self.shape.as_mut().unwrap().size(self.size);
         if !self.in_charge {
             if self.charge_shot {
-                let hit_release = bullets.check_shot_hit(self, tunnel, score_accumulator);
+                let hit_release =
+                    bullets.check_shot_hit(self, tunnel, float_letters, score_accumulator);
                 if hit_release {
                     release = true;
                 }
             }
-            let hit_release =
-                enemies.check_shot_hit(self, tunnel, ship, bullets, particles, score_accumulator);
+            let hit_release = enemies.check_shot_hit(
+                self,
+                tunnel,
+                ship,
+                bullets,
+                particles,
+                float_letters,
+                score_accumulator,
+            );
             if hit_release {
                 release = true;
             }
@@ -173,24 +183,27 @@ impl Shot {
         &mut self,
         sc: u32,
         pos: Vector,
+        float_letters: &mut FloatLetterPool,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         score_accumulator.add_score(sc * self.multiplier);
-        /* TODO
-        if (multiplier > 1) {
-            FloatLetter fl = floatLetters.getInstanceForced();
-            float size = 0.07;
-            if (sc >= 100)
-            size = 0.2;
-            else if (sc >= 500)
-            size = 0.4;
-            else if (sc >= 2000)
-            size = 0.7;
-            size *= (1 + multiplier * 0.01f);
-            fl.set("X" ~ std.string.toString(multiplier), pos, size * pos.y,
-            cast(int) (30 + multiplier * 0.3f));
+        if self.multiplier > 1 {
+            let size = if sc >= 100 {
+                0.2
+            } else if sc >= 500 {
+                0.4
+            } else if sc > 2000 {
+                0.7
+            } else {
+                0.07
+            };
+            float_letters.spawn(
+                format!("X{}", self.multiplier),
+                pos,
+                size * (1 as f32 + self.multiplier as f32 * 0.01) * pos.y,
+                (30 as f32 + self.multiplier as f32 * 0.3) as i32,
+            );
         }
-        */
         if self.charge_shot {
             if self.multiplier < MAX_MULTIPLIER {
                 self.multiplier += 1;
@@ -273,6 +286,7 @@ impl ShotPool {
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
         particles: &mut ParticlePool,
+        float_letters: &mut FloatLetterPool,
         score_accumulator: &mut ScoreAccumulator,
     ) {
         for shot_ref in self.pool.as_refs() {
@@ -284,6 +298,7 @@ impl ShotPool {
                     bullets,
                     enemies,
                     particles,
+                    float_letters,
                     score_accumulator,
                     &mut self.rand,
                 )

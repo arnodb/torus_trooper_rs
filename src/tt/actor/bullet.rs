@@ -8,6 +8,7 @@ use crate::gl;
 use crate::util::rand::Rand;
 use crate::util::vector::Vector;
 
+use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::shape::{Collidable, Drawable};
@@ -203,6 +204,7 @@ impl Bullet {
         &mut self,
         shot: &mut Shot,
         tunnel: &Tunnel,
+        float_letters: &mut FloatLetterPool,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         if !self.is_visible || self.disap_cnt > 0 {
@@ -218,7 +220,7 @@ impl Bullet {
         let mut release_shot = false;
         if shot.shape.as_ref().unwrap().check_collision(ox, oy) {
             self.start_disappear();
-            release_shot = shot.add_score(10, bullet_pos, score_accumulator);
+            release_shot = shot.add_score(10, bullet_pos, float_letters, score_accumulator);
         }
         release_shot
     }
@@ -445,11 +447,12 @@ impl BulletPool {
         &mut self,
         shot: &mut Shot,
         tunnel: &Tunnel,
+        float_letters: &mut FloatLetterPool,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         let mut release_shot = false;
         for bullet in &mut self.pool {
-            let rel_shot = bullet.check_shot_hit(shot, tunnel, score_accumulator);
+            let rel_shot = bullet.check_shot_hit(shot, tunnel, float_letters, score_accumulator);
             if rel_shot {
                 release_shot = true;
             }

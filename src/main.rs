@@ -30,6 +30,7 @@ use std::time::Instant;
 
 use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::EnemyPool;
+use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::ParticlePool;
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::barrage::BarrageManager;
@@ -78,6 +79,7 @@ impl MainLoop {
         let mut bullets = BulletPool::new(512);
         let mut enemies = EnemyPool::new(64, seed, &screen);
         let mut particles = ParticlePool::new(1024);
+        let mut float_letters = FloatLetterPool::new(16);
 
         let mut stage_manager = StageManager::new(seed);
 
@@ -99,6 +101,7 @@ impl MainLoop {
             bullets: &mut bullets,
             enemies: &mut enemies,
             particles: &mut particles,
+            float_letters: &mut float_letters,
         };
 
         manager.start(rand.gen_usize(usize::max_value()) as u64, &mut params);

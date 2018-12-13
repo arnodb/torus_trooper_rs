@@ -31,4 +31,5 @@ pub struct ActionParams<'a> {
     pub bullets: &'a mut actor::bullet::BulletPool,
     pub enemies: &'a mut actor::enemy::EnemyPool,
     pub particles: &'a mut actor::particle::ParticlePool,
+    pub float_letters: &'a mut actor::float_letter::FloatLetterPool,
 }
