@@ -21,6 +21,7 @@ const DISAP_DEPTH: f32 = -5.0;
 
 #[derive(Default)]
 pub struct Enemy {
+    spec: EnemySpec,
     pos: Vector,
     ppos: Vector,
     flip_mv: Vector,
@@ -38,6 +39,19 @@ pub struct Enemy {
     limit_y: f32,
     bit_bullet: Vec<PoolActorRef>,
     bit_cnt: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum EnemySpec {
+    Small(usize),
+    Medium(usize),
+    Boss(usize),
+}
+
+impl Default for EnemySpec {
+    fn default() -> Self {
+        EnemySpec::Small(0)
+    }
 }
 
 impl Enemy {
@@ -221,32 +235,33 @@ impl Enemy {
                     let ba = bit_spec.bit_barrage.add_top_bullet(bullets);
                     if let Some(ba) = ba {
                         let ba_inst = &mut bullets[ba];
-                        ba_inst.actor.unset_aim_top();
+                        ba_inst.unset_aim_top();
                         self.bit_bullet.push(ba);
                     }
                 }
             }
         }
         if let Some(tb_ref) = self.top_bullet {
-            if let Some(top_bullet) = bullets.maybe_index_mut(tb_ref) {
-                let tb_spec = top_bullet.state.spec_mut();
-                tb_spec.bullet.pos = self.pos;
-                self.check_bullet_in_range(spec, tunnel, ship, &mut top_bullet.actor);
+            if let Some(mut top_bullet) = bullets.maybe_index_mut(tb_ref) {
+                top_bullet.options.as_mut().unwrap().bullet.pos = self.pos;
+                self.check_bullet_in_range(spec, tunnel, ship, &mut top_bullet);
             } else {
                 self.top_bullet = None;
             }
             for (i, bb) in self.bit_bullet.iter().enumerate() {
                 let bb_inst = &mut bullets[*bb];
-                let bb_spec = bb_inst.state.spec_mut();
                 let (bit_offset, d) = spec
                     .bit_spec
                     .as_ref()
                     .unwrap()
                     .get_bit_offset(i as u32, self.bit_cnt);
-                bb_spec.bullet.pos.x = bit_offset.x + self.pos.x;
-                bb_spec.bullet.pos.y = bit_offset.y + self.pos.y;
-                bb_spec.bullet.deg = d;
-                self.check_bullet_in_range(spec, tunnel, ship, &mut bb_inst.actor);
+                {
+                    let bb_bullet = &mut bb_inst.options.as_mut().unwrap().bullet;
+                    bb_bullet.pos.x = bit_offset.x + self.pos.x;
+                    bb_bullet.pos.y = bit_offset.y + self.pos.y;
+                    bb_bullet.deg = d;
+                }
+                self.check_bullet_in_range(spec, tunnel, ship, bb_inst);
             }
         }
         if !passed && self.pos.y <= ship.in_sight_depth() {
@@ -304,25 +319,25 @@ impl Enemy {
     fn check_shot_hit(
         &mut self,
         spec: &ShipSpec,
-        p: Vector,
-        shape: &Collidable,
         shot: &mut Shot,
-        charge_shot: bool,
         tunnel: &Tunnel,
         ship: &mut Ship,
         particles: &mut ParticlePool,
         score_accumulator: &mut ScoreAccumulator,
         rand: &mut Rand,
     ) -> (bool, bool) {
-        let mut ox = f32::abs(self.pos.x - p.x);
-        let oy = f32::abs(self.pos.y - p.y);
+        let mut ox = f32::abs(self.pos.x - shot.pos.x);
+        let oy = f32::abs(self.pos.y - shot.pos.y);
         if ox > std::f32::consts::PI {
             ox = std::f32::consts::PI * 2. - ox;
         }
         ox *= (tunnel.get_radius(self.pos.y) / tunnel::DEFAULT_RAD) * 3.;
         let mut release_enemy = false;
         let mut release_shot = false;
-        if spec.shape().check_collision_shape(ox, oy, shape, 1.) {
+        if spec
+            .shape()
+            .check_collision_shape(ox, oy, shot.shape.as_ref().unwrap(), 1.)
+        {
             self.shield -= shot.damage();
             if self.shield <= 0 {
                 self.destroyed(spec, tunnel, ship, particles, rand);
@@ -330,9 +345,9 @@ impl Enemy {
             } else {
                 self.damaged = true;
                 for _ in 0..4 {
-                    particles.get_instance_and(ParticleSpec::Spark, |spec, pt, particles_rand| {
+                    particles.get_instance_and(|pt, particles_rand| {
                         pt.set(
-                            spec,
+                            &ParticleSpec::Spark,
                             self.pos,
                             1.,
                             rand.gen_signed_f32(0.1),
@@ -346,9 +361,9 @@ impl Enemy {
                             particles_rand,
                         );
                     });
-                    particles.get_instance_and(ParticleSpec::Spark, |spec, pt, particles_rand| {
+                    particles.get_instance_and(|pt, particles_rand| {
                         pt.set(
-                            spec,
+                            &ParticleSpec::Spark,
                             self.pos,
                             1.,
                             rand.gen_signed_f32(0.1) + std::f32::consts::PI,
@@ -365,7 +380,7 @@ impl Enemy {
                 }
                 // TODO SoundManager.playSe("hit.wav");
             }
-            release_shot = shot.add_score(charge_shot, spec.score(), self.pos, score_accumulator);
+            release_shot = shot.add_score(spec.score(), self.pos, score_accumulator);
         }
         (release_enemy, release_shot)
     }
@@ -379,23 +394,22 @@ impl Enemy {
         rand: &mut Rand,
     ) {
         for _ in 0..30 {
-            let got_pt =
-                particles.get_instance_and(ParticleSpec::Spark, |spec, pt, particles_rand| {
-                    pt.set(
-                        spec,
-                        self.pos,
-                        1.,
-                        rand.gen_f32(std::f32::consts::PI * 2.),
-                        rand.gen_signed_f32(1.),
-                        0.01 + rand.gen_f32(0.1),
-                        1.,
-                        0.2 + rand.gen_f32(0.8),
-                        0.4,
-                        24,
-                        tunnel,
-                        particles_rand,
-                    );
-                });
+            let got_pt = particles.get_instance_and(|pt, particles_rand| {
+                pt.set(
+                    &ParticleSpec::Spark,
+                    self.pos,
+                    1.,
+                    rand.gen_f32(std::f32::consts::PI * 2.),
+                    rand.gen_signed_f32(1.),
+                    0.01 + rand.gen_f32(0.1),
+                    1.,
+                    0.2 + rand.gen_f32(0.8),
+                    0.4,
+                    24,
+                    tunnel,
+                    particles_rand,
+                );
+            });
             if !got_pt {
                 break;
             }
@@ -420,14 +434,12 @@ impl Enemy {
     fn remove(&mut self, bullets: &mut BulletPool) {
         if let Some(tb_ref) = self.top_bullet {
             // TODO might not exist?
-            let tb = &mut bullets[tb_ref];
-            tb.release();
+            bullets.release(tb_ref);
             self.top_bullet = None;
         }
         for bb_ref in &self.bit_bullet {
             // TODO might not exist?
-            let bb = &mut bullets[*bb_ref];
-            bb.release();
+            bullets.release(*bb_ref);
         }
         self.bit_bullet.clear();
     }
@@ -472,8 +484,7 @@ impl Enemy {
         }
         for bb in &self.bit_bullet {
             let bb_inst = &bullets[*bb];
-            let bb_spec = bb_inst.state.spec();
-            let sp = tunnel.get_pos_v(bb_spec.bullet.pos);
+            let sp = tunnel.get_pos_v(bb_inst.options.as_ref().unwrap().bullet.pos);
             unsafe {
                 gl::PushMatrix();
             }
@@ -500,19 +511,13 @@ impl Enemy {
 }
 
 pub struct EnemyPool {
-    pool: Pool<Enemy, EnemySpec>,
+    pool: Pool<Enemy>,
     boss_spec_idx: usize,
     rand: Rand,
     small_ship_specs: Vec<ShipSpec>,
     medium_ship_specs: Vec<ShipSpec>,
     boss_ship_specs: Vec<ShipSpec>,
     bit_shape: BitShape,
-}
-
-enum EnemySpec {
-    Small(usize),
-    Medium(usize),
-    Boss(usize),
 }
 
 impl EnemyPool {
@@ -572,9 +577,9 @@ impl EnemyPool {
         let idx = self.rand.gen_usize(self.small_ship_specs.len());
         let spec = &self.small_ship_specs[idx];
         let inst = self.pool.get_instance();
-        if let Some((pa, pa_ref)) = inst {
-            pa.prepare(pa_ref, EnemySpec::Small(idx));
-            op(&mut pa.actor, spec);
+        if let Some((enemy, _)) = inst {
+            enemy.spec = EnemySpec::Small(idx);
+            op(enemy, spec);
         }
     }
 
@@ -585,9 +590,9 @@ impl EnemyPool {
         let idx = self.rand.gen_usize(self.medium_ship_specs.len());
         let spec = &self.medium_ship_specs[idx];
         let inst = self.pool.get_instance();
-        if let Some((pa, pa_ref)) = inst {
-            pa.prepare(pa_ref, EnemySpec::Medium(idx));
-            op(&mut pa.actor, spec);
+        if let Some((enemy, _)) = inst {
+            enemy.spec = EnemySpec::Medium(idx);
+            op(enemy, spec);
         }
     }
 
@@ -599,22 +604,22 @@ impl EnemyPool {
         self.boss_spec_idx += 1;
         let spec = &self.boss_ship_specs[idx];
         let inst = self.pool.get_instance();
-        if let Some((pa, pa_ref)) = inst {
-            pa.prepare(pa_ref, EnemySpec::Boss(idx));
-            op(&mut pa.actor, spec);
+        if let Some((enemy, _)) = inst {
+            enemy.spec = EnemySpec::Boss(idx);
+            op(enemy, spec);
         }
     }
 
     pub fn clear_shallow(&mut self) {
-        for pa in &mut self.pool {
-            pa.actor.remove_shallow();
+        for enemy in &mut self.pool {
+            enemy.remove_shallow();
         }
         self.pool.clear();
     }
 
     pub fn clear(&mut self, bullets: &mut BulletPool) {
-        for pa in &mut self.pool {
-            pa.actor.remove(bullets);
+        for enemy in &mut self.pool {
+            enemy.remove(bullets);
         }
         self.pool.clear();
     }
@@ -631,19 +636,25 @@ impl EnemyPool {
         particles: &mut ParticlePool,
     ) -> bool {
         let mut goto_next_zone = false;
-        for pa in &mut self.pool {
-            let spec = match pa.state.spec() {
-                EnemySpec::Small(idx) => &mut self.small_ship_specs[*idx],
-                EnemySpec::Medium(idx) => &mut self.medium_ship_specs[*idx],
-                EnemySpec::Boss(idx) => &mut self.boss_ship_specs[*idx],
+        for enemy_ref in self.pool.as_refs() {
+            let release = {
+                let enemy = &mut self.pool[enemy_ref];
+                let spec = match enemy.spec {
+                    EnemySpec::Small(idx) => &mut self.small_ship_specs[idx],
+                    EnemySpec::Medium(idx) => &mut self.medium_ship_specs[idx],
+                    EnemySpec::Boss(idx) => &mut self.boss_ship_specs[idx],
+                };
+                let (release, goto_nz) = enemy.mov(false, spec, tunnel, ship, bullets, particles);
+                if goto_nz {
+                    goto_next_zone = true;
+                }
+                if release {
+                    enemy.remove(bullets);
+                }
+                release
             };
-            let (release, goto_nz) = pa.actor.mov(false, spec, tunnel, ship, bullets, particles);
-            if goto_nz {
-                goto_next_zone = true;
-            }
             if release {
-                pa.actor.remove(bullets);
-                pa.release();
+                self.pool.release(enemy_ref);
             }
         }
         goto_next_zone
@@ -651,10 +662,7 @@ impl EnemyPool {
 
     pub fn check_shot_hit(
         &mut self,
-        p: Vector,
-        shape: &Collidable,
         shot: &mut Shot,
-        charge_shot: bool,
         tunnel: &Tunnel,
         ship: &mut Ship,
         bullets: &mut BulletPool,
@@ -662,43 +670,46 @@ impl EnemyPool {
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         let mut release_shot = false;
-        for pa in &mut self.pool {
-            let spec = match pa.state.spec() {
-                EnemySpec::Small(idx) => &self.small_ship_specs[*idx],
-                EnemySpec::Medium(idx) => &self.medium_ship_specs[*idx],
-                EnemySpec::Boss(idx) => &self.boss_ship_specs[*idx],
+        for enemy_ref in self.pool.as_refs() {
+            let release_enemy = {
+                let enemy = &mut self.pool[enemy_ref];
+                let spec = match enemy.spec {
+                    EnemySpec::Small(idx) => &self.small_ship_specs[idx],
+                    EnemySpec::Medium(idx) => &self.medium_ship_specs[idx],
+                    EnemySpec::Boss(idx) => &self.boss_ship_specs[idx],
+                };
+                let (release_enemy, rel_shot) = enemy.check_shot_hit(
+                    spec,
+                    shot,
+                    tunnel,
+                    ship,
+                    particles,
+                    score_accumulator,
+                    &mut self.rand,
+                );
+                if rel_shot {
+                    release_shot = true;
+                }
+                if release_enemy {
+                    enemy.remove(bullets);
+                }
+                release_enemy
             };
-            let (release_enemy, rel_shot) = pa.actor.check_shot_hit(
-                spec,
-                p,
-                shape,
-                shot,
-                charge_shot,
-                tunnel,
-                ship,
-                particles,
-                score_accumulator,
-                &mut self.rand,
-            );
-            if rel_shot {
-                release_shot = true;
-            }
             if release_enemy {
-                pa.actor.remove(bullets);
-                pa.release();
+                self.pool.release(enemy_ref);
             }
         }
         release_shot
     }
 
     pub fn draw(&self, tunnel: &Tunnel, bullets: &BulletPool) {
-        for pa in &self.pool {
-            let spec = match pa.state.spec() {
-                EnemySpec::Small(idx) => &self.small_ship_specs[*idx],
-                EnemySpec::Medium(idx) => &self.medium_ship_specs[*idx],
-                EnemySpec::Boss(idx) => &self.boss_ship_specs[*idx],
+        for enemy in &self.pool {
+            let spec = match enemy.spec {
+                EnemySpec::Small(idx) => &self.small_ship_specs[idx],
+                EnemySpec::Medium(idx) => &self.medium_ship_specs[idx],
+                EnemySpec::Boss(idx) => &self.boss_ship_specs[idx],
             };
-            pa.actor.draw(spec, tunnel, bullets, &self.bit_shape);
+            enemy.draw(spec, tunnel, bullets, &self.bit_shape);
         }
     }
 

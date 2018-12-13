@@ -354,14 +354,14 @@ impl Ship {
         if btn & PadButtons::B != PadButtons::NONE {
             if self.charging_shot.is_none() {
                 let charging_shot = shots.get_charging_instance();
-                shots[charging_shot].actor.set_charge(true);
+                shots[charging_shot].set_charge(true);
                 self.charging_shot = Some(charging_shot);
             }
         } else {
             if let Some(charging_shot) = self.charging_shot {
-                let release = shots[charging_shot].actor.release();
+                let release = shots[charging_shot].release();
                 if release {
-                    shots[charging_shot].release()
+                    shots.release(charging_shot)
                 }
                 self.charging_shot = None;
             }
@@ -427,7 +427,7 @@ impl Ship {
         self.rocket_pos.x = self.rel_pos.x - self.bank * 0.1;
         self.rocket_pos.y = self.rel_pos.y;
         if let Some(charging_shot) = self.charging_shot {
-            shots[charging_shot].actor.update(self.rocket_pos);
+            shots[charging_shot].update(self.rocket_pos);
         }
         if self.cnt >= -INVINCIBLE_CNT {
             self.shape.add_particles(self.rocket_pos, tunnel, particles);
@@ -435,29 +435,28 @@ impl Ship {
         self.next_star_app_dist -= self.speed;
         if self.next_star_app_dist <= 0. {
             for _ in 0..5 {
-                let got_pt =
-                    particles.get_instance_and(ParticleSpec::Star, |spec, pt, particles_rand| {
-                        let star_pos = Vector::new_at(
-                            self.rel_pos.x
-                                + self.rand.gen_signed_f32(std::f32::consts::PI / 2.)
-                                + std::f32::consts::PI,
-                            32.,
-                        );
-                        pt.set(
-                            spec,
-                            star_pos,
-                            -8. - self.rand.gen_f32(56.),
-                            std::f32::consts::PI,
-                            0.,
-                            0.,
-                            0.6,
-                            0.7,
-                            0.9,
-                            100,
-                            tunnel,
-                            particles_rand,
-                        );
-                    });
+                let got_pt = particles.get_instance_and(|pt, particles_rand| {
+                    let star_pos = Vector::new_at(
+                        self.rel_pos.x
+                            + self.rand.gen_signed_f32(std::f32::consts::PI / 2.)
+                            + std::f32::consts::PI,
+                        32.,
+                    );
+                    pt.set(
+                        &ParticleSpec::Star,
+                        star_pos,
+                        -8. - self.rand.gen_f32(56.),
+                        std::f32::consts::PI,
+                        0.,
+                        0.,
+                        0.6,
+                        0.7,
+                        0.9,
+                        100,
+                        tunnel,
+                        particles_rand,
+                    );
+                });
                 if !got_pt {
                     break;
                 }

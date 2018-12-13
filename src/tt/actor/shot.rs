@@ -6,7 +6,7 @@ use crate::gl;
 use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::EnemyPool;
 use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
-use crate::tt::actor::{Pool, PoolActor, PoolActorRef};
+use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::screen::Screen;
 use crate::tt::shape::shot_shape::ShotShape;
 use crate::tt::shape::{Drawable, ResizableDrawable};
@@ -32,15 +32,17 @@ const MAX_MULTIPLIER: u32 = 100;
 
 #[derive(Default)]
 pub struct Shot {
-    pos: Vector,
+    pub pos: Vector,
     charge_cnt: u32,
     charge_se_cnt: u32,
     cnt: u32,
     range: f32,
     size: f32,
     trg_size: f32,
+    pub charge_shot: bool,
     in_charge: bool,
     star_shell: bool,
+    pub shape: Option<ResizableDrawable<ShotShape>>,
     multiplier: u32,
     damage: i32,
     deg: f32,
@@ -99,8 +101,6 @@ impl Shot {
 
     fn mov(
         &mut self,
-        charge_shot: bool,
-        shape: &mut ResizableDrawable<ShotShape>,
         tunnel: &Tunnel,
         ship: &mut Ship,
         bullets: &mut BulletPool,
@@ -130,42 +130,26 @@ impl Shot {
             }
         }
         self.size += (self.trg_size - self.size) * 0.1;
-        shape.size(self.size);
+        self.shape.as_mut().unwrap().size(self.size);
         if !self.in_charge {
-            if charge_shot {
-                let hit_release = bullets.check_shot_hit(
-                    self.pos,
-                    shape,
-                    self,
-                    charge_shot,
-                    tunnel,
-                    score_accumulator,
-                );
+            if self.charge_shot {
+                let hit_release = bullets.check_shot_hit(self, tunnel, score_accumulator);
                 if hit_release {
                     release = true;
                 }
             }
-            let hit_release = enemies.check_shot_hit(
-                self.pos,
-                shape,
-                self,
-                charge_shot,
-                tunnel,
-                ship,
-                bullets,
-                particles,
-                score_accumulator,
-            );
+            let hit_release =
+                enemies.check_shot_hit(self, tunnel, ship, bullets, particles, score_accumulator);
             if hit_release {
                 release = true;
             }
         }
         if self.star_shell || self.charge_cnt as f32 > MAX_CHARGE as f32 * CHARGE_RELEASE_RATIO {
-            let pn = if charge_shot { 3 } else { 1 };
+            let pn = if self.charge_shot { 3 } else { 1 };
             for _ in 0..pn {
-                particles.get_instance_and(ParticleSpec::Spark, |spec, pt, particles_rand| {
+                particles.get_instance_and(|pt, particles_rand| {
                     pt.set(
-                        spec,
+                        &ParticleSpec::Spark,
                         self.pos,
                         1.,
                         rand.gen_signed_f32(std::f32::consts::PI / 2.) + std::f32::consts::PI,
@@ -187,7 +171,6 @@ impl Shot {
 
     pub fn add_score(
         &mut self,
-        charge_shot: bool,
         sc: u32,
         pos: Vector,
         score_accumulator: &mut ScoreAccumulator,
@@ -208,7 +191,7 @@ impl Shot {
             cast(int) (30 + multiplier * 0.3f));
         }
         */
-        if charge_shot {
+        if self.charge_shot {
             if self.multiplier < MAX_MULTIPLIER {
                 self.multiplier += 1;
             }
@@ -218,7 +201,7 @@ impl Shot {
         }
     }
 
-    fn draw(&self, shape: &ResizableDrawable<ShotShape>, tunnel: &Tunnel) {
+    fn draw(&self, tunnel: &Tunnel) {
         let sp = tunnel.get_pos_v(self.pos);
         unsafe {
             gl::PushMatrix();
@@ -228,7 +211,7 @@ impl Shot {
             gl::Rotatef(self.deg * 180. / std::f32::consts::PI, 0., 1., 10.);
             gl::Rotatef(self.cnt as f32 * 7., 0., 0., 1.);
         }
-        shape.draw();
+        self.shape.as_ref().unwrap().draw();
         unsafe {
             gl::PopMatrix();
         }
@@ -240,15 +223,10 @@ impl Shot {
 }
 
 pub struct ShotPool {
-    pool: Pool<Shot, ShotSpec>,
+    pool: Pool<Shot>,
     shot_shape: Rc<ShotShape>,
     charge_shot_shape: Rc<ShotShape>,
     rand: Rand,
-}
-
-pub enum ShotSpec {
-    Normal(ResizableDrawable<ShotShape>),
-    Charge(ResizableDrawable<ShotShape>),
 }
 
 impl ShotPool {
@@ -266,22 +244,22 @@ impl ShotPool {
         O: FnMut(&mut Shot),
     {
         let inst = self.pool.get_instance();
-        if let Some((pa, pa_ref)) = inst {
-            pa.prepare(
-                pa_ref,
-                ShotSpec::Normal(ResizableDrawable::new(&self.shot_shape, 0.)),
-            );
-            op(&mut pa.actor);
+        if let Some((shot, _)) = inst {
+            shot.charge_shot = false;
+            shot.shape = Some(ResizableDrawable::new(&self.shot_shape, 0.));
+            op(shot);
         }
     }
 
     pub fn get_charging_instance(&mut self) -> PoolActorRef {
-        let (pa, pa_ref) = self.pool.get_instance_forced();
-        pa.prepare(
-            pa_ref,
-            ShotSpec::Charge(ResizableDrawable::new(&self.charge_shot_shape, 0.)),
-        );
-        pa_ref
+        let (shot, shot_ref) = self.pool.get_instance_forced();
+        shot.charge_shot = true;
+        shot.shape = Some(ResizableDrawable::new(&self.charge_shot_shape, 0.));
+        shot_ref
+    }
+
+    pub fn release(&mut self, shot_ref: PoolActorRef) {
+        self.pool.release(shot_ref);
     }
 
     pub fn clear(&mut self) {
@@ -297,11 +275,10 @@ impl ShotPool {
         particles: &mut ParticlePool,
         score_accumulator: &mut ScoreAccumulator,
     ) {
-        for pa in &mut self.pool {
-            let release = match pa.state.spec_mut() {
-                ShotSpec::Normal(shape) => pa.actor.mov(
-                    false,
-                    shape,
+        for shot_ref in self.pool.as_refs() {
+            let release = {
+                let shot = &mut self.pool[shot_ref];
+                shot.mov(
                     tunnel,
                     ship,
                     bullets,
@@ -309,37 +286,23 @@ impl ShotPool {
                     particles,
                     score_accumulator,
                     &mut self.rand,
-                ),
-                ShotSpec::Charge(shape) => pa.actor.mov(
-                    true,
-                    shape,
-                    tunnel,
-                    ship,
-                    bullets,
-                    enemies,
-                    particles,
-                    score_accumulator,
-                    &mut self.rand,
-                ),
+                )
             };
             if release {
-                pa.release();
+                self.pool.release(shot_ref);
             }
         }
     }
 
     pub fn draw(&self, tunnel: &Tunnel) {
-        for pa in &self.pool {
-            match pa.state.spec() {
-                ShotSpec::Normal(shape) => pa.actor.draw(shape, tunnel),
-                ShotSpec::Charge(shape) => pa.actor.draw(shape, tunnel),
-            }
+        for shot in &self.pool {
+            shot.draw(tunnel);
         }
     }
 }
 
 impl Index<PoolActorRef> for ShotPool {
-    type Output = PoolActor<Shot, ShotSpec>;
+    type Output = Shot;
     fn index(&self, index: PoolActorRef) -> &Self::Output {
         &self.pool[index]
     }

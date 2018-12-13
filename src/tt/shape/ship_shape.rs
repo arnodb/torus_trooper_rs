@@ -594,24 +594,23 @@ impl ShipShape {
 
     pub fn add_particles(&self, pos: Vector, tunnel: &Tunnel, particles: &mut ParticlePool) {
         for rx in &self.rocket_x {
-            let got_pt =
-                particles.get_instance_and(ParticleSpec::Jet, |spec, pt, particles_rand| {
-                    let rocket_pos = Vector::new_at(pos.x + rx, pos.y - 0.15);
-                    pt.set(
-                        spec,
-                        rocket_pos,
-                        1.,
-                        std::f32::consts::PI,
-                        0.,
-                        0.2,
-                        0.3,
-                        0.4,
-                        1.0,
-                        16,
-                        tunnel,
-                        particles_rand,
-                    );
-                });
+            let got_pt = particles.get_instance_and(|pt, particles_rand| {
+                let rocket_pos = Vector::new_at(pos.x + rx, pos.y - 0.15);
+                pt.set(
+                    &ParticleSpec::Jet,
+                    rocket_pos,
+                    1.,
+                    std::f32::consts::PI,
+                    0.,
+                    0.2,
+                    0.3,
+                    0.4,
+                    1.0,
+                    16,
+                    tunnel,
+                    particles_rand,
+                );
+            });
             if !got_pt {
                 break;
             }
@@ -632,32 +631,29 @@ impl ShipShape {
         for _ in 0..(self.collision.x * 40.) as usize {
             let wb = self.collision.x;
             let hb = self.collision.y;
-            let got_pt = particles.get_instance_and(
-                ParticleSpec::Fragment {
-                    d1: 0.,
-                    d2: 0.,
-                    md1: 0.,
-                    md2: 0.,
-                    width: wb + rand.gen_f32(wb),
-                    height: hb + rand.gen_f32(hb),
-                },
-                |spec, pt, particles_rand| {
-                    pt.set(
-                        spec,
-                        pos,
-                        1.,
-                        rand.gen_signed_f32(0.1),
-                        1. + rand.gen_signed_f32(1.),
-                        0.2 + rand.gen_f32(0.2),
-                        structure::COLOR_RGB[self.color][0],
-                        structure::COLOR_RGB[self.color][1],
-                        structure::COLOR_RGB[self.color][2],
-                        (32 + rand.gen_usize(16)) as i32,
-                        tunnel,
-                        particles_rand,
-                    );
-                },
-            );
+            let got_pt = particles.get_instance_and(|pt, particles_rand| {
+                pt.set(
+                    &ParticleSpec::Fragment {
+                        d1: 0.,
+                        d2: 0.,
+                        md1: 0.,
+                        md2: 0.,
+                        width: wb + rand.gen_f32(wb),
+                        height: hb + rand.gen_f32(hb),
+                    },
+                    pos,
+                    1.,
+                    rand.gen_signed_f32(0.1),
+                    1. + rand.gen_signed_f32(1.),
+                    0.2 + rand.gen_f32(0.2),
+                    structure::COLOR_RGB[self.color][0],
+                    structure::COLOR_RGB[self.color][1],
+                    structure::COLOR_RGB[self.color][2],
+                    (32 + rand.gen_usize(16)) as i32,
+                    tunnel,
+                    particles_rand,
+                );
+            });
             if !got_pt {
                 break;
             }

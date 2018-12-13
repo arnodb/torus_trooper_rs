@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 
 use crate::gl;
 
-use crate::tt::actor::{Pool, PoolActor, PoolActorRef};
+use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::screen::Screen;
 use crate::tt::tunnel::Tunnel;
 use crate::util::rand::Rand;
@@ -25,12 +25,34 @@ pub struct Particle {
     lum_alp: f32,
     cnt: i32,
     in_course: bool,
+    spec: ParticleSpec,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ParticleSpec {
+    Spark,
+    Star,
+    Fragment {
+        d1: f32,
+        d2: f32,
+        md1: f32,
+        md2: f32,
+        width: f32,
+        height: f32,
+    },
+    Jet,
+}
+
+impl Default for ParticleSpec {
+    fn default() -> Self {
+        ParticleSpec::Spark
+    }
 }
 
 impl Particle {
     pub fn set(
         &mut self,
-        spec: &mut ParticleSpec,
+        spec: &ParticleSpec,
         p: Vector,
         z: f32,
         d: f32,
@@ -56,7 +78,8 @@ impl Particle {
         } else {
             true
         };
-        if let ParticleSpec::Fragment { md1, md2, .. } = spec {
+        self.spec = *spec;
+        if let ParticleSpec::Fragment { md1, md2, .. } = &mut self.spec {
             *md1 = rand.gen_signed_f32(12.);
             *md2 = rand.gen_signed_f32(12.);
         }
@@ -64,7 +87,7 @@ impl Particle {
         self.calc_screen_pos(tunnel);
     }
 
-    fn mov(&mut self, spec: &mut ParticleSpec, ship_speed: f32, tunnel: &Tunnel) -> bool {
+    fn mov(&mut self, ship_speed: f32, tunnel: &Tunnel) -> bool {
         self.cnt -= 1;
         if self.cnt < 0 || self.pos.y < -2. {
             return true;
@@ -74,7 +97,7 @@ impl Particle {
             self.rpsp = self.rsp;
         }
         self.pos += self.vel;
-        match spec {
+        let do_cic = match &mut self.spec {
             ParticleSpec::Fragment {
                 d1,
                 d2,
@@ -85,42 +108,34 @@ impl Particle {
             } => {
                 self.pos.y -= ship_speed / 2.;
                 self.vel.z -= GRAVITY / 2.;
-                if self.in_course && self.pos.z < 0. {
-                    self.vel.z *= -0.6;
-                    self.vel *= 0.9;
-                    self.pos.z += self.vel.z * 2.;
-                    self.check_in_course(tunnel);
-                }
                 *d1 += *md1;
                 *d2 += *md2;
                 *md1 *= 0.98;
                 *md2 *= 0.98;
                 *width *= 0.98;
                 *height *= 0.98;
+                true
             }
             ParticleSpec::Spark => {
                 self.pos.y -= ship_speed * 0.33;
                 self.vel.z -= GRAVITY;
-                if self.in_course && self.pos.z < 0. {
-                    self.vel.z *= -0.8;
-                    self.vel *= 0.9;
-                    self.pos.z += self.vel.z * 2.;
-                    self.check_in_course(tunnel);
-                }
+                true
             }
             ParticleSpec::Star => {
                 self.pos.y -= ship_speed;
+                false
             }
             ParticleSpec::Jet => {
                 self.pos.y -= ship_speed;
                 self.vel.z -= GRAVITY;
-                if self.in_course && self.pos.z < 0. {
-                    self.vel.z *= -0.8;
-                    self.vel *= 0.9;
-                    self.pos.z += self.vel.z * 2.;
-                    self.check_in_course(tunnel);
-                }
+                true
             }
+        };
+        if do_cic && self.in_course && self.pos.z < 0. {
+            self.vel.z *= -0.8;
+            self.vel *= 0.9;
+            self.pos.z += self.vel.z * 2.;
+            self.check_in_course(tunnel);
         }
         self.lum_alp *= 0.98;
         self.calc_screen_pos(tunnel);
@@ -142,8 +157,8 @@ impl Particle {
         }
     }
 
-    fn draw(&self, spec: &ParticleSpec, screen: &Screen) {
-        match spec {
+    fn draw(&self, screen: &Screen) {
+        match self.spec {
             ParticleSpec::Spark | ParticleSpec::Jet => self.draw_spark(screen),
             ParticleSpec::Star => self.draw_star(screen),
             ParticleSpec::Fragment {
@@ -152,7 +167,7 @@ impl Particle {
                 width,
                 height,
                 ..
-            } => self.draw_fragment(*d1, *d2, *width, *height, screen),
+            } => self.draw_fragment(d1, d2, width, height, screen),
         }
     }
 
@@ -234,22 +249,8 @@ impl Particle {
 }
 
 pub struct ParticlePool {
-    pool: Pool<Particle, ParticleSpec>,
+    pool: Pool<Particle>,
     pub rand: Rand,
-}
-
-pub enum ParticleSpec {
-    Spark,
-    Star,
-    Fragment {
-        d1: f32,
-        d2: f32,
-        md1: f32,
-        md2: f32,
-        width: f32,
-        height: f32,
-    },
-    Jet,
 }
 
 impl ParticlePool {
@@ -260,14 +261,13 @@ impl ParticlePool {
         }
     }
 
-    pub fn get_instance_and<O>(&mut self, spec: ParticleSpec, mut op: O) -> bool
+    pub fn get_instance_and<O>(&mut self, mut op: O) -> bool
     where
-        O: FnMut(&mut ParticleSpec, &mut Particle, &mut Rand),
+        O: FnMut(&mut Particle, &mut Rand),
     {
         let inst = self.pool.get_instance();
-        if let Some((pa, pa_ref)) = inst {
-            pa.prepare(pa_ref, spec);
-            op(pa.state.spec_mut(), &mut pa.actor, &mut self.rand);
+        if let Some((particle, _)) = inst {
+            op(particle, &mut self.rand);
             true
         } else {
             false
@@ -279,23 +279,26 @@ impl ParticlePool {
     }
 
     pub fn mov(&mut self, ship_speed: f32, tunnel: &Tunnel) {
-        for pa in &mut self.pool {
-            let release = pa.actor.mov(pa.state.spec_mut(), ship_speed, tunnel);
+        for particle_ref in self.pool.as_refs() {
+            let release = {
+                let particle = &mut self.pool[particle_ref];
+                particle.mov(ship_speed, tunnel)
+            };
             if release {
-                pa.release();
+                self.pool.release(particle_ref);
             }
         }
     }
 
     pub fn draw(&mut self, screen: &Screen) {
-        for pa in &self.pool {
-            pa.actor.draw(pa.state.spec(), screen);
+        for particle in &self.pool {
+            particle.draw(screen);
         }
     }
 }
 
 impl Index<PoolActorRef> for ParticlePool {
-    type Output = PoolActor<Particle, ParticleSpec>;
+    type Output = Particle;
     fn index(&self, index: PoolActorRef) -> &Self::Output {
         &self.pool[index]
     }

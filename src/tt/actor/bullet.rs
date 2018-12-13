@@ -9,7 +9,7 @@ use crate::util::rand::Rand;
 use crate::util::vector::Vector;
 
 use crate::tt::actor::shot::Shot;
-use crate::tt::actor::{Pool, PoolActor, PoolActorRef};
+use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::Ship;
 use crate::tt::state::in_game::ScoreAccumulator;
@@ -17,6 +17,7 @@ use crate::tt::tunnel::{self, Tunnel};
 
 #[derive(Default)]
 pub struct Bullet {
+    pub options: Option<BulletOptions>,
     pub root_rank: f32,
     ppos: Vector,
     cnt: u32,
@@ -33,28 +34,34 @@ pub struct Bullet {
     bml_idx: usize,
 }
 
+pub struct BulletOptions {
+    bml_params: Rc<Vec<BMLParam>>,
+    runner: Runner<TTRunner>,
+    pub bullet: BulletImpl,
+}
+
 const DISAP_CNT: u32 = 45;
 
 impl Bullet {
-    fn set(&mut self, bullet: &mut BulletImpl, pos: Vector, deg: f32, speed: f32) {
-        bullet.set(pos, deg, speed);
+    fn set(&mut self, pos: Vector, deg: f32, speed: f32) {
+        self.options.as_mut().unwrap().bullet.set(pos, deg, speed);
         self.is_simple = false;
-        self.start(bullet);
+        self.start();
     }
 
-    fn set_simple(&mut self, bullet: &mut BulletImpl, pos: Vector, deg: f32, speed: f32) {
-        bullet.set(pos, deg, speed);
+    fn set_simple(&mut self, pos: Vector, deg: f32, speed: f32) {
+        self.options.as_mut().unwrap().bullet.set(pos, deg, speed);
         self.is_simple = true;
-        self.start(bullet);
+        self.start();
     }
 
-    fn start(&mut self, bullet: &BulletImpl) {
+    fn start(&mut self) {
         self.is_top = false;
         self.is_aim_top = false;
         self.is_wait = false;
         self.is_visible = true;
         self.is_morph_seed = false;
-        self.ppos = bullet.pos;
+        self.ppos = self.options.as_ref().unwrap().bullet.pos;
         self.cnt = 0;
         self.root_rank = 1.;
         self.should_be_released = false;
@@ -94,124 +101,131 @@ impl Bullet {
     fn mov(
         &mut self,
         manager: &mut BulletsManager,
-        runner: &mut Runner<TTRunner>,
-        bullet: &mut BulletImpl,
-        bml_params: &Rc<Vec<BMLParam>>,
         tunnel: &Tunnel,
         ship: &Ship,
         rand: &mut Rand,
     ) -> bool {
-        let tpos = ship.get_target_pos();
-        self.ppos = bullet.pos;
-        if self.is_aim_top {
-            let mut ox = tpos.x - bullet.pos.x;
-            if ox > std::f32::consts::PI {
-                ox -= std::f32::consts::PI * 2.;
-            } else if ox < -std::f32::consts::PI {
-                ox += std::f32::consts::PI * 2.;
+        let mut release = false;
+        let mut start_disappear = false;
+        {
+            let options = self.options.as_mut().unwrap();
+            let bullet = &mut options.bullet;
+            let bml_params = &options.bml_params;
+            let tpos = ship.get_target_pos();
+            self.ppos = bullet.pos;
+            if self.is_aim_top {
+                let mut ox = tpos.x - bullet.pos.x;
+                if ox > std::f32::consts::PI {
+                    ox -= std::f32::consts::PI * 2.;
+                } else if ox < -std::f32::consts::PI {
+                    ox += std::f32::consts::PI * 2.;
+                }
+                bullet.deg = (f32::atan2(ox, tpos.y - bullet.pos.y) * bullet.x_reverse
+                    + std::f32::consts::PI / 2.)
+                    * bullet.y_reverse
+                    - std::f32::consts::PI / 2.;
             }
-            bullet.deg = (f32::atan2(ox, tpos.y - bullet.pos.y) * bullet.x_reverse
-                + std::f32::consts::PI / 2.)
-                * bullet.y_reverse
-                - std::f32::consts::PI / 2.;
-        }
-        if self.is_wait && self.wait_cnt > 0 {
-            self.wait_cnt -= 1;
-            return self.should_be_released;
-        }
-        if !self.is_simple {
-            let bml_param = &bml_params[self.bml_idx];
-            bullet.mov(runner, manager, bml_param, tpos, rand);
-            if manager.bullet_should_be_released {
-                self.should_be_released = true;
+            if self.is_wait && self.wait_cnt > 0 {
+                self.wait_cnt -= 1;
+                return self.should_be_released;
             }
-            if runner.is_end() {
-                if self.is_top {
-                    self.bml_idx = 0;
-                    let bml_param = &bml_params[self.bml_idx];
-                    *runner = Runner::new(TTRunner::new(), &bml_param.bml);
-                    if self.is_wait {
-                        self.wait_cnt = self.post_wait;
-                        return false;
+            if !self.is_simple {
+                let bml_param = &bml_params[self.bml_idx];
+                let runner = &mut options.runner;
+                bullet.mov(runner, manager, bml_param, tpos, rand);
+                if manager.bullet_should_be_released {
+                    self.should_be_released = true;
+                }
+                if runner.is_end() {
+                    if self.is_top {
+                        self.bml_idx = 0;
+                        let bml_param = &bml_params[self.bml_idx];
+                        *runner = Runner::new(TTRunner::new(), &bml_param.bml);
+                        if self.is_wait {
+                            self.wait_cnt = self.post_wait;
+                            return false;
+                        }
+                    } else if self.is_morph_seed {
+                        return true;
                     }
-                } else if self.is_morph_seed {
-                    return true;
+                }
+            }
+            if self.should_be_released {
+                return true;
+            }
+            let speed_rank = bullet.get_speed_rank(bml_params, self.bml_idx);
+            let mx = (f32::sin(bullet.deg) * bullet.speed + bullet.acc.x)
+                * speed_rank
+                * bullet.x_reverse;
+            let my = (f32::cos(bullet.deg) * bullet.speed - bullet.acc.y)
+                * speed_rank
+                * bullet.y_reverse;
+            let d = f32::atan2(mx, my);
+            let r = (1. - f32::abs(f32::sin(d)) * 0.999) * (ship.speed() * 5.);
+            bullet.pos.x += mx * r;
+            bullet.pos.y += my * r;
+
+            if bullet.pos.x >= std::f32::consts::PI * 2. {
+                bullet.pos.x -= std::f32::consts::PI * 2.;
+            } else if bullet.pos.x < 0. {
+                bullet.pos.x += std::f32::consts::PI * 2.;
+            }
+            if self.is_visible && self.disap_cnt <= 0 {
+                if ship.check_bullet_hit(bullet.pos, self.ppos) {
+                    release = true;
+                }
+                if bullet.pos.y < -2.
+                    || (!bullet.long_range && bullet.pos.y > ship.in_sight_depth())
+                    || !tunnel.check_in_screen(bullet.pos, ship)
+                {
+                    start_disappear = true;
+                }
+            }
+            self.cnt += 1;
+            if self.disap_cnt > 0 {
+                self.disap_cnt += 1;
+                if self.disap_cnt > DISAP_CNT {
+                    release = true;
+                }
+            } else {
+                if self.cnt > 600 {
+                    start_disappear = true;
                 }
             }
         }
-        if self.should_be_released {
-            return true;
-        }
-        let speed_rank = bullet.get_speed_rank(bml_params, self.bml_idx);
-        let mx =
-            (f32::sin(bullet.deg) * bullet.speed + bullet.acc.x) * speed_rank * bullet.x_reverse;
-        let my =
-            (f32::cos(bullet.deg) * bullet.speed - bullet.acc.y) * speed_rank * bullet.y_reverse;
-        let d = f32::atan2(mx, my);
-        let r = (1. - f32::abs(f32::sin(d)) * 0.999) * (ship.speed() * 5.);
-        bullet.pos.x += mx * r;
-        bullet.pos.y += my * r;
-
-        if bullet.pos.x >= std::f32::consts::PI * 2. {
-            bullet.pos.x -= std::f32::consts::PI * 2.;
-        } else if bullet.pos.x < 0. {
-            bullet.pos.x += std::f32::consts::PI * 2.;
-        }
-        let mut release = false;
-        if self.is_visible && self.disap_cnt <= 0 {
-            if ship.check_bullet_hit(bullet.pos, self.ppos) {
-                release = true;
-            }
-            if bullet.pos.y < -2.
-                || (!bullet.long_range && bullet.pos.y > ship.in_sight_depth())
-                || !tunnel.check_in_screen(bullet.pos, ship)
-            {
-                self.start_disappear();
-            }
-        }
-        self.cnt += 1;
-        if self.disap_cnt > 0 {
-            self.disap_cnt += 1;
-            if self.disap_cnt > DISAP_CNT {
-                release = true;
-            }
-        } else {
-            if self.cnt > 600 {
-                self.start_disappear();
-            }
+        if start_disappear {
+            self.start_disappear();
         }
         release
     }
 
     fn check_shot_hit(
         &mut self,
-        bullet: &BulletImpl,
-        p: Vector,
-        shape: &Collidable,
         shot: &mut Shot,
-        charge_shot: bool,
         tunnel: &Tunnel,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         if !self.is_visible || self.disap_cnt > 0 {
             return false;
         }
-        let mut ox = f32::abs(bullet.pos.x - p.x);
-        let oy = f32::abs(bullet.pos.y - p.y);
+        let bullet_pos = self.options.as_ref().unwrap().bullet.pos;
+        let mut ox = f32::abs(bullet_pos.x - shot.pos.x);
+        let oy = f32::abs(bullet_pos.y - shot.pos.y);
         if ox > std::f32::consts::PI {
             ox = std::f32::consts::PI * 2. - ox;
         }
-        ox *= (tunnel.get_radius(bullet.pos.y) / tunnel::DEFAULT_RAD) * 3.;
+        ox *= (tunnel.get_radius(bullet_pos.y) / tunnel::DEFAULT_RAD) * 3.;
         let mut release_shot = false;
-        if shape.check_collision(ox, oy) {
+        if shot.shape.as_ref().unwrap().check_collision(ox, oy) {
             self.start_disappear();
-            release_shot = shot.add_score(charge_shot, 10, bullet.pos, score_accumulator);
+            release_shot = shot.add_score(10, bullet_pos, score_accumulator);
         }
         release_shot
     }
 
-    fn draw(&self, bullet: &BulletImpl, tunnel: &Tunnel) {
+    fn draw(&self, tunnel: &Tunnel) {
         if self.is_visible {
+            let bullet = &self.options.as_ref().unwrap().bullet;
             let d = (bullet.deg * bullet.x_reverse + std::f32::consts::PI / 2.) * bullet.y_reverse
                 - std::f32::consts::PI / 2.;
             let sp = tunnel.get_pos_v(bullet.pos);
@@ -238,15 +252,9 @@ impl Bullet {
 }
 
 pub struct BulletPool {
-    pool: Pool<Bullet, BulletSpec>,
+    pool: Pool<Bullet>,
     cnt: u32,
     bullet_rand: Rand,
-}
-
-pub struct BulletSpec {
-    bml_params: Rc<Vec<BMLParam>>,
-    runner: Runner<TTRunner>,
-    pub bullet: BulletImpl,
 }
 
 impl BulletPool {
@@ -258,24 +266,18 @@ impl BulletPool {
         }
     }
 
-    fn add_bullet(
-        &mut self,
-        pa: &PoolActor<Bullet, BulletSpec>,
-        deg: f32,
-        speed: f32,
-    ) -> Option<PoolActorRef> {
-        let spec = pa.state.spec();
-        if let Some(rb) = spec.bullet.root_bullet {
+    fn add_bullet(&mut self, src_bullet: &Bullet, deg: f32, speed: f32) -> Option<PoolActorRef> {
+        let src_bullet_options = src_bullet.options.as_ref().unwrap();
+        if let Some(rb) = src_bullet_options.bullet.root_bullet {
             let rb = &self.pool[rb];
-            if rb.actor.root_rank <= 0. {
+            if rb.root_rank <= 0. {
                 return None;
             }
         }
-        let bml_idx = pa.actor.bml_idx;
+        let bml_idx = src_bullet.bml_idx;
         let inst = self.pool.get_instance();
-        if let Some((pa, pa_ref)) = inst {
-            let bml_params = &spec.bml_params;
-            let orig_bullet = &spec.bullet;
+        if let Some((bullet, bullet_ref)) = inst {
+            let bml_params = &src_bullet_options.bml_params;
             let (goto_next_parser, bml_idx) = {
                 if bml_idx + 1 >= bml_params.len() {
                     (false, bml_idx)
@@ -283,32 +285,29 @@ impl BulletPool {
                     (true, bml_idx + 1)
                 }
             };
-            pa.actor.bml_idx = bml_idx;
+            bullet.bml_idx = bml_idx;
             let bml_param = &bml_params[bml_idx];
             let runner = Runner::new(TTRunner::new(), &bml_param.bml);
-            pa.prepare(
-                pa_ref,
-                BulletSpec {
-                    bml_params: bml_params.clone(),
-                    runner,
-                    bullet: BulletImpl::new_param(
-                        &orig_bullet.shape,
-                        &orig_bullet.disap_shape,
-                        orig_bullet.x_reverse,
-                        orig_bullet.y_reverse,
-                        orig_bullet.long_range,
-                    ),
-                },
-            );
-            let spec = pa.state.spec_mut();
+            let src_bi = &src_bullet_options.bullet;
+            let mut options = BulletOptions {
+                bml_params: bml_params.clone(),
+                runner,
+                bullet: BulletImpl::new_param(
+                    &src_bi.shape,
+                    &src_bi.disap_shape,
+                    src_bi.x_reverse,
+                    src_bi.y_reverse,
+                    src_bi.long_range,
+                ),
+            };
+            bullet.options = Some(options);
             if goto_next_parser {
-                pa.actor.set(&mut spec.bullet, orig_bullet.pos, deg, speed);
-                pa.actor.set_morph_seed();
+                bullet.set(src_bi.pos, deg, speed);
+                bullet.set_morph_seed();
             } else {
-                pa.actor
-                    .set_simple(&mut spec.bullet, orig_bullet.pos, deg, speed);
+                bullet.set_simple(src_bi.pos, deg, speed);
             }
-            Some(pa_ref)
+            Some(bullet_ref)
         } else {
             None
         }
@@ -316,42 +315,39 @@ impl BulletPool {
 
     fn add_bullet_state(
         &mut self,
-        pa: &PoolActor<Bullet, BulletSpec>,
+        src_bullet: &Bullet,
         state: State,
         deg: f32,
         speed: f32,
     ) -> Option<PoolActorRef> {
-        let spec = pa.state.spec();
-        if let Some(rb) = spec.bullet.root_bullet {
+        let src_bullet_options = src_bullet.options.as_ref().unwrap();
+        if let Some(rb) = src_bullet_options.bullet.root_bullet {
             let rb = &self.pool[rb];
-            if rb.actor.root_rank <= 0. {
+            if rb.root_rank <= 0. {
                 return None;
             }
         }
-        let bml_idx = pa.actor.bml_idx;
+        let bml_idx = src_bullet.bml_idx;
         let inst = self.pool.get_instance();
-        if let Some((pa, pa_ref)) = inst {
-            pa.actor.bml_idx = bml_idx;
-            let bml_params = &spec.bml_params;
-            let orig_bullet = &spec.bullet;
+        if let Some((bullet, bullet_ref)) = inst {
+            bullet.bml_idx = bml_idx;
+            let bml_params = &src_bullet_options.bml_params;
             let runner = Runner::new_from_state(TTRunner::new(), state);
-            pa.prepare(
-                pa_ref,
-                BulletSpec {
-                    bml_params: bml_params.clone(),
-                    runner,
-                    bullet: BulletImpl::new_param(
-                        &orig_bullet.shape,
-                        &orig_bullet.disap_shape,
-                        orig_bullet.x_reverse,
-                        orig_bullet.y_reverse,
-                        orig_bullet.long_range,
-                    ),
-                },
-            );
-            let spec = pa.state.spec_mut();
-            pa.actor.set(&mut spec.bullet, orig_bullet.pos, deg, speed);
-            Some(pa_ref)
+            let src_bi = &src_bullet_options.bullet;
+            let options = BulletOptions {
+                bml_params: bml_params.clone(),
+                runner,
+                bullet: BulletImpl::new_param(
+                    &src_bi.shape,
+                    &src_bi.disap_shape,
+                    src_bi.x_reverse,
+                    src_bi.y_reverse,
+                    src_bi.long_range,
+                ),
+            };
+            bullet.options = Some(options);
+            bullet.set(src_bi.pos, deg, speed);
+            Some(bullet_ref)
         } else {
             None
         }
@@ -372,67 +368,62 @@ impl BulletPool {
         post_wait: u32,
     ) -> Option<PoolActorRef> {
         let inst = self.pool.get_instance();
-        if let Some((pa, pa_ref)) = inst {
-            pa.actor.bml_idx = 0;
+        if let Some((bullet, bullet_ref)) = inst {
+            bullet.bml_idx = 0;
             let bml_param = &bml_params[0];
             let runner = Runner::new(TTRunner::new(), &bml_param.bml);
-            pa.prepare(
-                pa_ref,
-                BulletSpec {
-                    bml_params: bml_params.clone(),
-                    runner,
-                    bullet: BulletImpl::new_param_first(
-                        shape,
-                        disap_shape,
-                        x_reverse,
-                        y_reverse,
-                        long_range,
-                        Some(pa_ref),
-                    ),
-                },
-            );
-            let spec = pa.state.spec_mut();
-            pa.actor.set(&mut spec.bullet, pos, deg, speed);
-            pa.actor.set_wait(prev_wait, post_wait);
-            pa.actor.set_top();
-            Some(pa_ref)
+            let options = BulletOptions {
+                bml_params: bml_params.clone(),
+                runner,
+                bullet: BulletImpl::new_param_first(
+                    shape,
+                    disap_shape,
+                    x_reverse,
+                    y_reverse,
+                    long_range,
+                    Some(bullet_ref),
+                ),
+            };
+            bullet.options = Some(options);
+            bullet.set(pos, deg, speed);
+            bullet.set_wait(prev_wait, post_wait);
+            bullet.set_top();
+            Some(bullet_ref)
         } else {
             None
         }
     }
 
     pub fn mov(&mut self, tunnel: &Tunnel, ship: &Ship) {
-        let invariant_self = unsafe { &mut *(self as *mut BulletPool) };
+        let invariant_pool = unsafe { &mut *(self as *mut BulletPool) };
         // XXX acting_refs resolves currently acting bullets so
-        // invariant_self is safe and so is invariant_pa.
-        for pa_ref in self.pool.acting_refs() {
-            let mut pa = &mut self.pool[pa_ref];
+        // invariant_self is safe and so is invariant_bullet.
+        for bullet_ref in self.pool.as_refs() {
             let release = {
-                let invariant_pa = unsafe { &mut *(pa as *mut PoolActor<Bullet, BulletSpec>) };
-                let spec = pa.state.spec_mut();
-                let mut manager = BulletsManager::new(invariant_self, invariant_pa);
-                pa.actor.mov(
-                    &mut manager,
-                    &mut spec.runner,
-                    &mut spec.bullet,
-                    &spec.bml_params,
-                    tunnel,
-                    ship,
-                    &mut self.bullet_rand,
-                )
+                let mut bullet = &mut self.pool[bullet_ref];
+                let invariant_bullet = unsafe { &mut *(bullet as *mut Bullet) };
+                let mut manager = BulletsManager::new(invariant_pool, invariant_bullet);
+                bullet.mov(&mut manager, tunnel, ship, &mut self.bullet_rand)
             };
             if release {
-                pa.release();
+                self.pool.release(bullet_ref);
             }
         }
         self.cnt += 1;
     }
 
     pub fn draw(&self, tunnel: &Tunnel) {
-        for pa in &self.pool {
-            let spec = pa.state.spec();
-            pa.actor.draw(&spec.bullet, tunnel);
+        for bullet in &self.pool {
+            bullet.draw(tunnel);
         }
+    }
+
+    pub fn release(&mut self, bullet_ref: PoolActorRef) {
+        {
+            let bullet = &mut self.pool[bullet_ref];
+            bullet.options = None;
+        }
+        self.pool.release(bullet_ref);
     }
 
     pub fn clear(&mut self) {
@@ -445,31 +436,20 @@ impl BulletPool {
     }
 
     pub fn clear_visible(&mut self) {
-        for pa in &mut self.pool {
-            pa.actor.start_disappear();
+        for bullet in &mut self.pool {
+            bullet.start_disappear();
         }
     }
 
     pub fn check_shot_hit(
         &mut self,
-        p: Vector,
-        shape: &Collidable,
         shot: &mut Shot,
-        charge_shot: bool,
         tunnel: &Tunnel,
         score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         let mut release_shot = false;
-        for pa in &mut self.pool {
-            let rel_shot = pa.actor.check_shot_hit(
-                &pa.state.spec().bullet,
-                p,
-                shape,
-                shot,
-                charge_shot,
-                tunnel,
-                score_accumulator,
-            );
+        for bullet in &mut self.pool {
+            let rel_shot = bullet.check_shot_hit(shot, tunnel, score_accumulator);
             if rel_shot {
                 release_shot = true;
             }
@@ -477,16 +457,13 @@ impl BulletPool {
         release_shot
     }
 
-    pub fn maybe_index_mut(
-        &mut self,
-        index: PoolActorRef,
-    ) -> Option<&mut PoolActor<Bullet, BulletSpec>> {
+    pub fn maybe_index_mut(&mut self, index: PoolActorRef) -> Option<&mut Bullet> {
         self.pool.maybe_index_mut(index)
     }
 }
 
 impl Index<PoolActorRef> for BulletPool {
-    type Output = PoolActor<Bullet, BulletSpec>;
+    type Output = Bullet;
     fn index(&self, index: PoolActorRef) -> &Self::Output {
         &self.pool[index]
     }
@@ -500,25 +477,26 @@ impl IndexMut<PoolActorRef> for BulletPool {
 
 struct BulletsManager<'a> {
     bullets: &'a mut BulletPool,
-    pa: &'a PoolActor<Bullet, BulletSpec>,
+    bullet: &'a Bullet,
     bullet_should_be_released: bool,
 }
 
 impl<'a> BulletsManager<'a> {
-    fn new(bullets: &'a mut BulletPool, pa: &'a mut PoolActor<Bullet, BulletSpec>) -> Self {
+    fn new(bullets: &'a mut BulletPool, bullet: &'a mut Bullet) -> Self {
         BulletsManager {
             bullets,
-            pa,
+            bullet,
             bullet_should_be_released: false,
         }
     }
 
     fn add_bullet(&mut self, deg: f32, speed: f32) {
-        self.bullets.add_bullet(self.pa, deg, speed);
+        self.bullets.add_bullet(self.bullet, deg, speed);
     }
 
     fn add_bullet_state(&mut self, state: State, deg: f32, speed: f32) {
-        self.bullets.add_bullet_state(self.pa, state, deg, speed);
+        self.bullets
+            .add_bullet_state(self.bullet, state, deg, speed);
     }
 
     fn get_turn(&self) -> u32 {

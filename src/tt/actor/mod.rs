@@ -5,51 +5,14 @@ pub mod enemy;
 pub mod particle;
 pub mod shot;
 
-pub struct PoolActor<T, S> {
-    pub actor: T,
-    state: ActorState<S>,
+pub struct PoolActor<T> {
+    actor: T,
+    state: ActorState,
 }
 
-impl<T, S> PoolActor<T, S> {
-    fn prepare(&mut self, pa_ref: PoolActorRef, spec: S) {
-        if let ActorState::NotActing = self.state {
-            self.state = ActorState::Acting {
-                spec,
-                generation: pa_ref.generation,
-            }
-        } else {
-            panic!("called `PoolActor::prepare()` on an `Acting` value");
-        }
-    }
-
-    pub fn release(&mut self) {
-        self.state = ActorState::NotActing;
-    }
-}
-
-enum ActorState<S> {
+enum ActorState {
     NotActing,
-    Acting { spec: S, generation: usize },
-}
-
-impl<S> ActorState<S> {
-    #[inline]
-    pub fn spec(&self) -> &S {
-        match self {
-            ActorState::Acting { spec, .. } => spec,
-            ActorState::NotActing => panic!("called `ActorState::spec()` on a `NotActing` value"),
-        }
-    }
-
-    #[inline]
-    pub fn spec_mut(&mut self) -> &mut S {
-        match self {
-            ActorState::Acting { spec, .. } => spec,
-            ActorState::NotActing => {
-                panic!("called `ActorState::spec_mut()` on a `NotActing` value")
-            }
-        }
-    }
+    Acting { generation: usize },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -58,13 +21,13 @@ pub struct PoolActorRef {
     generation: usize,
 }
 
-pub struct Pool<T, S> {
-    actors: Vec<PoolActor<T, S>>,
+pub struct Pool<T> {
+    actors: Vec<PoolActor<T>>,
     idx: usize,
     generation: usize,
 }
 
-impl<T: Default, S> Pool<T, S> {
+impl<T: Default> Pool<T> {
     pub fn new(n: usize) -> Self {
         let mut actors = Vec::with_capacity(n);
         for _ in 0..n {
@@ -80,7 +43,7 @@ impl<T: Default, S> Pool<T, S> {
         }
     }
 
-    pub fn get_instance(&mut self) -> Option<(&mut PoolActor<T, S>, PoolActorRef)> {
+    pub fn get_instance(&mut self) -> Option<(&mut T, PoolActorRef)> {
         let mut found = false;
         let mut idx = self.idx;
         {
@@ -96,32 +59,39 @@ impl<T: Default, S> Pool<T, S> {
         }
         self.idx = idx;
         if found {
-            self.generation += 1;
-            Some((
-                &mut self.actors[idx],
-                PoolActorRef {
-                    idx,
-                    generation: self.generation,
-                },
-            ))
+            let generation = self.generation + 1;
+            self.generation = generation;
+            let pa = &mut self.actors[idx];
+            pa.state = ActorState::Acting { generation };
+            Some((&mut pa.actor, PoolActorRef { idx, generation }))
         } else {
             None
         }
     }
 
-    pub fn get_instance_forced(&mut self) -> (&mut PoolActor<T, S>, PoolActorRef) {
+    pub fn get_instance_forced(&mut self) -> (&mut T, PoolActorRef) {
         let idx = (self.idx + 1) % self.actors.len();
         self.idx = idx;
-        self.generation += 1;
+        let generation = self.generation + 1;
+        self.generation = generation;
         let pa = &mut self.actors[idx];
+        pa.state = ActorState::Acting { generation };
+        (&mut pa.actor, PoolActorRef { idx, generation })
+    }
+
+    pub fn release(&mut self, index: PoolActorRef) {
+        let pa = &mut self.actors[index.idx];
+        match &pa.state {
+            ActorState::Acting { generation, .. } => {
+                if *generation != index.generation {
+                    panic!("Actor doesn't exist any more");
+                }
+            }
+            ActorState::NotActing => {
+                panic!("Actor not found");
+            }
+        };
         pa.state = ActorState::NotActing;
-        (
-            pa,
-            PoolActorRef {
-                idx,
-                generation: self.generation,
-            },
-        )
     }
 
     pub fn clear(&mut self) {
@@ -145,7 +115,7 @@ impl<T: Default, S> Pool<T, S> {
             .sum()
     }
 
-    fn acting_refs(&self) -> Vec<PoolActorRef> {
+    fn as_refs(&self) -> Vec<PoolActorRef> {
         (&self.actors)
             .into_iter()
             .enumerate()
@@ -156,7 +126,7 @@ impl<T: Default, S> Pool<T, S> {
             .collect()
     }
 
-    fn maybe_index_mut(&mut self, index: PoolActorRef) -> Option<&mut PoolActor<T, S>> {
+    fn maybe_index_mut(&mut self, index: PoolActorRef) -> Option<&mut T> {
         let pa = &mut self.actors[index.idx];
         match &pa.state {
             ActorState::Acting { generation, .. } => {
@@ -168,12 +138,12 @@ impl<T: Default, S> Pool<T, S> {
                 return None;
             }
         }
-        Some(pa)
+        Some(&mut pa.actor)
     }
 }
 
-impl<T, S> Index<PoolActorRef> for Pool<T, S> {
-    type Output = PoolActor<T, S>;
+impl<T> Index<PoolActorRef> for Pool<T> {
+    type Output = T;
     fn index(&self, index: PoolActorRef) -> &Self::Output {
         let pa = &self.actors[index.idx];
         match &pa.state {
@@ -186,11 +156,11 @@ impl<T, S> Index<PoolActorRef> for Pool<T, S> {
                 panic!("Actor not found");
             }
         };
-        pa
+        &pa.actor
     }
 }
 
-impl<T, S> IndexMut<PoolActorRef> for Pool<T, S> {
+impl<T> IndexMut<PoolActorRef> for Pool<T> {
     fn index_mut(&mut self, index: PoolActorRef) -> &mut Self::Output {
         let pa = &mut self.actors[index.idx];
         match &pa.state {
@@ -203,34 +173,38 @@ impl<T, S> IndexMut<PoolActorRef> for Pool<T, S> {
                 panic!("Actor not found");
             }
         };
-        pa
+        &mut pa.actor
     }
 }
 
-impl<'a, T, S> IntoIterator for &'a Pool<T, S> {
-    type Item = &'a PoolActor<T, S>;
-    type IntoIter =
-        std::iter::Filter<std::slice::Iter<'a, PoolActor<T, S>>, fn(&&PoolActor<T, S>) -> bool>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        (&self.actors).into_iter().filter(|pa| match pa.state {
-            ActorState::Acting { .. } => true,
-            ActorState::NotActing => false,
-        })
-    }
-}
-
-impl<'a, T, S> IntoIterator for &'a mut Pool<T, S> {
-    type Item = &'a mut PoolActor<T, S>;
-    type IntoIter = std::iter::Filter<
-        std::slice::IterMut<'a, PoolActor<T, S>>,
-        fn(&&mut PoolActor<T, S>) -> bool,
+impl<'a, T> IntoIterator for &'a Pool<T> {
+    type Item = &'a T;
+    type IntoIter = std::iter::FilterMap<
+        std::slice::Iter<'a, PoolActor<T>>,
+        fn(&'a PoolActor<T>) -> Option<&'a T>,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
-        (&mut self.actors).into_iter().filter(|pa| match pa.state {
-            ActorState::Acting { .. } => true,
-            ActorState::NotActing => false,
+        (&self.actors).into_iter().filter_map(|pa| match pa.state {
+            ActorState::Acting { .. } => Some(&pa.actor),
+            ActorState::NotActing => None,
         })
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Pool<T> {
+    type Item = &'a mut T;
+    type IntoIter = std::iter::FilterMap<
+        std::slice::IterMut<'a, PoolActor<T>>,
+        fn(&'a mut PoolActor<T>) -> Option<&'a mut T>,
+    >;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&mut self.actors)
+            .into_iter()
+            .filter_map(|pa| match pa.state {
+                ActorState::Acting { .. } => Some(&mut pa.actor),
+                ActorState::NotActing => None,
+            })
     }
 }
