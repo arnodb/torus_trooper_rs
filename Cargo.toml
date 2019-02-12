@@ -31,3 +31,4 @@ gl_generator = "0.9"
 default = ["glutin_backend"]
 glutin_backend = ["glutin", "pistoncore-glutin_window"]
 sdl_backend = ["pistoncore-sdl2_window"]
+game_recorder = []

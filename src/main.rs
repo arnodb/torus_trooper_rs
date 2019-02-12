@@ -13,6 +13,9 @@ pub mod util;
 pub mod gl;
 pub mod glu;
 
+#[cfg(feature = "game_recorder")]
+mod game_recorder;
+
 use failure::Backtrace;
 use piston::event_loop::*;
 use piston::input::*;
@@ -36,6 +39,9 @@ use crate::tt::ship::Ship;
 use crate::tt::tunnel::{Torus, Tunnel};
 use crate::tt::ActionParams;
 use crate::util::rand::Rand;
+
+#[cfg(feature = "game_recorder")]
+use crate::game_recorder::{record_event, record_start, record_stop, GameEvent};
 
 struct MainLoop {
     done: bool,
@@ -125,6 +131,11 @@ impl MainLoop {
                 let action = manager.mov(&mut params);
                 match action {
                     MoveAction::StartTitle(from_game_over) => {
+                        #[cfg(feature = "game_recorder")]
+                        {
+                            record_event(GameEvent::End { from_game_over });
+                            record_stop();
+                        }
                         manager.start_title(
                             rand.gen_usize(usize::max_value()) as u64,
                             &mut params,
@@ -132,6 +143,8 @@ impl MainLoop {
                         );
                     }
                     MoveAction::StartInGame => {
+                        #[cfg(feature = "game_recorder")]
+                        record_start();
                         manager
                             .start_in_game(rand.gen_usize(usize::max_value()) as u64, &mut params);
                     }

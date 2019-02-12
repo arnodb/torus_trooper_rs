@@ -10,6 +10,9 @@ use crate::tt::ActionParams;
 
 use super::State;
 
+#[cfg(feature = "game_recorder")]
+use crate::game_recorder::record_replay;
+
 pub struct TitleState {
     manager: TitleManager,
     game_over_cnt: u32,
@@ -37,6 +40,8 @@ impl TitleState {
 
 impl State for TitleState {
     fn start(&mut self, seed: u64, params: &mut ActionParams) {
+        #[cfg(feature = "game_recorder")]
+        record_replay();
         // TODO SoundManager.haltBgm();
         // TODO SoundManager.disableSe();
         self.manager.start(seed, params);
@@ -49,6 +54,8 @@ impl State for TitleState {
         if params.ship.is_game_over() {
             self.game_over_cnt += 1;
             if self.game_over_cnt > 120 {
+                #[cfg(feature = "game_recorder")]
+                record_replay();
                 // TODO clearAll();
                 // TODO startReplay();
             }

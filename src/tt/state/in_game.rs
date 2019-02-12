@@ -13,6 +13,9 @@ use crate::tt::ActionParams;
 
 use super::State;
 
+#[cfg(feature = "game_recorder")]
+use crate::game_recorder::{record_event, GameEvent};
+
 const DEFAULT_EXTEND_SCORE: u32 = 100000;
 const MAX_EXTEND_SCORE: u32 = 500000;
 const DEFAULT_TIME: i32 = 120000;
@@ -137,6 +140,8 @@ impl<'a> InGameState<'a> {
 
 impl<'a> State for InGameState<'a> {
     fn start(&mut self, seed: u64, params: &mut ActionParams) {
+        #[cfg(feature = "game_recorder")]
+        record_event(GameEvent::Start);
         self.grade = params.pref_manager.selected_grade();
         self.level = params.pref_manager.selected_level() as f32;
         params.shots.clear();
