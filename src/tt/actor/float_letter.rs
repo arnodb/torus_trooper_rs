@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use gl;
+use crate::gl;
 
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::letter::{self, Letter};

@@ -1,4 +1,5 @@
 [package]
+edition = "2018"
 name = "torus_trooper"
 version = "0.1.0"
 authors = ["Arnaud de Bossoreille <arnaud.debossoreille@gmail.com>"]

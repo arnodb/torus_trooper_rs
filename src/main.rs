@@ -1,19 +1,9 @@
-extern crate bulletml;
 #[macro_use]
 extern crate bitflags;
 #[macro_use]
 extern crate failure;
-#[cfg(feature = "glutin_backend")]
-extern crate glutin_window;
 #[macro_use]
 extern crate lazy_static;
-extern crate opengl_graphics;
-extern crate piston;
-extern crate preferences;
-extern crate rand;
-extern crate rand_core;
-#[cfg(feature = "sdl_backend")]
-extern crate sdl2_window;
 #[macro_use]
 extern crate serde_derive;
 
