@@ -3,12 +3,12 @@ use rand_core::{RngCore, SeedableRng};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "game_recorder")]
-use crate::game_recorder::{record_event, GameEvent};
+use crate::game_recorder::{record_event, record_next_id, GameEvent};
 
 pub struct Rand {
     pub rng: XorShiftRng,
     #[cfg(feature = "game_recorder")]
-    pub rng_id: u32,
+    pub rng_id: Option<usize>,
 }
 
 impl Rand {
@@ -20,10 +20,26 @@ impl Rand {
         }
         #[cfg(feature = "game_recorder")]
         {
-            let mut rng = XorShiftRng::seed_from_u64(seed);
-            let rng_id = rng.next_u32();
+            let rng = XorShiftRng::seed_from_u64(seed);
+            let rng_id = record_next_id();
             record_event(GameEvent::NewRand { rng_id, seed });
-            Rand { rng, rng_id }
+            Rand {
+                rng,
+                rng_id: Some(rng_id),
+            }
+        }
+    }
+
+    pub fn new_not_recorded(seed: u64) -> Self {
+        #[cfg(not(feature = "game_recorder"))]
+        {
+            let rng = XorShiftRng::seed_from_u64(seed);
+            Rand { rng }
+        }
+        #[cfg(feature = "game_recorder")]
+        {
+            let rng = XorShiftRng::seed_from_u64(seed);
+            Rand { rng, rng_id: None }
         }
     }
 
@@ -36,10 +52,11 @@ impl Rand {
 
     pub fn set_seed(&mut self, seed: u64) {
         #[cfg(feature = "game_recorder")]
-        record_event(GameEvent::SetRandSeed {
-            rng_id: self.rng_id,
-            seed,
-        });
+        {
+            if let Some(rng_id) = self.rng_id {
+                record_event(GameEvent::SetRandSeed { rng_id, seed });
+            }
+        }
         self.rng = XorShiftRng::seed_from_u64(seed);
     }
 
@@ -47,10 +64,15 @@ impl Rand {
         let next = self.rng.next_u64();
         let value = next as f32 * high / u64::max_value() as f32;
         #[cfg(feature = "game_recorder")]
-        record_event(GameEvent::RandF32 {
-            rng_id: self.rng_id,
-            value,
-        });
+        {
+            if let Some(rng_id) = self.rng_id {
+                record_event(GameEvent::RandF32 {
+                    rng_id: rng_id,
+                    high,
+                    value,
+                });
+            }
+        }
         value
     }
 
@@ -58,10 +80,15 @@ impl Rand {
         let next = self.rng.next_u64();
         let value = next as f32 * high * 2.0 / u64::max_value() as f32 - high;
         #[cfg(feature = "game_recorder")]
-        record_event(GameEvent::RandSignedF32 {
-            rng_id: self.rng_id,
-            value,
-        });
+        {
+            if let Some(rng_id) = self.rng_id {
+                record_event(GameEvent::RandSignedF32 {
+                    rng_id: rng_id,
+                    high,
+                    value,
+                });
+            }
+        }
         value
     }
 
@@ -73,10 +100,14 @@ impl Rand {
             self.rng.next_u32() as usize % high
         };
         #[cfg(feature = "game_recorder")]
-        record_event(GameEvent::RandUsize {
-            rng_id: self.rng_id,
-            value,
-        });
+        {
+            if let Some(rng_id) = self.rng_id {
+                record_event(GameEvent::RandUsize {
+                    rng_id: rng_id,
+                    value,
+                });
+            }
+        }
         value
     }
 
@@ -88,10 +119,15 @@ impl Rand {
             self.rng.next_u64() as usize % high
         };
         #[cfg(feature = "game_recorder")]
-        record_event(GameEvent::RandUsize {
-            rng_id: self.rng_id,
-            value,
-        });
+        {
+            if let Some(rng_id) = self.rng_id {
+                record_event(GameEvent::RandUsize {
+                    rng_id: rng_id,
+                    high,
+                    value,
+                });
+            }
+        }
         value
     }
 }

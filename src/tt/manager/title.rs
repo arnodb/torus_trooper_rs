@@ -344,10 +344,14 @@ impl TitleManager {
         ring_ofs.roll_z(-d1);
         *ring_ofs += *center_pos;
     }
+
+    pub fn replay_change_ratio(&self) -> f32 {
+        self.replay_change_ratio
+    }
 }
 
 impl Manager for TitleManager {
-    fn start(&mut self, seed: u64, params: &mut ActionParams) {
+    fn start(&mut self, params: &mut ActionParams) {
         let pref_manager = &params.pref_manager;
         self.cnt = 0;
         self.grade = pref_manager.selected_grade();
@@ -360,10 +364,9 @@ impl Manager for TitleManager {
     }
 
     fn draw(&self, params: &mut ActionParams, _render_args: &RenderArgs) {
-        /* TODO
-        if (_replayChangeRatio >= 1.0f)
+        if self.replay_change_ratio >= 1.0 {
             return;
-            */
+        }
         unsafe {
             gl::PopMatrix();
         }
@@ -416,10 +419,9 @@ impl Manager for TitleManager {
     }
 
     fn draw_front(&self, params: &ActionParams, _render_args: &RenderArgs) {
-        /*TODO
-          if (_replayChangeRatio > 0)
-        return;
-          */
+        if self.replay_change_ratio > 0. {
+            return;
+        }
         unsafe {
             gl::PushMatrix();
             gl::Translatef(508., 400., 0.);

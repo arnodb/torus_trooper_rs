@@ -9,6 +9,7 @@ use crate::util::rand::Rand;
 use crate::util::vector::Vector;
 
 use crate::tt::actor::float_letter::FloatLetterPool;
+use crate::tt::actor::particle::ParticlePool;
 use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::shape::{Collidable, Drawable};
@@ -103,7 +104,8 @@ impl Bullet {
         &mut self,
         manager: &mut BulletsManager,
         tunnel: &Tunnel,
-        ship: &Ship,
+        ship: &mut Ship,
+        particles: &mut ParticlePool,
         rand: &mut Rand,
     ) -> bool {
         let mut release = false;
@@ -172,7 +174,7 @@ impl Bullet {
                 bullet.pos.x += std::f32::consts::PI * 2.;
             }
             if self.is_visible && self.disap_cnt <= 0 {
-                if ship.check_bullet_hit(bullet.pos, self.ppos) {
+                if ship.check_bullet_hit(bullet.pos, self.ppos, tunnel, particles) {
                     release = true;
                 }
                 if bullet.pos.y < -2.
@@ -256,16 +258,23 @@ impl Bullet {
 pub struct BulletPool {
     pool: Pool<Bullet>,
     cnt: u32,
+    barrage_rand: Rand,
     bullet_rand: Rand,
 }
 
 impl BulletPool {
-    pub fn new(n: usize) -> Self {
+    pub fn new(n: usize, seed: u64) -> Self {
         BulletPool {
             pool: Pool::new(n),
             cnt: 0,
-            bullet_rand: Rand::new(Rand::rand_seed()),
+            barrage_rand: Rand::new(seed),
+            bullet_rand: Rand::new(seed),
         }
+    }
+
+    pub fn set_seed(&mut self, seed: u64) {
+        self.barrage_rand.set_seed(seed);
+        self.bullet_rand.set_seed(seed);
     }
 
     fn add_bullet(&mut self, src_bullet: &Bullet, deg: f32, speed: f32) -> Option<PoolActorRef> {
@@ -291,7 +300,7 @@ impl BulletPool {
             let bml_param = &bml_params[bml_idx];
             let runner = Runner::new(TTRunner::new(), &bml_param.bml);
             let src_bi = &src_bullet_options.bullet;
-            let mut options = BulletOptions {
+            let options = BulletOptions {
                 bml_params: bml_params.clone(),
                 runner,
                 bullet: BulletImpl::new_param(
@@ -396,16 +405,16 @@ impl BulletPool {
         }
     }
 
-    pub fn mov(&mut self, tunnel: &Tunnel, ship: &Ship) {
+    pub fn mov(&mut self, tunnel: &Tunnel, ship: &mut Ship, particles: &mut ParticlePool) {
         let invariant_pool = unsafe { &mut *(self as *mut BulletPool) };
         // XXX acting_refs resolves currently acting bullets so
         // invariant_self is safe and so is invariant_bullet.
         for bullet_ref in self.pool.as_refs() {
             let release = {
-                let mut bullet = &mut self.pool[bullet_ref];
+                let bullet = &mut self.pool[bullet_ref];
                 let invariant_bullet = unsafe { &mut *(bullet as *mut Bullet) };
                 let mut manager = BulletsManager::new(invariant_pool, invariant_bullet);
-                bullet.mov(&mut manager, tunnel, ship, &mut self.bullet_rand)
+                bullet.mov(&mut manager, tunnel, ship, particles, &mut self.bullet_rand)
             };
             if release {
                 self.pool.release(bullet_ref);
@@ -462,6 +471,10 @@ impl BulletPool {
 
     pub fn maybe_index_mut(&mut self, index: PoolActorRef) -> Option<&mut Bullet> {
         self.pool.maybe_index_mut(index)
+    }
+
+    pub fn barrage_rand(&mut self) -> &mut Rand {
+        &mut self.barrage_rand
     }
 }
 

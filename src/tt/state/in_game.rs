@@ -9,12 +9,13 @@ use crate::tt::manager::stage::StageManager;
 use crate::tt::manager::MoveAction;
 use crate::tt::pad::PadButtons;
 use crate::tt::ship::Ship;
+use crate::tt::state::ReplayData;
 use crate::tt::ActionParams;
 
 use super::State;
 
 #[cfg(feature = "game_recorder")]
-use crate::game_recorder::{record_event, GameEvent};
+use crate::game_recorder::{record_event, record_start, GameEvent};
 
 const DEFAULT_EXTEND_SCORE: u32 = 100000;
 const MAX_EXTEND_SCORE: u32 = 500000;
@@ -33,9 +34,6 @@ const NEXT_LEVEL_ADDITION_TIME_MSG: &str = "+45 SEC.";
 const BEEP_START_TIME: i32 = 15000;
 
 pub struct InGameState<'a> {
-    grade: u32,
-    level: f32,
-
     score: u32,
     next_extend: u32,
     time: i32,
@@ -46,14 +44,12 @@ pub struct InGameState<'a> {
     btn_pressed: bool,
     pause_cnt: u32,
     pause_pressed: bool,
+    replay_data: ReplayData,
 }
 
 impl<'a> InGameState<'a> {
     pub fn new() -> Result<Self, GameError> {
         Ok(InGameState {
-            grade: 0,
-            level: 1.,
-
             score: 0,
             next_extend: 0,
             time: 0,
@@ -64,10 +60,63 @@ impl<'a> InGameState<'a> {
             btn_pressed: false,
             pause_cnt: 0,
             pause_pressed: false,
+            replay_data: ReplayData::new(),
         })
     }
 
-    fn init_game_state(&mut self, stage_manager: &StageManager, bullets: &mut BulletPool) {
+    pub fn start(&mut self, grade: u32, level: u32, seed: u64, params: &mut ActionParams) {
+        #[cfg(feature = "game_recorder")]
+        {
+            record_start(params.next_recorder_id);
+            record_event(GameEvent::Start);
+        }
+        params.shots.clear();
+        params.bullets.clear();
+        params.enemies.clear_shallow();
+        params.particles.clear();
+        params.float_letters.clear();
+        params.pad.start_record();
+        self.replay_data = ReplayData::new()
+            .grade(grade)
+            .level(level as f32)
+            .seed(seed);
+        params.bullets.set_seed(seed);
+        /* TODO REPLAY
+        Enemy.setRandSeed(_seed);
+        FloatLetter.setRandSeed(_seed);
+        */
+        params.particles.set_seed(seed);
+        /* TODO REPLAY
+        Shot.setRandSeed(_seed);
+        SoundManager.setRandSeed(_seed);
+        */
+        params.enemies.set_seed(seed);
+        params.ship.start(false, grade, seed, params.camera);
+        params.stage_manager.start(
+            level as f32,
+            grade,
+            seed,
+            params.screen,
+            params.tunnel,
+            params.ship,
+            params.bullets,
+            params.enemies,
+            params.barrage_manager,
+        );
+        self.init_game_state(params.stage_manager, params.bullets);
+        /* TODO sound
+        SoundManager.playBgm();
+        startBgmCnt = -1;
+        */
+        params.ship.set_screen_shake(0, 0.);
+        self.game_over_cnt = 0;
+        self.pause_cnt = 0;
+        params.tunnel.set_ship_pos(0., 0.);
+        params.tunnel.set_slices();
+        // TODO sound SoundManager.enableSe();
+    }
+
+    pub fn init_game_state(&mut self, stage_manager: &StageManager, bullets: &mut BulletPool) {
         self.score = 0;
         self.next_extend = 0;
         self.set_next_extend(stage_manager.level());
@@ -75,7 +124,12 @@ impl<'a> InGameState<'a> {
         self.goto_next_zone(true, stage_manager, bullets);
     }
 
-    fn goto_next_zone(&mut self, is_first: bool, stage_manager: &StageManager, bullets: &mut BulletPool) {
+    fn goto_next_zone(
+        &mut self,
+        is_first: bool,
+        stage_manager: &StageManager,
+        bullets: &mut BulletPool,
+    ) {
         bullets.clear_visible();
         if is_first {
             self.time = DEFAULT_TIME;
@@ -93,7 +147,7 @@ impl<'a> InGameState<'a> {
         }
     }
 
-    fn decrement_time(&mut self, ship: &mut Ship) {
+    pub fn decrement_time(&mut self, ship: &mut Ship) {
         self.time -= 17;
         if self.time_changed_show_cnt >= 0 {
             self.time_changed_show_cnt -= 1;
@@ -136,63 +190,15 @@ impl<'a> InGameState<'a> {
             }
         }
     }
+
+    pub fn replay_data(&mut self, params: &mut ActionParams) -> ReplayData {
+        self.replay_data.clone().pad_record(params.pad.get_record())
+    }
 }
 
 impl<'a> State for InGameState<'a> {
-    fn start(&mut self, seed: u64, params: &mut ActionParams) {
-        #[cfg(feature = "game_recorder")]
-        record_event(GameEvent::Start);
-        self.grade = params.pref_manager.selected_grade();
-        self.level = params.pref_manager.selected_level() as f32;
-        params.shots.clear();
-        params.bullets.clear();
-        params.enemies.clear_shallow();
-        params.particles.clear();
-        params.float_letters.clear();
-        /* TODO
-        RecordablePad rp = cast(RecordablePad) pad;
-        rp.startRecord();
-        _replayData = new ReplayData;
-        _replayData.padRecord = rp.padRecord;
-        _replayData.level = _level;
-        _replayData.grade = _grade;
-        _replayData.seed = _seed;
-        Barrage.setRandSeed(_seed);
-        Bullet.setRandSeed(_seed);
-        Enemy.setRandSeed(_seed);
-        FloatLetter.setRandSeed(_seed);
-        Particle.setRandSeed(_seed);
-        Shot.setRandSeed(_seed);
-        SoundManager.setRandSeed(_seed);
-        */
-        params.enemies.set_seed(seed);
-        params.ship.start(false, self.grade, seed, params.camera);
-        params.stage_manager.start(
-            self.level,
-            self.grade,
-            seed,
-            params.screen,
-            params.tunnel,
-            params.ship,
-            params.bullets,
-            params.enemies,
-            params.barrage_manager,
-        );
-        self.init_game_state(params.stage_manager, params.bullets);
-        /* TODO sound
-        SoundManager.playBgm();
-        startBgmCnt = -1;
-        */
-        params.ship.set_screen_shake(0, 0.);
-        self.game_over_cnt = 0;
-        self.pause_cnt = 0;
-        params.tunnel.set_ship_pos(0., 0.);
-        params.tunnel.set_slices();
-        // TODO sound SoundManager.enableSe();
-    }
-
     fn mov(&mut self, params: &mut ActionParams) -> MoveAction {
-        let pad = &params.pad;
+        let pad = &mut params.pad;
         if pad.pause_pressed() {
             if !self.pause_pressed {
                 if self.pause_cnt <= 0 && !params.ship.is_game_over() {
@@ -260,7 +266,9 @@ impl<'a> State for InGameState<'a> {
             params.ship.is_game_over(),
             params.stage_manager.level(),
         );
-        params.bullets.mov(params.tunnel, params.ship);
+        params
+            .bullets
+            .mov(params.tunnel, params.ship, params.particles);
         params.particles.mov(params.ship.speed(), params.tunnel);
         params.float_letters.mov();
         self.decrement_time(params.ship);
@@ -314,7 +322,9 @@ impl<'a> State for InGameState<'a> {
         unsafe {
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
         }
-        params.float_letters.draw(params.screen, params.letter, params.tunnel);
+        params
+            .float_letters
+            .draw(params.screen, params.letter, params.tunnel);
         unsafe {
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE);
             gl::Disable(gl::GL_BLEND);
@@ -353,7 +363,7 @@ impl<'a> State for InGameState<'a> {
 }
 
 pub struct ScoreAccumulator {
-    score: u32,
+    pub score: u32,
 }
 
 impl ScoreAccumulator {

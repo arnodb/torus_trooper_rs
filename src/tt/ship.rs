@@ -184,7 +184,7 @@ impl Ship {
 
     pub fn mov(
         &mut self,
-        pad: &Pad,
+        pad: &mut Pad,
         camera: &mut Camera,
         tunnel: &mut Tunnel,
         shots: &mut ShotPool,
@@ -194,18 +194,16 @@ impl Ship {
     ) {
         self.cnt += 1;
         let (mut btn, mut dir) = if !self.replay_mode {
-            // TODO pad.record();
-            (pad.get_buttons(), pad.get_direction())
+            let ps = pad.record();
+            (ps.buttons, ps.direction)
         } else {
-            /* TODO
             let ps = pad.replay();
-            if (ps == RecordablePad.REPLAY_END) {
-                ps = 0;
-                isGameOver = true;
+            if let Some(ps) = ps {
+                (ps.buttons, ps.direction)
+            } else {
+                self.is_game_over = true;
+                (PadButtons::NONE, PadDirection::NONE)
             }
-            dir = ps & (Pad.Dir.UP | Pad.Dir.DOWN | Pad.Dir.LEFT | Pad.Dir.RIGHT);
-            btn = ps & Pad.Button.ANY;*/
-            (PadButtons::NONE, PadDirection::NONE)
         };
         if self.btn_pressed {
             if btn != PadButtons::NONE {
@@ -537,7 +535,13 @@ impl Ship {
         self.screen_shake_intense = its;
     }
 
-    pub fn check_bullet_hit(&self, p: Vector, pp: Vector) -> bool {
+    pub fn check_bullet_hit(
+        &mut self,
+        p: Vector,
+        pp: Vector,
+        tunnel: &Tunnel,
+        particles: &mut ParticlePool,
+    ) -> bool {
         if self.cnt <= 0 {
             return false;
         }
@@ -559,12 +563,41 @@ impl Ship {
             if inab >= 0. && inab <= inaa {
                 let hd = sofs.x * sofs.x + sofs.y * sofs.y - inab * inab / inaa;
                 if hd >= 0. && hd <= HIT_WIDTH {
-                    // TODO self.destroyed();
+                    self.destroyed(tunnel, particles);
                     return true;
                 }
             }
         }
         false
+    }
+
+    fn destroyed(&mut self, tunnel: &Tunnel, particles: &mut ParticlePool) {
+        if self.cnt <= 0 {
+            return;
+        }
+        for _ in 0..256 {
+            particles.get_instance_forced_and(|pt, rand| {
+                pt.set(
+                    &ParticleSpec::Spark,
+                    self.rel_pos,
+                    1.,
+                    rand.gen_signed_f32(std::f32::consts::PI / 8.),
+                    rand.gen_signed_f32(2.5),
+                    0.5 + rand.gen_f32(1.),
+                    1.,
+                    0.2 + rand.gen_f32(0.8),
+                    0.2,
+                    32,
+                    tunnel,
+                    rand,
+                );
+            });
+        }
+        // TODO gameState.shipDestroyed();
+        // TODO SoundManager.playSe("myship_dest.wav");
+        self.set_screen_shake(32, 0.05);
+        self.restart();
+        self.cnt = -RESTART_CNT;
     }
 
     pub fn has_collision(&self) -> bool {
@@ -661,6 +694,10 @@ impl Ship {
 
     pub fn camera_mode(&mut self, camera_mode: bool) {
         self.camera_mode = camera_mode;
+    }
+
+    pub fn is_draw_front_mode(&self) -> bool {
+        self.draw_front_mode
     }
 
     pub fn draw_front_mode(&mut self, draw_front_mode: bool) {

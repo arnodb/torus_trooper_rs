@@ -3,18 +3,20 @@ pub mod title;
 
 use piston::input::*;
 
+use crate::tt::actor::bullet::BulletPool;
 use crate::tt::errors::GameError;
+use crate::tt::manager::stage::StageManager;
 use crate::tt::prefs::PrefManager;
 use crate::tt::screen::Screen;
 use crate::tt::state::in_game::InGameState;
 use crate::tt::state::title::TitleState;
-use crate::tt::state::State;
+use crate::tt::state::{ReplayData, State};
 use crate::tt::ActionParams;
 
 use crate::gl;
 
 pub trait Manager {
-    fn start(&mut self, seed: u64, params: &mut ActionParams);
+    fn start(&mut self, params: &mut ActionParams);
     fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs);
     fn draw_front(&self, params: &ActionParams, render_args: &RenderArgs);
 }
@@ -32,11 +34,12 @@ pub struct GameManager<'a> {
     esc_pressed: bool,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Debug)]
 pub enum MoveAction {
     None,
     StartTitle(bool),
     StartInGame,
+    StartReplay,
     BreakLoop,
 }
 
@@ -59,12 +62,24 @@ impl<'a> GameManager<'a> {
         Ok(())
     }
 
-    pub fn start_title(&mut self, seed: u64, params: &mut ActionParams, _from_game_over: bool) {
-        //TODO if (fromGameover)
-        //TODO saveLastReplay();
-        // TODO titleState.setReplayData(inGameState.replayData);
+    pub fn start_title(
+        &mut self,
+        params: &mut ActionParams,
+        load_last_state: bool,
+        from_game_over: bool,
+    ) {
+        let replay_data = if load_last_state {
+            // TODO load REPLAY
+            ReplayData::new()
+        } else {
+            self.in_game_state.replay_data(params)
+        };
+        if from_game_over {
+            // TODO save REPLAY
+        }
+        self.title_state.set_replay_data(replay_data);
         self.state = GameState::Title;
-        self.start_state(seed, params);
+        self.start_state(0, params);
     }
 
     pub fn start_in_game(&mut self, seed: u64, params: &mut ActionParams) {
@@ -74,9 +89,20 @@ impl<'a> GameManager<'a> {
 
     fn start_state(&mut self, seed: u64, params: &mut ActionParams) {
         match self.state {
-            GameState::Title => self.title_state.start(seed, params),
-            GameState::InGame => self.in_game_state.start(seed, params),
+            GameState::Title => {
+                self.title_state.start(params);
+                self.init_game_state(params.stage_manager, params.bullets);
+            }
+            GameState::InGame => {
+                let grade = params.pref_manager.selected_grade();
+                let level = params.pref_manager.selected_level();
+                self.in_game_state.start(grade, level, seed, params)
+            }
         }
+    }
+
+    pub fn init_game_state(&mut self, stage_manager: &StageManager, bullets: &mut BulletPool) {
+        self.in_game_state.init_game_state(stage_manager, bullets)
     }
 
     pub fn mov(&mut self, params: &mut ActionParams) -> MoveAction {
@@ -94,7 +120,11 @@ impl<'a> GameManager<'a> {
         }
         if let MoveAction::None = action {
             action = match self.state {
-                GameState::Title => self.title_state.mov(params),
+                GameState::Title => {
+                    let action = self.title_state.mov(params);
+                    self.in_game_state.decrement_time(params.ship);
+                    action
+                }
                 GameState::InGame => self.in_game_state.mov(params),
             };
         }
@@ -103,9 +133,8 @@ impl<'a> GameManager<'a> {
 }
 
 impl<'a> Manager for GameManager<'a> {
-    fn start(&mut self, seed: u64, params: &mut ActionParams) {
-        // TODO loadLastReplay();
-        self.start_title(seed, params, false);
+    fn start(&mut self, params: &mut ActionParams) {
+        self.start_title(params, true, false);
     }
 
     fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs) {

@@ -254,11 +254,15 @@ pub struct ParticlePool {
 }
 
 impl ParticlePool {
-    pub fn new(n: usize) -> Self {
+    pub fn new(n: usize, seed: u64) -> Self {
         ParticlePool {
             pool: Pool::new(n),
-            rand: Rand::new(Rand::rand_seed()),
+            rand: Rand::new(seed),
         }
+    }
+
+    pub fn set_seed(&mut self, seed: u64) {
+        self.rand.set_seed(seed);
     }
 
     pub fn get_instance_and<O>(&mut self, mut op: O) -> bool
@@ -272,6 +276,14 @@ impl ParticlePool {
         } else {
             false
         }
+    }
+
+    pub fn get_instance_forced_and<O>(&mut self, mut op: O)
+    where
+        O: FnMut(&mut Particle, &mut Rand),
+    {
+        let particle = self.pool.get_instance_forced().0;
+        op(particle, &mut self.rand);
     }
 
     pub fn clear(&mut self) {

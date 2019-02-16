@@ -413,7 +413,7 @@ impl Tunnel {
         }
     }
 
-    fn draw_backward(&mut self, draw_state: &SliceDrawState, screen: &Screen) {
+    pub fn draw_backward(&mut self, draw_state: &SliceDrawState, screen: &Screen) {
         unsafe {
             gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
         }
@@ -562,7 +562,6 @@ impl Slice {
             point_from,
             center_pos,
             point_ratio,
-            // TODO not used
             point_pos: [Vector3::default(); MAX_POINT_NUM],
             depth,
         }

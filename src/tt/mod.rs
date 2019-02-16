@@ -32,4 +32,7 @@ pub struct ActionParams<'a> {
     pub enemies: &'a mut actor::enemy::EnemyPool,
     pub particles: &'a mut actor::particle::ParticlePool,
     pub float_letters: &'a mut actor::float_letter::FloatLetterPool,
+
+    #[cfg(feature = "game_recorder")]
+    pub next_recorder_id: usize,
 }

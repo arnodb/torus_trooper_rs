@@ -16,6 +16,7 @@ preferences = "1.1"
 rand = "0.5"
 rand_core = "0.3"
 rand_xorshift = "0.1"
+rle_vec = "0.4"
 serde = "0.9"
 serde_derive = "0.9"
 
@@ -24,6 +25,9 @@ pistoncore-glutin_window = { version = "0.50", optional = true }
 
 pistoncore-sdl2_window = { version = "0.51", optional = true }
 
+diff = { version = "0.1", optional = true }
+serde_json = { version = "0.9", optional = true }
+
 [build-dependencies]
 gl_generator = "0.9"
 
@@ -31,4 +35,4 @@ gl_generator = "0.9"
 default = ["glutin_backend"]
 glutin_backend = ["glutin", "pistoncore-glutin_window"]
 sdl_backend = ["pistoncore-sdl2_window"]
-game_recorder = []
+game_recorder = ["diff", "serde_json"]

@@ -6,7 +6,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::util::rand::Rand;
 use crate::util::vector::Vector;
 
 use crate::tt::actor::bullet::{BMLParam, BulletPool};
@@ -16,7 +15,6 @@ use crate::tt::shape::bullet_shape::BulletShape;
 use crate::tt::shape::Drawable;
 
 pub struct Barrage {
-    rand: Rand,
     bml_params: Rc<Vec<BMLParam>>,
     shape: Rc<Drawable>,
     disap_shape: Rc<Drawable>,
@@ -29,7 +27,6 @@ pub struct Barrage {
 impl Barrage {
     pub fn new(shape: &Rc<Drawable>, disap_shape: &Rc<Drawable>) -> Self {
         Barrage {
-            rand: Rand::new(Rand::rand_seed()),
             bml_params: Rc::new(Vec::new()),
             shape: shape.clone(),
             disap_shape: disap_shape.clone(),
@@ -66,7 +63,7 @@ impl Barrage {
         let x_reverse = if self.no_x_reverse {
             1.
         } else {
-            (self.rand.gen_usize(2) as isize * 2 - 1) as f32
+            (bullets.barrage_rand().gen_usize(2) as isize * 2 - 1) as f32
         };
         bullets.add_top_bullet(
             &self.bml_params,
