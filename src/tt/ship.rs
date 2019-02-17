@@ -49,6 +49,7 @@ pub struct Ship {
     is_game_over: bool,
 
     rand: Rand,
+    eye_rand: Rand,
     pos: Vector,
     rel_pos: Vector,
     eye_pos: Vector,
@@ -102,6 +103,7 @@ impl Ship {
             is_game_over: false,
 
             rand: Rand::new(seed),
+            eye_rand: Rand::new_not_recorded(seed),
             pos: Vector::default(),
             rel_pos: Vector::default(),
             eye_pos: Vector::default(),
@@ -149,6 +151,7 @@ impl Ship {
     pub fn start(&mut self, replay_mode: bool, grd: u32, seed: u64, camera: &mut Camera) {
         self.replay_mode = replay_mode;
         self.rand.set_seed(seed);
+        self.eye_rand.set_seed(seed);
         self.grade = grd;
         self.tunnel_ofs = 0.;
         self.pos = Vector::default();
@@ -505,13 +508,13 @@ impl Ship {
         }
         if self.screen_shake_cnt > 0 {
             let mx = self
-                .rand
+                .eye_rand
                 .gen_signed_f32(self.screen_shake_intense * (self.screen_shake_cnt + 6) as f32);
             let my = self
-                .rand
+                .eye_rand
                 .gen_signed_f32(self.screen_shake_intense * (self.screen_shake_cnt + 6) as f32);
             let mz = self
-                .rand
+                .eye_rand
                 .gen_signed_f32(self.screen_shake_intense * (self.screen_shake_cnt + 6) as f32);
             let m = Vector3::new_at(mx, my, mz);
             e += m;
