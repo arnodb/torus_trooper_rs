@@ -544,6 +544,9 @@ impl EnemyPool {
         screen: &Screen,
         barrage_manager: &mut BarrageManager,
     ) {
+        self.small_ship_specs.clear();
+        self.medium_ship_specs.clear();
+        self.boss_ship_specs.clear();
         for _ in 0..(2 + self.rand.gen_usize(2)) {
             let ss =
                 ShipSpec::new_small(&mut self.rand, level * 1.8, grade, screen, barrage_manager);
