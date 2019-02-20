@@ -55,20 +55,19 @@ impl Default for EnemySpec {
     }
 }
 
-impl Enemy {
-    pub fn set(&mut self, spec: &ShipSpec, x: f32, y: f32, rand: &mut Rand) {
-        self.set_ps_bank(spec, x, y, false, 0., rand)
-    }
-
-    fn set_ps_bank(
-        &mut self,
-        spec: &ShipSpec,
-        x: f32,
-        y: f32,
-        passed: bool,
+pub enum EnemySetOption<'a> {
+    New {
+        spec: &'a ShipSpec,
+        rand: &'a mut Rand,
+    },
+    Passed {
+        shield: i32,
         base_bank: f32,
-        rand: &mut Rand,
-    ) {
+    },
+}
+
+impl Enemy {
+    pub fn set(&mut self, x: f32, y: f32, option: EnemySetOption) {
         self.pos.x = x;
         self.limit_y = y;
         self.pos.y = y;
@@ -76,13 +75,17 @@ impl Enemy {
         self.d1 = 0.;
         self.d2 = 0.;
         self.bank = 0.;
-        self.shield = spec.shield();
-        self.first_shield = self.shield;
-        if !passed {
-            self.base_bank = spec.create_base_bank(rand);
-        } else {
-            self.base_bank = base_bank;
+        match option {
+            EnemySetOption::New { spec, rand } => {
+                self.shield = spec.shield();
+                self.base_bank = spec.create_base_bank(rand);
+            }
+            EnemySetOption::Passed { shield, base_bank } => {
+                self.shield = shield;
+                self.base_bank = base_bank;
+            }
         }
+        self.first_shield = self.shield;
         self.flip_mv_cnt = 0;
         self.damaged = false;
         self.high_order = true;
@@ -92,12 +95,14 @@ impl Enemy {
 
     fn mov(
         &mut self,
+        en_spec: EnemySpec,
         passed: bool,
         spec: &mut ShipSpec,
         tunnel: &Tunnel,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         particles: &mut ParticlePool,
+        passed_pool: Option<&mut Pool<Enemy>>,
     ) -> (bool, bool) {
         let mut goto_next_zone = false;
         if !passed {
@@ -270,16 +275,26 @@ impl Enemy {
         }
         let mut release = false;
         if !passed {
-            if (!spec.has_limit_y() && self.pos.y > ship::IN_SIGHT_DEPTH_DEFAULT * 5.)
-                || self.pos.y < DISAP_DEPTH
-            {
-                /* TODO
-                if (Ship.replayMode && pos.y < DISAP_DEPTH) {
-                    Enemy en = passedEnemies.getInstance();
-                    if (en)
-                    en.set(spec, pos.x, pos.y, null, true, baseBank);
-                }*/
-                release = true;
+            if let Some(passed_pool) = passed_pool {
+                if (!spec.has_limit_y() && self.pos.y > ship::IN_SIGHT_DEPTH_DEFAULT * 5.)
+                    || self.pos.y < DISAP_DEPTH
+                {
+                    if ship.is_replay_mode() && self.pos.y < DISAP_DEPTH {
+                        let inst = passed_pool.get_instance();
+                        if let Some((enemy, _)) = inst {
+                            enemy.spec = en_spec;
+                            enemy.set(
+                                self.pos.x,
+                                self.pos.y,
+                                EnemySetOption::Passed {
+                                    shield: spec.shield(),
+                                    base_bank: self.base_bank,
+                                },
+                            );
+                        }
+                    }
+                    release = true;
+                }
             }
         } else if self.pos.y < -ship::IN_SIGHT_DEPTH_DEFAULT * 3. {
             release = true;
@@ -514,6 +529,7 @@ impl Enemy {
 
 pub struct EnemyPool {
     pool: Pool<Enemy>,
+    passed_pool: Pool<Enemy>,
     boss_spec_idx: usize,
     rand: Rand,
     small_ship_specs: Vec<ShipSpec>,
@@ -526,6 +542,7 @@ impl EnemyPool {
     pub fn new(n: usize, seed: u64, screen: &Screen) -> Self {
         EnemyPool {
             pool: Pool::new(n),
+            passed_pool: Pool::new(n),
             boss_spec_idx: 0,
             rand: Rand::new(seed),
             small_ship_specs: Vec::new(),
@@ -620,6 +637,10 @@ impl EnemyPool {
             enemy.remove_shallow();
         }
         self.pool.clear();
+        for enemy in &mut self.passed_pool {
+            enemy.remove_shallow();
+        }
+        self.passed_pool.clear();
     }
 
     pub fn clear(&mut self, bullets: &mut BulletPool) {
@@ -627,6 +648,10 @@ impl EnemyPool {
             enemy.remove(bullets);
         }
         self.pool.clear();
+        for enemy in &mut self.passed_pool {
+            enemy.remove(bullets);
+        }
+        self.passed_pool.clear();
     }
 
     pub fn set_seed(&mut self, seed: u64) {
@@ -649,7 +674,16 @@ impl EnemyPool {
                     EnemySpec::Medium(idx) => &mut self.medium_ship_specs[idx],
                     EnemySpec::Boss(idx) => &mut self.boss_ship_specs[idx],
                 };
-                let (release, goto_nz) = enemy.mov(false, spec, tunnel, ship, bullets, particles);
+                let (release, goto_nz) = enemy.mov(
+                    enemy.spec,
+                    false,
+                    spec,
+                    tunnel,
+                    ship,
+                    bullets,
+                    particles,
+                    Some(&mut self.passed_pool),
+                );
                 if goto_nz {
                     goto_next_zone = true;
                 }
@@ -663,6 +697,35 @@ impl EnemyPool {
             }
         }
         goto_next_zone
+    }
+
+    pub fn mov_passed(
+        &mut self,
+        tunnel: &Tunnel,
+        ship: &mut Ship,
+        bullets: &mut BulletPool,
+        particles: &mut ParticlePool,
+    ) {
+        for enemy_ref in self.passed_pool.as_refs() {
+            let release = {
+                let enemy = &mut self.passed_pool[enemy_ref];
+                let spec = match enemy.spec {
+                    EnemySpec::Small(idx) => &mut self.small_ship_specs[idx],
+                    EnemySpec::Medium(idx) => &mut self.medium_ship_specs[idx],
+                    EnemySpec::Boss(idx) => &mut self.boss_ship_specs[idx],
+                };
+                let (release, _) = enemy.mov(
+                    enemy.spec, true, spec, tunnel, ship, bullets, particles, None,
+                );
+                if release {
+                    enemy.remove_shallow();
+                }
+                release
+            };
+            if release {
+                self.passed_pool.release(enemy_ref);
+            }
+        }
     }
 
     pub fn check_shot_hit(
@@ -711,6 +774,17 @@ impl EnemyPool {
 
     pub fn draw(&self, tunnel: &Tunnel, bullets: &BulletPool) {
         for enemy in &self.pool {
+            let spec = match enemy.spec {
+                EnemySpec::Small(idx) => &self.small_ship_specs[idx],
+                EnemySpec::Medium(idx) => &self.medium_ship_specs[idx],
+                EnemySpec::Boss(idx) => &self.boss_ship_specs[idx],
+            };
+            enemy.draw(spec, tunnel, bullets, &self.bit_shape);
+        }
+    }
+
+    pub fn draw_passed(&self, tunnel: &Tunnel, bullets: &BulletPool) {
+        for enemy in &self.passed_pool {
             let spec = match enemy.spec {
                 EnemySpec::Small(idx) => &self.small_ship_specs[idx],
                 EnemySpec::Medium(idx) => &self.medium_ship_specs[idx],

@@ -2,7 +2,7 @@ use crate::util::rand::Rand;
 
 use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::ship_spec::ShipSpec;
-use crate::tt::actor::enemy::{Enemy, EnemyPool};
+use crate::tt::actor::enemy::{Enemy, EnemyPool, EnemySetOption};
 use crate::tt::barrage::BarrageManager;
 use crate::tt::screen::Screen;
 use crate::tt::ship::{self, Ship};
@@ -330,7 +330,14 @@ impl StageManager {
         } else if x >= std::f32::consts::PI * 2. {
             x -= std::f32::consts::PI * 2.;
         }
-        enemy.set(spec, x, y, &mut self.rand);
+        enemy.set(
+            x,
+            y,
+            EnemySetOption::New {
+                spec,
+                rand: &mut self.rand,
+            },
+        );
     }
 
     pub fn level(&self) -> f32 {

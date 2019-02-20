@@ -41,9 +41,6 @@ impl TitleState {
         params.enemies.clear_shallow();
         params.particles.clear();
         params.float_letters.clear();
-        /*TODO
-        passedEnemies.clear();
-        */
     }
 
     pub fn set_replay_data(&mut self, replay_data: ReplayData) {
@@ -118,6 +115,7 @@ impl State for TitleState {
                 params.enemies,
                 params.barrage_manager,
             );
+            // FIXME goto_next_zone
             params
                 .enemies
                 .mov(params.tunnel, params.ship, params.bullets, params.particles);
@@ -135,7 +133,9 @@ impl State for TitleState {
                 .mov(params.tunnel, params.ship, params.particles);
             params.particles.mov(params.ship.speed(), params.tunnel);
             params.float_letters.mov();
-            // TODO REPLAY params.passedEnemies.mov();
+            params
+                .enemies
+                .mov_passed(params.tunnel, params.ship, params.bullets, params.particles);
             self.manager.mov(true, params)
         } else {
             self.manager.mov(false, params)
@@ -168,7 +168,7 @@ impl State for TitleState {
             }
             params.particles.draw(params.screen);
             params.enemies.draw(params.tunnel, params.bullets);
-            // TODO REPLAY params.passedEnemies.draw();
+            params.enemies.draw_passed(params.tunnel, params.bullets);
             params.ship.draw();
             unsafe {
                 gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
