@@ -80,7 +80,7 @@ impl FloatLetter {
 
 pub struct FloatLetterPool {
     pool: Pool<FloatLetter>,
-    pub rand: Rand,
+    rand: Rand,
 }
 
 impl FloatLetterPool {
@@ -89,6 +89,10 @@ impl FloatLetterPool {
             pool: Pool::new(n),
             rand: Rand::new(Rand::rand_seed()),
         }
+    }
+
+    pub fn set_seed(&mut self, seed: u64) {
+        self.rand.set_seed(seed);
     }
 
     pub fn spawn(&mut self, msg: String, p: Vector, s: f32, c: i32) {

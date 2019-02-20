@@ -250,7 +250,7 @@ impl Particle {
 
 pub struct ParticlePool {
     pool: Pool<Particle>,
-    pub rand: Rand,
+    rand: Rand,
 }
 
 impl ParticlePool {

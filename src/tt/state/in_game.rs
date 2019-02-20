@@ -75,16 +75,11 @@ impl<'a> InGameState<'a> {
             .level(level as f32)
             .seed(seed);
         params.bullets.set_seed(seed);
-        /* TODO REPLAY
-        Enemy.setRandSeed(_seed);
-        FloatLetter.setRandSeed(_seed);
-        */
-        params.particles.set_seed(seed);
-        /* TODO REPLAY
-        Shot.setRandSeed(_seed);
-        SoundManager.setRandSeed(_seed);
-        */
         params.enemies.set_seed(seed);
+        params.float_letters.set_seed(seed);
+        params.particles.set_seed(seed);
+        params.shots.set_seed(seed);
+        // TODO SoundManager.setRandSeed(_seed);
         params.ship.start(false, grade, seed, params.camera);
         params.stage_manager.start(
             level as f32,

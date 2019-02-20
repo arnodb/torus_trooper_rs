@@ -56,13 +56,11 @@ impl TitleState {
             record_event_start!();
             params.pad.start_replay(replay_data.pad_record.clone());
             params.bullets.set_seed(replay_data.seed);
-            params.particles.set_seed(replay_data.seed);
             params.enemies.set_seed(replay_data.seed);
-            /* TODO REPLAY
-            FloatLetter.setRandSeed(_seed);
-            Shot.setRandSeed(_seed);
-            SoundManager.setRandSeed(_seed);
-            */
+            params.float_letters.set_seed(replay_data.seed);
+            params.particles.set_seed(replay_data.seed);
+            params.shots.set_seed(replay_data.seed);
+            // TODO SoundManager.setRandSeed(_seed);
             params
                 .ship
                 .start(true, replay_data.grade, replay_data.seed, params.camera);

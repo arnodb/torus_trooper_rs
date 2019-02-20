@@ -252,6 +252,10 @@ impl ShotPool {
         }
     }
 
+    pub fn set_seed(&mut self, seed: u64) {
+        self.rand.set_seed(seed);
+    }
+
     pub fn get_instance_and<O>(&mut self, mut op: O)
     where
         O: FnMut(&mut Shot),
