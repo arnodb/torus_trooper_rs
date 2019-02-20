@@ -204,6 +204,7 @@ impl Ship {
             if let Some(ps) = ps {
                 (ps.buttons, ps.direction)
             } else {
+                record_event_end!(false);
                 self.is_game_over = true;
                 (PadButtons::NONE, PadDirection::NONE)
             }
@@ -712,6 +713,7 @@ impl Ship {
     }
 
     pub fn game_over(&mut self) {
+        record_event_end!(true);
         self.is_game_over = true;
     }
 

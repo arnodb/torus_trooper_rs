@@ -7,6 +7,9 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
 
+#[macro_use]
+mod macros;
+
 pub mod tt;
 pub mod util;
 
@@ -39,9 +42,6 @@ use crate::tt::ship::Ship;
 use crate::tt::tunnel::{Torus, Tunnel};
 use crate::tt::ActionParams;
 use crate::util::rand::Rand;
-
-#[cfg(feature = "game_recorder")]
-use crate::game_recorder::{record_event, record_next_id, record_stop, GameEvent};
 
 struct MainLoop {
     done: bool,
@@ -98,7 +98,7 @@ impl MainLoop {
             particles: &mut particles,
             float_letters: &mut float_letters,
             #[cfg(feature = "game_recorder")]
-            next_recorder_id: record_next_id(),
+            next_recorder_id: record_next_id!(),
         };
 
         manager.start(&mut params);
@@ -132,11 +132,8 @@ impl MainLoop {
                 let action = manager.mov(&mut params);
                 match action {
                     MoveAction::StartTitle(from_game_over) => {
-                        #[cfg(feature = "game_recorder")]
-                        {
-                            record_event(GameEvent::End { from_game_over });
-                            record_stop();
-                        }
+                        record_event_end!(from_game_over);
+                        record_stop!();
                         manager.start_title(&mut params, false, from_game_over);
                     }
                     MoveAction::StartInGame => {

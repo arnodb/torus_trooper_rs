@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 #[derive(Default)]
 pub struct GameRecorder<'a> {
-    replay: bool,
+    recording: bool,
     saved: Vec<GameEvent<'a>>,
     running: Vec<GameEvent<'a>>,
     next_id: usize,
@@ -43,28 +43,44 @@ pub enum GameEvent<'a> {
 
 impl<'a> GameRecorder<'a> {
     pub fn start_record(&mut self, next_id: usize) {
-        self.replay = false;
+        self.recording = true;
         self.saved.clear();
         self.running.clear();
         self.next_id = next_id;
     }
     pub fn save_record(&mut self) {
+        self.recording = false;
         std::mem::swap(&mut self.saved, &mut self.running);
     }
     pub fn start_replay(&mut self, next_id: usize) {
-        self.replay = true;
+        self.recording = true;
         self.running.clear();
         self.next_id = next_id;
     }
     pub fn compare_replay(&mut self) {
+        let until_end = || {
+            let mut reached_end = false;
+            move |e: &&GameEvent| {
+                if reached_end {
+                    false
+                } else {
+                    if let GameEvent::End { .. } = e {
+                        reached_end = true;
+                    }
+                    true
+                }
+            }
+        };
         let left = &self
             .saved
             .iter()
+            .take_while(until_end())
             .map(|event| serde_json::to_string(event).unwrap())
             .collect::<Vec<String>>();
         let right = &self
             .running
             .iter()
+            .take_while(until_end())
             .map(|event| serde_json::to_string(event).unwrap())
             .collect::<Vec<String>>();
         let diff = diff::slice(left, right);
@@ -83,10 +99,13 @@ impl<'a> GameRecorder<'a> {
             }
         }
         println!("END COMPARE !!!!!!!!!!!!!!!!!!!!!!!!");
+        self.recording = false;
         self.running.clear();
     }
     pub fn record_event(&mut self, event: GameEvent<'a>) {
-        self.running.push(event);
+        if self.recording {
+            self.running.push(event);
+        }
     }
     pub fn next_id(&mut self) -> usize {
         let id = self.next_id;
@@ -96,35 +115,6 @@ impl<'a> GameRecorder<'a> {
 }
 
 lazy_static! {
-    static ref GAME_RECORDER: Mutex<GameRecorder<'static>> = Mutex::new(GameRecorder::default());
-}
-
-pub fn record_start(next_id: usize) {
-    let mut guard = GAME_RECORDER.lock().unwrap();
-    guard.start_record(next_id);
-}
-
-pub fn record_stop() {
-    let mut guard = GAME_RECORDER.lock().unwrap();
-    guard.save_record();
-}
-
-pub fn record_replay(next_id: usize) {
-    let mut guard = GAME_RECORDER.lock().unwrap();
-    guard.start_replay(next_id);
-}
-
-pub fn record_compare_replay() {
-    let mut guard = GAME_RECORDER.lock().unwrap();
-    guard.compare_replay();
-}
-
-pub fn record_event(event: GameEvent<'static>) {
-    let mut guard = GAME_RECORDER.lock().unwrap();
-    guard.record_event(event);
-}
-
-pub fn record_next_id() -> usize {
-    let mut guard = GAME_RECORDER.lock().unwrap();
-    guard.next_id()
+    pub static ref GAME_RECORDER: Mutex<GameRecorder<'static>> =
+        Mutex::new(GameRecorder::default());
 }

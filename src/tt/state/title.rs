@@ -12,9 +12,6 @@ use crate::tt::ActionParams;
 
 use super::State;
 
-#[cfg(feature = "game_recorder")]
-use crate::game_recorder::{record_compare_replay, record_event, record_replay, GameEvent};
-
 pub struct TitleState {
     manager: TitleManager,
     replay_data: Option<ReplayData>,
@@ -55,11 +52,8 @@ impl TitleState {
 
     fn start_replay(&mut self, params: &mut ActionParams) {
         if let Some(replay_data) = &self.replay_data {
-            #[cfg(feature = "game_recorder")]
-            {
-                record_replay(params.next_recorder_id);
-                record_event(GameEvent::Start);
-            }
+            record_replay!(params.next_recorder_id);
+            record_event_start!();
             params.pad.start_replay(replay_data.pad_record.clone());
             params.bullets.set_seed(replay_data.seed);
             params.particles.set_seed(replay_data.seed);
@@ -97,8 +91,7 @@ impl State for TitleState {
         if params.ship.is_game_over() {
             self.game_over_cnt += 1;
             if self.game_over_cnt > 120 {
-                #[cfg(feature = "game_recorder")]
-                record_compare_replay();
+                record_compare_replay!();
                 self.clear_all(params);
                 self.start_replay(params);
                 return MoveAction::StartReplay;

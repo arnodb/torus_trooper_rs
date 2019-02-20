@@ -14,9 +14,6 @@ use crate::tt::ActionParams;
 
 use super::State;
 
-#[cfg(feature = "game_recorder")]
-use crate::game_recorder::{record_event, record_start, GameEvent};
-
 const DEFAULT_EXTEND_SCORE: u32 = 100000;
 const MAX_EXTEND_SCORE: u32 = 500000;
 const DEFAULT_TIME: i32 = 120000;
@@ -65,11 +62,8 @@ impl<'a> InGameState<'a> {
     }
 
     pub fn start(&mut self, grade: u32, level: u32, seed: u64, params: &mut ActionParams) {
-        #[cfg(feature = "game_recorder")]
-        {
-            record_start(params.next_recorder_id);
-            record_event(GameEvent::Start);
-        }
+        record_start!(params.next_recorder_id);
+        record_event_start!();
         params.shots.clear();
         params.bullets.clear();
         params.enemies.clear_shallow();
