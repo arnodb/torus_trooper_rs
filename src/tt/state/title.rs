@@ -147,7 +147,7 @@ impl State for TitleState {
 
     fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs) {
         if self.replay_data.is_some() {
-            let rcr = f32::max(self.manager.replay_change_ratio() * 2.4, 1.);
+            let rcr = f32::min(self.manager.replay_change_ratio() * 2.4, 1.);
             unsafe {
                 let screen = &params.screen;
                 let p_size = screen.physical_size();
