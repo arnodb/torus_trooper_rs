@@ -163,7 +163,12 @@ impl<'a> Manager for GameManager<'a> {
         }
         Screen::view_ortho_fixed();
         match self.state {
-            GameState::Title => self.title_state.draw_front(params, render_args),
+            GameState::Title => {
+                self.title_state.draw_front(params, render_args);
+                if params.ship.is_draw_front_mode() && self.title_state.replay_change_ratio() >= 1. {
+                    self.in_game_state.draw_front(params, render_args);
+                }
+            },
             GameState::InGame => self.in_game_state.draw_front(params, render_args),
         }
         Screen::view_perspective();

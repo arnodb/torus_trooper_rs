@@ -84,6 +84,10 @@ impl TitleState {
             params.tunnel.set_slices_backward();
         }
     }
+
+    pub fn replay_change_ratio(&self) -> f32 {
+        self.manager.replay_change_ratio()
+    }
 }
 
 impl State for TitleState {
@@ -220,11 +224,5 @@ impl State for TitleState {
 
     fn draw_front(&self, params: &ActionParams, render_args: &RenderArgs) {
         self.manager.draw_front(params, render_args);
-        if !params.ship.is_draw_front_mode() || self.manager.replay_change_ratio() < 1. {
-            return;
-        }
-        /* TODO REPLAY
-        inGameState.drawFront();
-        */
     }
 }
