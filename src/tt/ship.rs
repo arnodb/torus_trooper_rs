@@ -9,11 +9,12 @@ use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::actor::PoolActorRef;
 use crate::tt::camera::Camera;
+use crate::tt::manager::stage::StageManager;
 use crate::tt::pad::{Pad, PadButtons, PadDirection};
 use crate::tt::screen::Screen;
 use crate::tt::shape::ship_shape::ShipShape;
 use crate::tt::shape::Drawable;
-use crate::tt::state::in_game::ScoreAccumulator;
+use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{Tunnel, DEFAULT_RAD};
 use crate::tt::ActionParams;
 
@@ -190,10 +191,11 @@ impl Ship {
         pad: &mut Pad,
         camera: &mut Camera,
         tunnel: &mut Tunnel,
+        shared_state: &mut SharedState,
+        stage_manager: &StageManager,
         shots: &mut ShotPool,
         bullets: &mut BulletPool,
         particles: &mut ParticlePool,
-        score_accumulator: &mut ScoreAccumulator,
     ) {
         self.cnt += 1;
         let (mut btn, mut dir) = if !self.replay_mode {
@@ -251,7 +253,7 @@ impl Ship {
         self.tunnel_ofs += self.speed;
         let tmv = self.tunnel_ofs as usize;
         tunnel.go_to_next_slice(tmv);
-        score_accumulator.add_score(tmv as u32);
+        shared_state.add_score(tmv as u32, self.is_game_over(), stage_manager.level());
         self.tunnel_ofs = self.pos.y - f32::floor(self.pos.y);
         if self.pos.y >= tunnel.get_torus_length() as f32 {
             self.pos.y -= tunnel.get_torus_length() as f32;

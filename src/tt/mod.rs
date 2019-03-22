@@ -20,6 +20,8 @@ pub struct ActionParams<'a> {
 
     pub pad: &'a mut pad::Pad,
 
+    pub shared_state: &'a mut state::shared::SharedState<'a>,
+
     pub stage_manager: &'a mut manager::stage::StageManager,
 
     pub camera: &'a mut camera::Camera,

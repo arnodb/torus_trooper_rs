@@ -39,6 +39,7 @@ use crate::tt::pad::GamePad;
 use crate::tt::prefs::PrefManager;
 use crate::tt::screen::Screen;
 use crate::tt::ship::Ship;
+use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{Torus, Tunnel};
 use crate::tt::ActionParams;
 use crate::util::rand::Rand;
@@ -79,6 +80,7 @@ impl MainLoop {
         let mut stage_manager = StageManager::new(initial_seed);
 
         let mut manager = GameManager::new(&screen)?;
+        let mut shared_state = SharedState::new();
 
         let mut events = Events::new(EventSettings::new().swap_buffers(true));
 
@@ -87,6 +89,7 @@ impl MainLoop {
             screen: &mut screen,
             letter: &letter,
             pad: &mut pad,
+            shared_state: &mut shared_state,
             stage_manager: &mut stage_manager,
             camera: &mut camera,
             ship: &mut ship,
@@ -139,9 +142,6 @@ impl MainLoop {
                     MoveAction::StartInGame => {
                         let new_seed = Rand::rand_seed();
                         manager.start_in_game(new_seed, &mut params);
-                    }
-                    MoveAction::StartReplay => {
-                        manager.init_game_state(params.stage_manager, params.bullets);
                     }
                     MoveAction::BreakLoop => self.done = true,
                     MoveAction::None => (),

@@ -8,11 +8,12 @@ use crate::tt::actor::enemy::EnemyPool;
 use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::{Pool, PoolActorRef};
+use crate::tt::manager::stage::StageManager;
 use crate::tt::screen::Screen;
 use crate::tt::shape::shot_shape::ShotShape;
 use crate::tt::shape::{Drawable, ResizableDrawable};
 use crate::tt::ship::{self, Ship};
-use crate::tt::state::in_game::ScoreAccumulator;
+use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::Tunnel;
 use crate::util::rand::Rand;
 use crate::util::vector::Vector;
@@ -103,12 +104,13 @@ impl Shot {
     fn mov(
         &mut self,
         tunnel: &Tunnel,
+        shared_state: &mut SharedState,
+        stage_manager: &StageManager,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
         particles: &mut ParticlePool,
         float_letters: &mut FloatLetterPool,
-        score_accumulator: &mut ScoreAccumulator,
         rand: &mut Rand,
     ) -> bool {
         let mut release = false;
@@ -135,8 +137,14 @@ impl Shot {
         self.shape.as_mut().unwrap().size(self.size);
         if !self.in_charge {
             if self.charge_shot {
-                let hit_release =
-                    bullets.check_shot_hit(self, tunnel, float_letters, score_accumulator);
+                let hit_release = bullets.check_shot_hit(
+                    self,
+                    tunnel,
+                    shared_state,
+                    stage_manager,
+                    ship,
+                    float_letters,
+                );
                 if hit_release {
                     release = true;
                 }
@@ -144,11 +152,12 @@ impl Shot {
             let hit_release = enemies.check_shot_hit(
                 self,
                 tunnel,
+                shared_state,
+                stage_manager,
                 ship,
                 bullets,
                 particles,
                 float_letters,
-                score_accumulator,
             );
             if hit_release {
                 release = true;
@@ -183,10 +192,16 @@ impl Shot {
         &mut self,
         sc: u32,
         pos: Vector,
+        shared_state: &mut SharedState,
+        stage_manager: &StageManager,
+        ship: &Ship,
         float_letters: &mut FloatLetterPool,
-        score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
-        score_accumulator.add_score(sc * self.multiplier);
+        shared_state.add_score(
+            sc * self.multiplier,
+            ship.is_game_over(),
+            stage_manager.level(),
+        );
         if self.multiplier > 1 {
             let size = if sc >= 100 {
                 0.2
@@ -286,24 +301,26 @@ impl ShotPool {
     pub fn mov(
         &mut self,
         tunnel: &Tunnel,
+        shared_state: &mut SharedState,
+        stage_manager: &StageManager,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
         particles: &mut ParticlePool,
         float_letters: &mut FloatLetterPool,
-        score_accumulator: &mut ScoreAccumulator,
     ) {
         for shot_ref in self.pool.as_refs() {
             let release = {
                 let shot = &mut self.pool[shot_ref];
                 shot.mov(
                     tunnel,
+                    shared_state,
+                    stage_manager,
                     ship,
                     bullets,
                     enemies,
                     particles,
                     float_letters,
-                    score_accumulator,
                     &mut self.rand,
                 )
             };

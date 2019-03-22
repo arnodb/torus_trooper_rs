@@ -3,9 +3,7 @@ pub mod title;
 
 use piston::input::*;
 
-use crate::tt::actor::bullet::BulletPool;
 use crate::tt::errors::GameError;
-use crate::tt::manager::stage::StageManager;
 use crate::tt::prefs::PrefManager;
 use crate::tt::screen::Screen;
 use crate::tt::state::in_game::InGameState;
@@ -27,9 +25,9 @@ enum GameState {
     InGame,
 }
 
-pub struct GameManager<'a> {
+pub struct GameManager {
     title_state: TitleState,
-    in_game_state: InGameState<'a>,
+    in_game_state: InGameState,
     state: GameState,
     esc_pressed: bool,
 }
@@ -39,14 +37,13 @@ pub enum MoveAction {
     None,
     StartTitle(bool),
     StartInGame,
-    StartReplay,
     BreakLoop,
 }
 
-impl<'a> GameManager<'a> {
+impl GameManager {
     pub fn new(screen: &Screen) -> Result<Self, GameError> {
         let title_state = TitleState::new(&screen)?;
-        let in_game_state = InGameState::new()?;
+        let in_game_state = InGameState::new();
         Ok(GameManager {
             title_state,
             in_game_state,
@@ -91,7 +88,6 @@ impl<'a> GameManager<'a> {
         match self.state {
             GameState::Title => {
                 self.title_state.start(params);
-                self.init_game_state(params.stage_manager, params.bullets);
             }
             GameState::InGame => {
                 let grade = params.pref_manager.selected_grade();
@@ -99,10 +95,6 @@ impl<'a> GameManager<'a> {
                 self.in_game_state.start(grade, level, seed, params)
             }
         }
-    }
-
-    pub fn init_game_state(&mut self, stage_manager: &StageManager, bullets: &mut BulletPool) {
-        self.in_game_state.init_game_state(stage_manager, bullets)
     }
 
     pub fn mov(&mut self, params: &mut ActionParams) -> MoveAction {
@@ -120,11 +112,7 @@ impl<'a> GameManager<'a> {
         }
         if let MoveAction::None = action {
             action = match self.state {
-                GameState::Title => {
-                    let action = self.title_state.mov(params);
-                    self.in_game_state.decrement_time(params.ship);
-                    action
-                }
+                GameState::Title => self.title_state.mov(params),
                 GameState::InGame => self.in_game_state.mov(params),
             };
         }
@@ -132,7 +120,7 @@ impl<'a> GameManager<'a> {
     }
 }
 
-impl<'a> Manager for GameManager<'a> {
+impl Manager for GameManager {
     fn start(&mut self, params: &mut ActionParams) {
         self.start_title(params, true, false);
     }
@@ -165,10 +153,11 @@ impl<'a> Manager for GameManager<'a> {
         match self.state {
             GameState::Title => {
                 self.title_state.draw_front(params, render_args);
-                if params.ship.is_draw_front_mode() && self.title_state.replay_change_ratio() >= 1. {
-                    self.in_game_state.draw_front(params, render_args);
+                if params.ship.is_draw_front_mode() && self.title_state.replay_change_ratio() >= 1.
+                {
+                    params.shared_state.draw_front(params, render_args);
                 }
-            },
+            }
             GameState::InGame => self.in_game_state.draw_front(params, render_args),
         }
         Screen::view_perspective();

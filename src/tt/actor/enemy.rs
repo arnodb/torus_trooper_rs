@@ -4,11 +4,12 @@ use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::barrage::BarrageManager;
+use crate::tt::manager::stage::StageManager;
 use crate::tt::screen::Screen;
 use crate::tt::shape::bit_shape::BitShape;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::{self, Ship};
-use crate::tt::state::in_game::ScoreAccumulator;
+use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{self, Tunnel};
 use crate::util::rand::Rand;
 use crate::util::vector::Vector;
@@ -337,10 +338,11 @@ impl Enemy {
         spec: &ShipSpec,
         shot: &mut Shot,
         tunnel: &Tunnel,
+        shared_state: &mut SharedState,
+        stage_manager: &StageManager,
         ship: &mut Ship,
         particles: &mut ParticlePool,
         float_letters: &mut FloatLetterPool,
-        score_accumulator: &mut ScoreAccumulator,
         rand: &mut Rand,
     ) -> (bool, bool) {
         let mut ox = f32::abs(self.pos.x - shot.pos.x);
@@ -397,7 +399,14 @@ impl Enemy {
                 }
                 // TODO SoundManager.playSe("hit.wav");
             }
-            release_shot = shot.add_score(spec.score(), self.pos, float_letters, score_accumulator);
+            release_shot = shot.add_score(
+                spec.score(),
+                self.pos,
+                shared_state,
+                stage_manager,
+                ship,
+                float_letters,
+            );
         }
         (release_enemy, release_shot)
     }
@@ -732,11 +741,12 @@ impl EnemyPool {
         &mut self,
         shot: &mut Shot,
         tunnel: &Tunnel,
+        shared_state: &mut SharedState,
+        stage_manager: &StageManager,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         particles: &mut ParticlePool,
         float_letters: &mut FloatLetterPool,
-        score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         let mut release_shot = false;
         for enemy_ref in self.pool.as_refs() {
@@ -751,10 +761,11 @@ impl EnemyPool {
                     spec,
                     shot,
                     tunnel,
+                    shared_state,
+                    stage_manager,
                     ship,
                     particles,
                     float_letters,
-                    score_accumulator,
                     &mut self.rand,
                 );
                 if rel_shot {

@@ -12,9 +12,10 @@ use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::ParticlePool;
 use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActorRef};
+use crate::tt::manager::stage::StageManager;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::Ship;
-use crate::tt::state::in_game::ScoreAccumulator;
+use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{self, Tunnel};
 
 #[derive(Default)]
@@ -206,8 +207,10 @@ impl Bullet {
         &mut self,
         shot: &mut Shot,
         tunnel: &Tunnel,
+        shared_state: &mut SharedState,
+        stage_manager: &StageManager,
+        ship: &Ship,
         float_letters: &mut FloatLetterPool,
-        score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         if !self.is_visible || self.disap_cnt > 0 {
             return false;
@@ -222,7 +225,14 @@ impl Bullet {
         let mut release_shot = false;
         if shot.shape.as_ref().unwrap().check_collision(ox, oy) {
             self.start_disappear();
-            release_shot = shot.add_score(10, bullet_pos, float_letters, score_accumulator);
+            release_shot = shot.add_score(
+                10,
+                bullet_pos,
+                shared_state,
+                stage_manager,
+                ship,
+                float_letters,
+            );
         }
         release_shot
     }
@@ -456,12 +466,21 @@ impl BulletPool {
         &mut self,
         shot: &mut Shot,
         tunnel: &Tunnel,
+        shared_state: &mut SharedState,
+        stage_manager: &StageManager,
+        ship: &Ship,
         float_letters: &mut FloatLetterPool,
-        score_accumulator: &mut ScoreAccumulator,
     ) -> bool {
         let mut release_shot = false;
         for bullet in &mut self.pool {
-            let rel_shot = bullet.check_shot_hit(shot, tunnel, float_letters, score_accumulator);
+            let rel_shot = bullet.check_shot_hit(
+                shot,
+                tunnel,
+                shared_state,
+                stage_manager,
+                ship,
+                float_letters,
+            );
             if rel_shot {
                 release_shot = true;
             }

@@ -6,7 +6,6 @@ use crate::tt::errors::GameError;
 use crate::tt::manager::title::TitleManager;
 use crate::tt::manager::{Manager, MoveAction};
 use crate::tt::screen::Screen;
-use crate::tt::state::in_game::ScoreAccumulator;
 use crate::tt::state::ReplayData;
 use crate::tt::ActionParams;
 
@@ -72,6 +71,9 @@ impl TitleState {
                 params.enemies,
                 params.barrage_manager,
             );
+            params
+                .shared_state
+                .init_game_state(params.stage_manager, params.bullets);
             params.ship.set_screen_shake(0, 0.);
             self.game_over_cnt = 0;
             params.tunnel.set_ship_pos(0., 0.);
@@ -93,19 +95,19 @@ impl State for TitleState {
                 record_compare_replay!();
                 self.clear_all(params);
                 self.start_replay(params);
-                return MoveAction::StartReplay;
+                return MoveAction::None;
             }
         }
         let action = if self.replay_data.is_some() {
-            let mut score_accumulator = ScoreAccumulator { score: 0 };
             params.ship.mov(
                 params.pad,
                 params.camera,
                 params.tunnel,
+                params.shared_state,
+                params.stage_manager,
                 params.shots,
                 params.bullets,
                 params.particles,
-                &mut score_accumulator,
             );
             params.stage_manager.mov(
                 params.screen,
@@ -115,18 +117,23 @@ impl State for TitleState {
                 params.enemies,
                 params.barrage_manager,
             );
-            // FIXME goto_next_zone
-            params
+            if params
                 .enemies
-                .mov(params.tunnel, params.ship, params.bullets, params.particles);
+                .mov(params.tunnel, params.ship, params.bullets, params.particles)
+            {
+                params
+                    .shared_state
+                    .goto_next_zone(false, params.stage_manager, params.bullets);
+            }
             params.shots.mov(
                 params.tunnel,
+                params.shared_state,
+                params.stage_manager,
                 params.ship,
                 params.bullets,
                 params.enemies,
                 params.particles,
                 params.float_letters,
-                &mut score_accumulator,
             );
             params
                 .bullets
@@ -136,6 +143,7 @@ impl State for TitleState {
             params
                 .enemies
                 .mov_passed(params.tunnel, params.ship, params.bullets, params.particles);
+            params.shared_state.decrement_time(params.ship);
             self.manager.mov(true, params)
         } else {
             self.manager.mov(false, params)

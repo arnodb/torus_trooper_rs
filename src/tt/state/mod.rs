@@ -1,4 +1,5 @@
 pub mod in_game;
+pub mod shared;
 pub mod title;
 
 use piston::input::RenderArgs;
