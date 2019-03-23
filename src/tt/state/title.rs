@@ -135,9 +135,12 @@ impl State for TitleState {
                 params.particles,
                 params.float_letters,
             );
-            params
-                .bullets
-                .mov(params.tunnel, params.ship, params.particles);
+            params.bullets.mov(
+                params.tunnel,
+                params.shared_state,
+                params.ship,
+                params.particles,
+            );
             params.particles.mov(params.ship.speed(), params.tunnel);
             params.float_letters.mov();
             params

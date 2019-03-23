@@ -108,8 +108,9 @@ impl Bullet {
         ship: &mut Ship,
         particles: &mut ParticlePool,
         rand: &mut Rand,
-    ) -> bool {
+    ) -> (bool, bool) {
         let mut release = false;
+        let mut destroy = false;
         let mut start_disappear = false;
         {
             let options = self.options.as_mut().unwrap();
@@ -131,7 +132,7 @@ impl Bullet {
             }
             if self.is_wait && self.wait_cnt > 0 {
                 self.wait_cnt -= 1;
-                return self.should_be_released;
+                return (self.should_be_released, false);
             }
             if !self.is_simple {
                 let bml_param = &bml_params[self.bml_idx];
@@ -147,15 +148,15 @@ impl Bullet {
                         *runner = Runner::new(TTRunner::new(), &bml_param.bml);
                         if self.is_wait {
                             self.wait_cnt = self.post_wait;
-                            return false;
+                            return (false, false);
                         }
                     } else if self.is_morph_seed {
-                        return true;
+                        return (true, false);
                     }
                 }
             }
             if self.should_be_released {
-                return true;
+                return (true, false);
             }
             let speed_rank = bullet.get_speed_rank(bml_params, self.bml_idx);
             let mx = (f32::sin(bullet.deg) * bullet.speed + bullet.acc.x)
@@ -177,6 +178,7 @@ impl Bullet {
             if self.is_visible && self.disap_cnt <= 0 {
                 if ship.check_bullet_hit(bullet.pos, self.ppos, tunnel, particles) {
                     release = true;
+                    destroy = true;
                 }
                 if bullet.pos.y < -2.
                     || (!bullet.long_range && bullet.pos.y > ship.in_sight_depth())
@@ -200,7 +202,7 @@ impl Bullet {
         if start_disappear {
             self.start_disappear();
         }
-        release
+        (release, destroy)
     }
 
     fn check_shot_hit(
@@ -415,12 +417,19 @@ impl BulletPool {
         }
     }
 
-    pub fn mov(&mut self, tunnel: &Tunnel, ship: &mut Ship, particles: &mut ParticlePool) {
+    pub fn mov(
+        &mut self,
+        tunnel: &Tunnel,
+        shared_state: &mut SharedState,
+        ship: &mut Ship,
+        particles: &mut ParticlePool,
+    ) {
+        let mut ship_destroyed = false;
         let invariant_pool = unsafe { &mut *(self as *mut BulletPool) };
         // XXX acting_refs resolves currently acting bullets so
         // invariant_self is safe and so is invariant_bullet.
         for bullet_ref in self.pool.as_refs() {
-            let release = {
+            let (release, destroy) = {
                 let bullet = &mut self.pool[bullet_ref];
                 let invariant_bullet = unsafe { &mut *(bullet as *mut Bullet) };
                 let mut manager = BulletsManager::new(invariant_pool, invariant_bullet);
@@ -429,6 +438,13 @@ impl BulletPool {
             if release {
                 self.pool.release(bullet_ref);
             }
+            if destroy {
+                ship_destroyed = true;
+            }
+        }
+        if ship_destroyed {
+            self.clear_visible();
+            shared_state.ship_destroyed();
         }
         self.cnt += 1;
     }

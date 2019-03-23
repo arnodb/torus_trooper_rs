@@ -599,7 +599,6 @@ impl Ship {
                 );
             });
         }
-        // TODO gameState.shipDestroyed();
         // TODO SoundManager.playSe("myship_dest.wav");
         self.set_screen_shake(32, 0.05);
         self.restart();

@@ -11,6 +11,9 @@ const MAX_EXTEND_SCORE: u32 = 500000;
 const DEFAULT_TIME: i32 = 120000;
 const MAX_TIME: i32 = 120000;
 
+const SHIP_DESTROYED_PENALTY_TIME: i32 = -15000;
+const SHIP_DESTROYED_PENALTY_TIME_MSG: &str = "-15 SEC.";
+
 const EXTEND_TIME: i32 = 15000;
 const EXTEND_TIME_MSG: &str = "+15 SEC.";
 
@@ -111,6 +114,10 @@ impl<'a> SharedState<'a> {
         if ship.is_replay_mode() && self.time < 0 {
             ship.game_over();
         }
+    }
+
+    pub fn ship_destroyed(&mut self) {
+        self.change_time(SHIP_DESTROYED_PENALTY_TIME, SHIP_DESTROYED_PENALTY_TIME_MSG);
     }
 
     pub fn check_time_overflow(&mut self) -> bool {
