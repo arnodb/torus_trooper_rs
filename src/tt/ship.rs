@@ -176,6 +176,8 @@ impl Ship {
         self.next_star_app_dist = 0.;
         self.lap = 1;
         self.is_game_over = false;
+        // Shot pool have been cleared one way or another, this reference is not valid any more.
+        self.charging_shot = None;
         self.restart(shots);
         if self.replay_mode {
             camera.start();
