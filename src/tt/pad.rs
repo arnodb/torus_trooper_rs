@@ -27,13 +27,14 @@ pub struct GamePad {
     record_run_sub_index: usize,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct PadState {
     pub direction: PadDirection,
     pub buttons: PadButtons,
 }
 
 bitflags! {
+    #[derive(Serialize, Deserialize)]
     pub struct PadDirection: u8 {
         const NONE = 0;
 
@@ -45,6 +46,7 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Serialize, Deserialize)]
     pub struct PadButtons: u8 {
         const NONE = 0;
 

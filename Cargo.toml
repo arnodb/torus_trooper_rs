@@ -12,14 +12,14 @@ image = "0.20"
 lazy_static = "1.1"
 piston = "0.38"
 piston2d-opengl_graphics = "0.55"
-preferences = "1.1"
+preferences = { git = "https://github.com/Eh2406/preferences-rs.git", branch = "patch-1", revision = "4f426cf52da97d3b8914e10d4492f953d4304238" }
 rand = "0.5"
 rand_core = "0.3"
 rand_xorshift = "0.1"
-rle_vec = "0.4"
+rle_vec = { version = "0.4", features = ["serialize"] }
 sdl2 = { version = "0.32", features = ["mixer"] }
-serde = "0.9"
-serde_derive = "0.9"
+serde = "1.0"
+serde_derive = "1.0"
 
 glutin = { version = "0.18", optional = true }
 pistoncore-glutin_window = { version = "0.50", optional = true }

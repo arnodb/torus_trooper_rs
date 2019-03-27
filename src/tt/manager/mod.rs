@@ -4,7 +4,7 @@ pub mod title;
 use piston::input::*;
 
 use crate::tt::errors::GameError;
-use crate::tt::prefs::PrefManager;
+use crate::tt::prefs::{load_prefs_file, save_prefs_file, PrefManager};
 use crate::tt::screen::Screen;
 use crate::tt::state::in_game::InGameState;
 use crate::tt::state::title::TitleState;
@@ -14,7 +14,11 @@ use crate::tt::{GeneralParams, MoreParams};
 use crate::gl;
 
 pub trait Manager {
-    fn start(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams);
+    fn start(
+        &mut self,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+    ) -> Result<(), GameError>;
     fn draw(
         &self,
         params: &mut GeneralParams,
@@ -58,9 +62,7 @@ impl GameManager {
     }
 
     pub fn quit_last(&self, pref_manager: &PrefManager) -> Result<(), GameError> {
-        // TODO
         pref_manager.save()?;
-        // TODO
         Ok(())
     }
 
@@ -70,19 +72,19 @@ impl GameManager {
         more_params: &mut MoreParams,
         load_last_state: bool,
         from_game_over: bool,
-    ) {
+    ) -> Result<(), GameError> {
         let replay_data = if load_last_state {
-            // TODO load REPLAY
-            ReplayData::new()
+            load_prefs_file::<ReplayData, _>("last_replay")
         } else {
             self.in_game_state.replay_data(params)
         };
         if from_game_over {
-            // TODO save REPLAY
+            save_prefs_file(replay_data.clone(), "last_replay")?;
         }
         self.title_state.set_replay_data(replay_data);
         self.state = GameState::Title;
-        self.start_state(0, params, more_params);
+        self.start_state(0, params, more_params)?;
+        Ok(())
     }
 
     pub fn start_in_game(
@@ -90,15 +92,21 @@ impl GameManager {
         seed: u64,
         params: &mut GeneralParams,
         more_params: &mut MoreParams,
-    ) {
+    ) -> Result<(), GameError> {
         self.state = GameState::InGame;
-        self.start_state(seed, params, more_params);
+        self.start_state(seed, params, more_params)?;
+        Ok(())
     }
 
-    fn start_state(&mut self, seed: u64, params: &mut GeneralParams, more_params: &mut MoreParams) {
+    fn start_state(
+        &mut self,
+        seed: u64,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+    ) -> Result<(), GameError> {
         match self.state {
             GameState::Title => {
-                self.title_state.start(params, more_params);
+                self.title_state.start(params, more_params)?;
             }
             GameState::InGame => {
                 let grade = params.pref_manager.selected_grade();
@@ -107,6 +115,7 @@ impl GameManager {
                     .start(grade, level, seed, params, more_params)
             }
         }
+        Ok(())
     }
 
     pub fn mov(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams) -> MoveAction {
@@ -133,8 +142,13 @@ impl GameManager {
 }
 
 impl Manager for GameManager {
-    fn start(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams) {
-        self.start_title(params, more_params, true, false);
+    fn start(
+        &mut self,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+    ) -> Result<(), GameError> {
+        self.start_title(params, more_params, true, false)?;
+        Ok(())
     }
 
     fn draw(

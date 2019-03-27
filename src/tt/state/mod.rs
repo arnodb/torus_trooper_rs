@@ -25,7 +25,7 @@ pub trait State {
     );
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReplayData {
     grade: u32,
     level: f32,
@@ -34,15 +34,6 @@ pub struct ReplayData {
 }
 
 impl ReplayData {
-    pub fn new() -> Self {
-        ReplayData {
-            grade: 0,
-            level: 1.,
-            seed: 0,
-            pad_record: RleVec::new(),
-        }
-    }
-
     pub fn grade(mut self, grade: u32) -> Self {
         self.grade = grade;
         self
@@ -61,5 +52,16 @@ impl ReplayData {
     pub fn pad_record(mut self, pad_record: RleVec<PadState>) -> Self {
         self.pad_record = pad_record;
         self
+    }
+}
+
+impl Default for ReplayData {
+    fn default() -> Self {
+        ReplayData {
+            grade: 0,
+            level: 1.,
+            seed: 0,
+            pad_record: RleVec::new(),
+        }
     }
 }

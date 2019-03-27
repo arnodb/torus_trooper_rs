@@ -111,7 +111,7 @@ impl MainLoop {
             float_letters: &mut float_letters,
         };
 
-        manager.start(&mut params, &mut more_params);
+        manager.start(&mut params, &mut more_params)?;
 
         let start_time = Instant::now();
         let mut prev_millis = 0;
@@ -144,11 +144,16 @@ impl MainLoop {
                     MoveAction::StartTitle(from_game_over) => {
                         record_event_end!(from_game_over);
                         record_stop!();
-                        manager.start_title(&mut params, &mut more_params, false, from_game_over);
+                        manager.start_title(
+                            &mut params,
+                            &mut more_params,
+                            false,
+                            from_game_over,
+                        )?;
                     }
                     MoveAction::StartInGame => {
                         let new_seed = Rand::rand_seed();
-                        manager.start_in_game(new_seed, &mut params, &mut more_params);
+                        manager.start_in_game(new_seed, &mut params, &mut more_params)?;
                     }
                     MoveAction::BreakLoop => self.done = true,
                     MoveAction::None => (),

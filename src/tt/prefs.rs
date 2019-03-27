@@ -9,16 +9,8 @@ pub struct PrefManager {
 
 impl PrefManager {
     pub fn new() -> Self {
-        let prefs = match GamePreferences::load(&APP_INFO, "prefs") {
-            Ok(mut prefs) => {
-                prefs.clean();
-                prefs
-            }
-            Err(err) => {
-                println!("Preferences error: {:?}", err);
-                GamePreferences::new()
-            }
-        };
+        let mut prefs = load_prefs_file::<GamePreferences, _>("prefs");
+        prefs.clean();
         PrefManager { prefs }
     }
 
@@ -61,11 +53,6 @@ impl PrefManager {
     }
 }
 
-const APP_INFO: AppInfo = AppInfo {
-    name: "tt",
-    author: "Torus Trooper",
-};
-
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 struct GamePreferences {
     selected_grade: u32,
@@ -74,16 +61,19 @@ struct GamePreferences {
 }
 
 impl GamePreferences {
-    pub fn new() -> Self {
+    pub fn clean(&mut self) {
+        if self.selected_grade > ship::GRADE_NUM as u32 {
+            self.selected_grade = 0;
+        }
+    }
+}
+
+impl Default for GamePreferences {
+    fn default() -> Self {
         GamePreferences {
             selected_grade: 0,
             selected_level: 1,
             grade_data: [GradeData::new(); ship::GRADE_NUM],
-        }
-    }
-    pub fn clean(&mut self) {
-        if self.selected_grade > ship::GRADE_NUM as u32 {
-            self.selected_grade = 0;
         }
     }
 }
@@ -105,4 +95,26 @@ impl GradeData {
             end_level: 1,
         }
     }
+}
+
+// TODO switch to another preference library that could serialize to other formats.
+
+const APP_INFO: AppInfo = AppInfo {
+    name: "tt",
+    author: "Torus Trooper",
+};
+
+pub fn load_prefs_file<T: Preferences + Default, S: AsRef<str>>(key: S) -> T {
+    match T::load(&APP_INFO, key) {
+        Ok(prefs) => prefs,
+        Err(err) => {
+            println!("Preferences error: {:?}", err);
+            T::default()
+        }
+    }
+}
+
+pub fn save_prefs_file<T: Preferences, S: AsRef<str>>(prefs: T, key: S) -> Result<(), GameError> {
+    prefs.save(&APP_INFO, key)?;
+    Ok(())
 }

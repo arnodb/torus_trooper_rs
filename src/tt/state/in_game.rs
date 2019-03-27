@@ -24,7 +24,7 @@ impl InGameState {
             btn_pressed: false,
             pause_cnt: 0,
             pause_pressed: false,
-            replay_data: ReplayData::new(),
+            replay_data: ReplayData::default(),
         }
     }
 
@@ -44,7 +44,7 @@ impl InGameState {
         more_params.particles.clear();
         more_params.float_letters.clear();
         params.pad.start_record();
-        self.replay_data = ReplayData::new()
+        self.replay_data = ReplayData::default()
             .grade(grade)
             .level(level as f32)
             .seed(seed);

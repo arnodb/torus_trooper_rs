@@ -1039,7 +1039,6 @@ pub mod ship_spec {
             long_range: bool,
             barrage_manager: &mut BarrageManager,
         ) -> Barrage {
-            // TODO
             let mut rank = f32::sqrt(level) / (8. - rand.gen_usize(3) as f32);
             if rank > 0.8 {
                 rank = rand.gen_f32(0.2) + 0.8;

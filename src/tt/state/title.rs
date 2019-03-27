@@ -26,12 +26,17 @@ impl TitleState {
         })
     }
 
-    pub fn start(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams) {
+    pub fn start(
+        &mut self,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+    ) -> Result<(), GameError> {
         params.sound_manager.halt_bgm();
         params.sound_manager.disable_se();
-        self.manager.start(params, more_params);
+        self.manager.start(params, more_params)?;
         self.clear_all(more_params);
         self.start_replay(params, more_params);
+        Ok(())
     }
 
     fn clear_all(&mut self, more_params: &mut MoreParams) {

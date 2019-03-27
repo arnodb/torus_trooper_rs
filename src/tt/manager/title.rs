@@ -356,7 +356,11 @@ impl TitleManager {
 }
 
 impl Manager for TitleManager {
-    fn start(&mut self, params: &mut GeneralParams, _more_params: &mut MoreParams) {
+    fn start(
+        &mut self,
+        params: &mut GeneralParams,
+        _more_params: &mut MoreParams,
+    ) -> Result<(), GameError> {
         let pref_manager = &params.pref_manager;
         self.cnt = 0;
         self.grade = pref_manager.selected_grade();
@@ -366,6 +370,7 @@ impl Manager for TitleManager {
         self.btn_pressed = true;
         self.replay_cnt = 0;
         self.replay_mode = false;
+        Ok(())
     }
 
     fn draw(
