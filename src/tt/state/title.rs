@@ -57,9 +57,13 @@ impl TitleState {
             more_params.particles.set_seed(replay_data.seed);
             more_params.shots.set_seed(replay_data.seed);
             params.sound_manager.set_rand_seed(replay_data.seed);
-            more_params
-                .ship
-                .start(true, replay_data.grade, replay_data.seed, params.camera);
+            more_params.ship.start(
+                true,
+                replay_data.grade,
+                replay_data.seed,
+                params.camera,
+                more_params.shots,
+            );
             params.stage_manager.start(
                 replay_data.level,
                 replay_data.grade,
@@ -132,9 +136,12 @@ impl State for TitleState {
                 more_params.particles,
                 more_params.float_letters,
             );
-            more_params
-                .bullets
-                .mov(params, more_params.ship, more_params.particles);
+            more_params.bullets.mov(
+                params,
+                more_params.ship,
+                more_params.shots,
+                more_params.particles,
+            );
             more_params
                 .particles
                 .mov(more_params.ship.speed(), params.tunnel);

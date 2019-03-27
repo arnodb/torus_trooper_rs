@@ -54,7 +54,9 @@ impl InGameState {
         more_params.particles.set_seed(seed);
         more_params.shots.set_seed(seed);
         params.sound_manager.set_rand_seed(seed);
-        more_params.ship.start(false, grade, seed, params.camera);
+        more_params
+            .ship
+            .start(false, grade, seed, params.camera, more_params.shots);
         params.stage_manager.start(
             level as f32,
             grade,
@@ -136,9 +138,12 @@ impl State for InGameState {
             more_params.particles,
             more_params.float_letters,
         );
-        more_params
-            .bullets
-            .mov(params, more_params.ship, more_params.particles);
+        more_params.bullets.mov(
+            params,
+            more_params.ship,
+            more_params.shots,
+            more_params.particles,
+        );
         more_params
             .particles
             .mov(more_params.ship.speed(), params.tunnel);

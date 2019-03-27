@@ -147,7 +147,14 @@ impl Ship {
         }
     }
 
-    pub fn start(&mut self, replay_mode: bool, grd: u32, seed: u64, camera: &mut Camera) {
+    pub fn start(
+        &mut self,
+        replay_mode: bool,
+        grd: u32,
+        seed: u64,
+        camera: &mut Camera,
+        shots: &mut ShotPool,
+    ) {
         self.replay_mode = replay_mode;
         self.rand.set_seed(seed);
         self.eye_rand.set_seed(seed);
@@ -169,18 +176,21 @@ impl Ship {
         self.next_star_app_dist = 0.;
         self.lap = 1;
         self.is_game_over = false;
-        self.restart();
+        self.restart(shots);
         if self.replay_mode {
             camera.start();
         }
         self.btn_pressed = true;
     }
 
-    fn restart(&mut self) {
+    fn restart(&mut self, shots: &mut ShotPool) {
         self.target_speed = 0.;
         self.fire_shot_cnt = 0;
         self.side_fire_shot_cnt = 99999;
-        self.charging_shot = None;
+        if let Some(charging_shot) = self.charging_shot {
+            shots.release(charging_shot);
+            self.charging_shot = None;
+        }
         self.regenerative_charge = 0.;
     }
 
@@ -541,6 +551,7 @@ impl Ship {
         p: Vector,
         pp: Vector,
         params: &GeneralParams,
+        shots: &mut ShotPool,
         particles: &mut ParticlePool,
     ) -> bool {
         if self.cnt <= 0 {
@@ -564,7 +575,7 @@ impl Ship {
             if inab >= 0. && inab <= inaa {
                 let hd = sofs.x * sofs.x + sofs.y * sofs.y - inab * inab / inaa;
                 if hd >= 0. && hd <= HIT_WIDTH {
-                    self.destroyed(params, particles);
+                    self.destroyed(params, shots, particles);
                     return true;
                 }
             }
@@ -572,7 +583,12 @@ impl Ship {
         false
     }
 
-    fn destroyed(&mut self, params: &GeneralParams, particles: &mut ParticlePool) {
+    fn destroyed(
+        &mut self,
+        params: &GeneralParams,
+        shots: &mut ShotPool,
+        particles: &mut ParticlePool,
+    ) {
         if self.cnt <= 0 {
             return;
         }
@@ -596,7 +612,7 @@ impl Ship {
         }
         params.sound_manager.play_se("myship_dest.wav");
         self.set_screen_shake(32, 0.05);
-        self.restart();
+        self.restart(shots);
         self.cnt = -RESTART_CNT;
     }
 

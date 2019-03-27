@@ -10,7 +10,7 @@ use crate::util::vector::Vector;
 
 use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::ParticlePool;
-use crate::tt::actor::shot::Shot;
+use crate::tt::actor::shot::{Shot, ShotPool};
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::Ship;
@@ -105,6 +105,7 @@ impl Bullet {
         manager: &mut BulletsManager,
         params: &GeneralParams,
         ship: &mut Ship,
+        shots: &mut ShotPool,
         particles: &mut ParticlePool,
         rand: &mut Rand,
     ) -> (bool, bool) {
@@ -175,7 +176,7 @@ impl Bullet {
                 bullet.pos.x += std::f32::consts::PI * 2.;
             }
             if self.is_visible && self.disap_cnt <= 0 {
-                if ship.check_bullet_hit(bullet.pos, self.ppos, params, particles) {
+                if ship.check_bullet_hit(bullet.pos, self.ppos, params, shots, particles) {
                     release = true;
                     destroy = true;
                 }
@@ -411,6 +412,7 @@ impl BulletPool {
         &mut self,
         params: &mut GeneralParams,
         ship: &mut Ship,
+        shots: &mut ShotPool,
         particles: &mut ParticlePool,
     ) {
         let mut ship_destroyed = false;
@@ -422,7 +424,14 @@ impl BulletPool {
                 let bullet = &mut self.pool[bullet_ref];
                 let invariant_bullet = unsafe { &mut *(bullet as *mut Bullet) };
                 let mut manager = BulletsManager::new(invariant_pool, invariant_bullet);
-                bullet.mov(&mut manager, params, ship, particles, &mut self.bullet_rand)
+                bullet.mov(
+                    &mut manager,
+                    params,
+                    ship,
+                    shots,
+                    particles,
+                    &mut self.bullet_rand,
+                )
             };
             if release {
                 self.pool.release(bullet_ref);
