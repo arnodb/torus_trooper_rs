@@ -26,6 +26,7 @@ pub struct Pool<T> {
     actors: Vec<PoolActor<T>>,
     idx: usize,
     generation: usize,
+    num: usize,
 }
 
 impl<T: Default> Pool<T> {
@@ -41,6 +42,7 @@ impl<T: Default> Pool<T> {
             actors,
             idx: 0,
             generation: 0,
+            num: 0,
         }
     }
 
@@ -64,6 +66,7 @@ impl<T: Default> Pool<T> {
             self.generation = generation;
             let pa = &mut self.actors[idx];
             pa.state = ActorState::Acting { generation };
+            self.num += 1;
             Some((&mut pa.actor, PoolActorRef { idx, generation }))
         } else {
             None
@@ -76,6 +79,9 @@ impl<T: Default> Pool<T> {
         let generation = self.generation + 1;
         self.generation = generation;
         let pa = &mut self.actors[idx];
+        if let ActorState::NotActing = pa.state {
+            self.num += 1;
+        }
         pa.state = ActorState::Acting { generation };
         (&mut pa.actor, PoolActorRef { idx, generation })
     }
@@ -87,6 +93,7 @@ impl<T: Default> Pool<T> {
                 if *generation != index.generation {
                     panic!("Actor doesn't exist any more");
                 }
+                self.num -= 1;
             }
             ActorState::NotActing => {
                 panic!("Actor not found");
@@ -100,20 +107,11 @@ impl<T: Default> Pool<T> {
             pa.state = ActorState::NotActing;
         }
         self.idx = 0;
+        self.num = 0;
     }
 
     pub fn get_num(&self) -> usize {
-        // TODO improve performance
-        self.actors
-            .iter()
-            .map(|pool_actor| {
-                if let ActorState::Acting { .. } = &pool_actor.state {
-                    1
-                } else {
-                    0
-                }
-            })
-            .sum()
+        self.num
     }
 
     fn as_refs(&self) -> Vec<PoolActorRef> {
