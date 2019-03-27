@@ -7,12 +7,22 @@ use rle_vec::RleVec;
 
 use crate::tt::manager::MoveAction;
 use crate::tt::pad::PadState;
-use crate::tt::ActionParams;
+use crate::tt::{GeneralParams, MoreParams};
 
 pub trait State {
-    fn mov(&mut self, params: &mut ActionParams) -> MoveAction;
-    fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs);
-    fn draw_front(&self, params: &ActionParams, render_args: &RenderArgs);
+    fn mov(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams) -> MoveAction;
+    fn draw(
+        &self,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+        render_args: &RenderArgs,
+    );
+    fn draw_front(
+        &self,
+        params: &GeneralParams,
+        more_params: &MoreParams,
+        render_args: &RenderArgs,
+    );
 }
 
 #[derive(Debug, Clone)]

@@ -7,7 +7,7 @@ use crate::tt::manager::title::TitleManager;
 use crate::tt::manager::{Manager, MoveAction};
 use crate::tt::screen::Screen;
 use crate::tt::state::ReplayData;
-use crate::tt::ActionParams;
+use crate::tt::{GeneralParams, MoreParams};
 
 use super::State;
 
@@ -26,38 +26,38 @@ impl TitleState {
         })
     }
 
-    pub fn start(&mut self, params: &mut ActionParams) {
+    pub fn start(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams) {
         params.sound_manager.halt_bgm();
         params.sound_manager.disable_se();
-        self.manager.start(params);
-        self.clear_all(params);
-        self.start_replay(params);
+        self.manager.start(params, more_params);
+        self.clear_all(more_params);
+        self.start_replay(params, more_params);
     }
 
-    fn clear_all(&mut self, params: &mut ActionParams) {
-        params.shots.clear();
-        params.bullets.clear();
-        params.enemies.clear_shallow();
-        params.particles.clear();
-        params.float_letters.clear();
+    fn clear_all(&mut self, more_params: &mut MoreParams) {
+        more_params.shots.clear();
+        more_params.bullets.clear();
+        more_params.enemies.clear_shallow();
+        more_params.particles.clear();
+        more_params.float_letters.clear();
     }
 
     pub fn set_replay_data(&mut self, replay_data: ReplayData) {
         self.replay_data = Some(replay_data);
     }
 
-    fn start_replay(&mut self, params: &mut ActionParams) {
+    fn start_replay(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams) {
         if let Some(replay_data) = &self.replay_data {
             record_replay!(params.next_recorder_id);
             record_event_start!();
             params.pad.start_replay(replay_data.pad_record.clone());
-            params.bullets.set_seed(replay_data.seed);
-            params.enemies.set_seed(replay_data.seed);
-            params.float_letters.set_seed(replay_data.seed);
-            params.particles.set_seed(replay_data.seed);
-            params.shots.set_seed(replay_data.seed);
+            more_params.bullets.set_seed(replay_data.seed);
+            more_params.enemies.set_seed(replay_data.seed);
+            more_params.float_letters.set_seed(replay_data.seed);
+            more_params.particles.set_seed(replay_data.seed);
+            more_params.shots.set_seed(replay_data.seed);
             params.sound_manager.set_rand_seed(replay_data.seed);
-            params
+            more_params
                 .ship
                 .start(true, replay_data.grade, replay_data.seed, params.camera);
             params.stage_manager.start(
@@ -66,17 +66,15 @@ impl TitleState {
                 replay_data.seed,
                 params.screen,
                 params.tunnel,
-                params.ship,
-                params.bullets,
-                params.enemies,
                 params.barrage_manager,
+                more_params,
             );
             params.shared_state.init_game_state(
                 params.stage_manager,
                 params.sound_manager,
-                params.bullets,
+                more_params.bullets,
             );
-            params.ship.set_screen_shake(0, 0.);
+            more_params.ship.set_screen_shake(0, 0.);
             self.game_over_cnt = 0;
             params.tunnel.set_ship_pos(0., 0.);
             params.tunnel.set_slices();
@@ -90,79 +88,77 @@ impl TitleState {
 }
 
 impl State for TitleState {
-    fn mov(&mut self, params: &mut ActionParams) -> MoveAction {
-        if params.ship.is_game_over() {
+    fn mov(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams) -> MoveAction {
+        if more_params.ship.is_game_over() {
             self.game_over_cnt += 1;
             if self.game_over_cnt > 120 {
                 record_compare_replay!();
-                self.clear_all(params);
-                self.start_replay(params);
+                self.clear_all(more_params);
+                self.start_replay(params, more_params);
                 return MoveAction::None;
             }
         }
         let action = if self.replay_data.is_some() {
-            params.ship.mov(
-                params.pad,
-                params.camera,
-                params.tunnel,
-                params.shared_state,
-                params.stage_manager,
-                params.sound_manager,
-                params.shots,
-                params.bullets,
-                params.particles,
+            more_params.ship.mov(
+                params,
+                more_params.shots,
+                more_params.bullets,
+                more_params.particles,
             );
             params.stage_manager.mov(
                 params.screen,
                 params.tunnel,
-                params.ship,
-                params.bullets,
-                params.enemies,
                 params.barrage_manager,
+                more_params,
             );
-            if params
-                .enemies
-                .mov(params.tunnel, params.ship, params.bullets, params.particles)
-            {
+            if more_params.enemies.mov(
+                params.tunnel,
+                more_params.ship,
+                more_params.bullets,
+                more_params.particles,
+            ) {
                 params.shared_state.goto_next_zone(
                     false,
                     params.stage_manager,
                     params.sound_manager,
-                    params.bullets,
+                    more_params.bullets,
                 );
             }
-            params.shots.mov(
-                params.tunnel,
-                params.shared_state,
-                params.stage_manager,
-                params.sound_manager,
-                params.ship,
-                params.bullets,
-                params.enemies,
-                params.particles,
-                params.float_letters,
+            more_params.shots.mov(
+                params,
+                more_params.ship,
+                more_params.bullets,
+                more_params.enemies,
+                more_params.particles,
+                more_params.float_letters,
             );
-            params.bullets.mov(
+            more_params
+                .bullets
+                .mov(params, more_params.ship, more_params.particles);
+            more_params
+                .particles
+                .mov(more_params.ship.speed(), params.tunnel);
+            more_params.float_letters.mov();
+            more_params.enemies.mov_passed(
                 params.tunnel,
-                params.shared_state,
-                params.sound_manager,
-                params.ship,
-                params.particles,
+                more_params.ship,
+                more_params.bullets,
+                more_params.particles,
             );
-            params.particles.mov(params.ship.speed(), params.tunnel);
-            params.float_letters.mov();
-            params
-                .enemies
-                .mov_passed(params.tunnel, params.ship, params.bullets, params.particles);
-            params.shared_state.decrement_time(params.ship);
-            self.manager.mov(true, params)
+            params.shared_state.decrement_time(more_params.ship);
+            self.manager.mov(true, params, more_params)
         } else {
-            self.manager.mov(false, params)
+            self.manager.mov(false, params, more_params)
         };
         action
     }
 
-    fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs) {
+    fn draw(
+        &self,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+        render_args: &RenderArgs,
+    ) {
         if self.replay_data.is_some() {
             let rcr = f32::min(self.manager.replay_change_ratio() * 2.4, 1.);
             unsafe {
@@ -185,25 +181,25 @@ impl State for TitleState {
             unsafe {
                 gl::Disable(gl::GL_CULL_FACE);
             }
-            params.particles.draw(params.screen);
-            params.enemies.draw(params.tunnel, params.bullets);
-            params.enemies.draw_passed(params.tunnel, params.bullets);
-            params.ship.draw();
+            more_params.particles.draw(params.screen);
+            more_params.enemies.draw(params.tunnel, more_params.bullets);
+            more_params
+                .enemies
+                .draw_passed(params.tunnel, more_params.bullets);
+            more_params.ship.draw();
             unsafe {
                 gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
             }
-            params
-                .float_letters
-                .draw(params.screen, params.letter, params.tunnel);
+            more_params.float_letters.draw(params);
             unsafe {
                 gl::BlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE);
                 gl::Disable(gl::GL_BLEND);
             }
-            params.bullets.draw(params.tunnel);
+            more_params.bullets.draw(params.tunnel);
             unsafe {
                 gl::Enable(gl::GL_BLEND);
             }
-            params.shots.draw(params.tunnel);
+            more_params.shots.draw(params.tunnel);
         }
         unsafe {
             let screen = &params.screen;
@@ -236,10 +232,15 @@ impl State for TitleState {
             }
             gl::MatrixMode(gl::GL_MODELVIEW);
         }
-        self.manager.draw(params, render_args)
+        self.manager.draw(params, more_params, render_args)
     }
 
-    fn draw_front(&self, params: &ActionParams, render_args: &RenderArgs) {
+    fn draw_front(
+        &self,
+        params: &GeneralParams,
+        _more_params: &MoreParams,
+        render_args: &RenderArgs,
+    ) {
         self.manager.draw_front(params, render_args);
     }
 }

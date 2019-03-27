@@ -8,14 +8,13 @@ use crate::tt::actor::enemy::EnemyPool;
 use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::{Pool, PoolActorRef};
-use crate::tt::manager::stage::StageManager;
 use crate::tt::screen::Screen;
 use crate::tt::shape::shot_shape::ShotShape;
 use crate::tt::shape::{Drawable, ResizableDrawable};
 use crate::tt::ship::{self, Ship};
 use crate::tt::sound::SoundManager;
-use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::Tunnel;
+use crate::tt::GeneralParams;
 use crate::util::rand::Rand;
 use crate::util::vector::Vector;
 
@@ -110,10 +109,7 @@ impl Shot {
 
     fn mov(
         &mut self,
-        tunnel: &Tunnel,
-        shared_state: &mut SharedState,
-        stage_manager: &StageManager,
-        sound_manager: &SoundManager,
+        params: &mut GeneralParams,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
@@ -128,7 +124,7 @@ impl Shot {
                 self.trg_size = (SIZE_MIN + self.charge_cnt as f32 * SIZE_RATIO) * 0.33;
             }
             if (self.charge_se_cnt % 52) == 0 {
-                sound_manager.play_se("charge.wav");
+                params.sound_manager.play_se("charge.wav");
             }
             self.charge_se_cnt += 1;
         } else {
@@ -145,30 +141,14 @@ impl Shot {
         self.shape.as_mut().unwrap().size(self.size);
         if !self.in_charge {
             if self.charge_shot {
-                let hit_release = bullets.check_shot_hit(
-                    self,
-                    tunnel,
-                    shared_state,
-                    stage_manager,
-                    sound_manager,
-                    ship,
-                    float_letters,
-                );
+                let hit_release =
+                    bullets.check_shot_hit(self, params, ship.is_game_over(), float_letters);
                 if hit_release {
                     release = true;
                 }
             }
-            let hit_release = enemies.check_shot_hit(
-                self,
-                tunnel,
-                shared_state,
-                stage_manager,
-                sound_manager,
-                ship,
-                bullets,
-                particles,
-                float_letters,
-            );
+            let hit_release =
+                enemies.check_shot_hit(self, params, ship, bullets, particles, float_letters);
             if hit_release {
                 release = true;
             }
@@ -188,7 +168,7 @@ impl Shot {
                         1.,
                         0.8,
                         (self.charge_cnt * 32 / MAX_CHARGE + 4) as i32,
-                        tunnel,
+                        params.tunnel,
                         particles_rand,
                     );
                 });
@@ -202,18 +182,11 @@ impl Shot {
         &mut self,
         sc: u32,
         pos: Vector,
-        shared_state: &mut SharedState,
-        stage_manager: &StageManager,
-        sound_manager: &SoundManager,
-        ship: &Ship,
+        params: &mut GeneralParams,
+        game_over: bool,
         float_letters: &mut FloatLetterPool,
     ) -> bool {
-        shared_state.add_score(
-            sc * self.multiplier,
-            ship.is_game_over(),
-            stage_manager.level(),
-            sound_manager,
-        );
+        params.add_score(sc * self.multiplier, game_over);
         if self.multiplier > 1 {
             let size = if sc >= 100 {
                 0.2
@@ -312,10 +285,7 @@ impl ShotPool {
 
     pub fn mov(
         &mut self,
-        tunnel: &Tunnel,
-        shared_state: &mut SharedState,
-        stage_manager: &StageManager,
-        sound_manager: &SoundManager,
+        params: &mut GeneralParams,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
@@ -326,10 +296,7 @@ impl ShotPool {
             let release = {
                 let shot = &mut self.pool[shot_ref];
                 shot.mov(
-                    tunnel,
-                    shared_state,
-                    stage_manager,
-                    sound_manager,
+                    params,
                     ship,
                     bullets,
                     enemies,

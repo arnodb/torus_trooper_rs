@@ -9,15 +9,12 @@ use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::actor::PoolActorRef;
 use crate::tt::camera::Camera;
-use crate::tt::manager::stage::StageManager;
-use crate::tt::pad::{Pad, PadButtons, PadDirection};
+use crate::tt::pad::{PadButtons, PadDirection};
 use crate::tt::screen::Screen;
 use crate::tt::shape::ship_shape::ShipShape;
 use crate::tt::shape::Drawable;
-use crate::tt::sound::SoundManager;
-use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{Tunnel, DEFAULT_RAD};
-use crate::tt::ActionParams;
+use crate::tt::GeneralParams;
 
 pub const GRADE_NUM: usize = 3;
 pub const GRADE_LETTER: [&str; 3] = ["N", "H", "E"];
@@ -189,22 +186,17 @@ impl Ship {
 
     pub fn mov(
         &mut self,
-        pad: &mut Pad,
-        camera: &mut Camera,
-        tunnel: &mut Tunnel,
-        shared_state: &mut SharedState,
-        stage_manager: &StageManager,
-        sound_manager: &SoundManager,
+        params: &mut GeneralParams,
         shots: &mut ShotPool,
         bullets: &mut BulletPool,
         particles: &mut ParticlePool,
     ) {
         self.cnt += 1;
         let (mut btn, mut dir) = if !self.replay_mode {
-            let ps = pad.record();
+            let ps = params.pad.record();
             (ps.buttons, ps.direction)
         } else {
-            let ps = pad.replay();
+            let ps = params.pad.replay();
             if let Some(ps) = ps {
                 (ps.buttons, ps.direction)
             } else {
@@ -254,23 +246,18 @@ impl Ship {
         self.pos.y += self.speed;
         self.tunnel_ofs += self.speed;
         let tmv = self.tunnel_ofs as usize;
-        tunnel.go_to_next_slice(tmv);
-        shared_state.add_score(
-            tmv as u32,
-            self.is_game_over(),
-            stage_manager.level(),
-            sound_manager,
-        );
+        params.tunnel.go_to_next_slice(tmv);
+        params.add_score(tmv as u32, self.is_game_over());
         self.tunnel_ofs = self.pos.y - f32::floor(self.pos.y);
-        if self.pos.y >= tunnel.get_torus_length() as f32 {
-            self.pos.y -= tunnel.get_torus_length() as f32;
+        if self.pos.y >= params.tunnel.get_torus_length() as f32 {
+            self.pos.y -= params.tunnel.get_torus_length() as f32;
             self.lap += 1;
         }
 
-        tunnel.set_ship_pos(self.tunnel_ofs, self.pos.y);
-        tunnel.set_slices();
-        tunnel.set_slices_backward();
-        self.pos3 = tunnel.get_pos_v(self.rel_pos);
+        params.tunnel.set_ship_pos(self.tunnel_ofs, self.pos.y);
+        params.tunnel.set_slices();
+        params.tunnel.set_slices_backward();
+        self.pos3 = params.tunnel.get_pos_v(self.rel_pos);
 
         if dir & PadDirection::RIGHT != PadDirection::NONE {
             self.bank += (-self.bank_max - self.bank) * 0.1;
@@ -314,7 +301,7 @@ impl Ship {
                 * 3.0;
         }
         self.bank *= 0.9;
-        self.pos.x += self.bank * 0.08 * (DEFAULT_RAD / tunnel.get_radius(self.rel_pos.y));
+        self.pos.x += self.bank * 0.08 * (DEFAULT_RAD / params.tunnel.get_radius(self.rel_pos.y));
         if self.pos.x < 0. {
             self.pos.x += std::f32::consts::PI * 2.;
         } else if self.pos.x >= std::f32::consts::PI * 2. {
@@ -333,8 +320,8 @@ impl Ship {
         } else if self.eye_pos.x >= std::f32::consts::PI * 2. {
             self.eye_pos.x -= std::f32::consts::PI * 2.;
         }
-        let sl = tunnel.get_slice(self.rel_pos.y);
-        let co = tunnel.check_in_course(self.rel_pos);
+        let sl = params.tunnel.get_slice(self.rel_pos.y);
+        let co = params.tunnel.check_in_course(self.rel_pos);
         if co != 0. {
             let mut bm = (-OUT_OF_COURSE_BANK * co - self.bank) * 0.075;
             if bm > 1. {
@@ -365,12 +352,12 @@ impl Ship {
         if btn & PadButtons::B != PadButtons::NONE {
             if self.charging_shot.is_none() {
                 let charging_shot = shots.get_charging_instance();
-                shots[charging_shot].set_charge(true, sound_manager);
+                shots[charging_shot].set_charge(true, params.sound_manager);
                 self.charging_shot = Some(charging_shot);
             }
         } else {
             if let Some(charging_shot) = self.charging_shot {
-                let release = shots[charging_shot].release(sound_manager);
+                let release = shots[charging_shot].release(params.sound_manager);
                 if release {
                     shots.release(charging_shot)
                 }
@@ -381,9 +368,9 @@ impl Ship {
                     self.fire_cnt = FIRE_INTERVAL;
                     shots.get_instance_and(|shot| {
                         if (self.fire_shot_cnt % STAR_SHELL_INTERVAL) == 0 {
-                            shot.set_charge_star(false, true, sound_manager);
+                            shot.set_charge_star(false, true, params.sound_manager);
                         } else {
-                            shot.set(sound_manager);
+                            shot.set(params.sound_manager);
                         }
                         self.gunpoint_pos.x = self.rel_pos.x
                             + GUNPOINT_WIDTH * ((self.fire_shot_cnt as f32 % 2.) * 2. - 1.);
@@ -406,9 +393,9 @@ impl Ship {
                             d = -d;
                         }
                         if (self.side_fire_shot_cnt % STAR_SHELL_INTERVAL) == 0 {
-                            shot.set_charge_star_deg(false, true, d, sound_manager);
+                            shot.set_charge_star_deg(false, true, d, params.sound_manager);
                         } else {
-                            shot.set_charge_star_deg(false, false, d, sound_manager);
+                            shot.set_charge_star_deg(false, false, d, params.sound_manager);
                         }
                         self.gunpoint_pos.x = self.rel_pos.x
                             + GUNPOINT_WIDTH * ((self.fire_shot_cnt as f32 % 2.) * 2. - 1.);
@@ -441,7 +428,8 @@ impl Ship {
             shots[charging_shot].update(self.rocket_pos);
         }
         if self.cnt >= -INVINCIBLE_CNT {
-            self.shape.add_particles(self.rocket_pos, tunnel, particles);
+            self.shape
+                .add_particles(self.rocket_pos, params.tunnel, particles);
         }
         self.next_star_app_dist -= self.speed;
         if self.next_star_app_dist <= 0. {
@@ -464,7 +452,7 @@ impl Ship {
                         0.7,
                         0.9,
                         100,
-                        tunnel,
+                        params.tunnel,
                         particles_rand,
                     );
                 });
@@ -478,7 +466,7 @@ impl Ship {
             self.screen_shake_cnt -= 1;
         }
         if self.replay_mode {
-            camera.mov(self);
+            params.camera.mov(self);
         }
     }
 
@@ -552,8 +540,7 @@ impl Ship {
         &mut self,
         p: Vector,
         pp: Vector,
-        sound_manager: &SoundManager,
-        tunnel: &Tunnel,
+        params: &GeneralParams,
         particles: &mut ParticlePool,
     ) -> bool {
         if self.cnt <= 0 {
@@ -577,7 +564,7 @@ impl Ship {
             if inab >= 0. && inab <= inaa {
                 let hd = sofs.x * sofs.x + sofs.y * sofs.y - inab * inab / inaa;
                 if hd >= 0. && hd <= HIT_WIDTH {
-                    self.destroyed(tunnel, sound_manager, particles);
+                    self.destroyed(params, particles);
                     return true;
                 }
             }
@@ -585,12 +572,7 @@ impl Ship {
         false
     }
 
-    fn destroyed(
-        &mut self,
-        tunnel: &Tunnel,
-        sound_manager: &SoundManager,
-        particles: &mut ParticlePool,
-    ) {
+    fn destroyed(&mut self, params: &GeneralParams, particles: &mut ParticlePool) {
         if self.cnt <= 0 {
             return;
         }
@@ -607,12 +589,12 @@ impl Ship {
                     0.2 + rand.gen_f32(0.8),
                     0.2,
                     32,
-                    tunnel,
+                    params.tunnel,
                     rand,
                 );
             });
         }
-        sound_manager.play_se("myship_dest.wav");
+        params.sound_manager.play_se("myship_dest.wav");
         self.set_screen_shake(32, 0.05);
         self.restart();
         self.cnt = -RESTART_CNT;
@@ -692,7 +674,7 @@ impl Ship {
         }
     }
 
-    pub fn draw_front(&self, params: &ActionParams) {
+    pub fn draw_front(&self, params: &GeneralParams) {
         let letter = params.letter;
         letter.draw_num((self.speed * 2500.) as usize, 490., 420., 20.);
         letter.draw_string("KM/H", 540., 445., 12.);

@@ -9,14 +9,19 @@ use crate::tt::screen::Screen;
 use crate::tt::state::in_game::InGameState;
 use crate::tt::state::title::TitleState;
 use crate::tt::state::{ReplayData, State};
-use crate::tt::ActionParams;
+use crate::tt::{GeneralParams, MoreParams};
 
 use crate::gl;
 
 pub trait Manager {
-    fn start(&mut self, params: &mut ActionParams);
-    fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs);
-    fn draw_front(&self, params: &ActionParams, render_args: &RenderArgs);
+    fn start(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams);
+    fn draw(
+        &self,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+        render_args: &RenderArgs,
+    );
+    fn draw_front(&self, params: &GeneralParams, render_args: &RenderArgs);
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -61,7 +66,8 @@ impl GameManager {
 
     pub fn start_title(
         &mut self,
-        params: &mut ActionParams,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
         load_last_state: bool,
         from_game_over: bool,
     ) {
@@ -76,28 +82,34 @@ impl GameManager {
         }
         self.title_state.set_replay_data(replay_data);
         self.state = GameState::Title;
-        self.start_state(0, params);
+        self.start_state(0, params, more_params);
     }
 
-    pub fn start_in_game(&mut self, seed: u64, params: &mut ActionParams) {
+    pub fn start_in_game(
+        &mut self,
+        seed: u64,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+    ) {
         self.state = GameState::InGame;
-        self.start_state(seed, params);
+        self.start_state(seed, params, more_params);
     }
 
-    fn start_state(&mut self, seed: u64, params: &mut ActionParams) {
+    fn start_state(&mut self, seed: u64, params: &mut GeneralParams, more_params: &mut MoreParams) {
         match self.state {
             GameState::Title => {
-                self.title_state.start(params);
+                self.title_state.start(params, more_params);
             }
             GameState::InGame => {
                 let grade = params.pref_manager.selected_grade();
                 let level = params.pref_manager.selected_level();
-                self.in_game_state.start(grade, level, seed, params)
+                self.in_game_state
+                    .start(grade, level, seed, params, more_params)
             }
         }
     }
 
-    pub fn mov(&mut self, params: &mut ActionParams) -> MoveAction {
+    pub fn mov(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams) -> MoveAction {
         let mut action = MoveAction::None;
         if params.pad.esc_pressed() {
             if !self.esc_pressed {
@@ -112,8 +124,8 @@ impl GameManager {
         }
         if let MoveAction::None = action {
             action = match self.state {
-                GameState::Title => self.title_state.mov(params),
-                GameState::InGame => self.in_game_state.mov(params),
+                GameState::Title => self.title_state.mov(params, more_params),
+                GameState::InGame => self.in_game_state.mov(params, more_params),
             };
         }
         action
@@ -121,11 +133,16 @@ impl GameManager {
 }
 
 impl Manager for GameManager {
-    fn start(&mut self, params: &mut ActionParams) {
-        self.start_title(params, true, false);
+    fn start(&mut self, params: &mut GeneralParams, more_params: &mut MoreParams) {
+        self.start_title(params, more_params, true, false);
     }
 
-    fn draw(&self, params: &mut ActionParams, render_args: &RenderArgs) {
+    fn draw(
+        &self,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+        render_args: &RenderArgs,
+    ) {
         /* TODO
         if (screen.startRenderToLuminousScreen()) {
             glPushMatrix();
@@ -139,12 +156,12 @@ impl Manager for GameManager {
         unsafe {
             gl::PushMatrix();
         }
-        params
+        more_params
             .ship
             .set_eye_pos(params.screen, params.camera, params.tunnel);
         match self.state {
-            GameState::Title => self.title_state.draw(params, render_args),
-            GameState::InGame => self.in_game_state.draw(params, render_args),
+            GameState::Title => self.title_state.draw(params, more_params, render_args),
+            GameState::InGame => self.in_game_state.draw(params, more_params, render_args),
         }
         unsafe {
             gl::PopMatrix();
@@ -152,16 +169,22 @@ impl Manager for GameManager {
         Screen::view_ortho_fixed();
         match self.state {
             GameState::Title => {
-                self.title_state.draw_front(params, render_args);
-                if params.ship.is_draw_front_mode() && self.title_state.replay_change_ratio() >= 1.
+                self.title_state
+                    .draw_front(params, more_params, render_args);
+                if more_params.ship.is_draw_front_mode()
+                    && self.title_state.replay_change_ratio() >= 1.
                 {
-                    params.shared_state.draw_front(params, render_args);
+                    params
+                        .shared_state
+                        .draw_front(params, more_params, render_args);
                 }
             }
-            GameState::InGame => self.in_game_state.draw_front(params, render_args),
+            GameState::InGame => self
+                .in_game_state
+                .draw_front(params, more_params, render_args),
         }
         Screen::view_perspective();
     }
 
-    fn draw_front(&self, _params: &ActionParams, _render_args: &RenderArgs) {}
+    fn draw_front(&self, _params: &GeneralParams, _render_args: &RenderArgs) {}
 }

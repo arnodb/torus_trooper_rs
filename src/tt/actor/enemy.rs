@@ -4,14 +4,12 @@ use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
 use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::barrage::BarrageManager;
-use crate::tt::manager::stage::StageManager;
 use crate::tt::screen::Screen;
 use crate::tt::shape::bit_shape::BitShape;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::{self, Ship};
-use crate::tt::sound::SoundManager;
-use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{self, Tunnel};
+use crate::tt::GeneralParams;
 use crate::util::rand::Rand;
 use crate::util::vector::Vector;
 
@@ -338,10 +336,7 @@ impl Enemy {
         &mut self,
         spec: &ShipSpec,
         shot: &mut Shot,
-        tunnel: &Tunnel,
-        shared_state: &mut SharedState,
-        stage_manager: &StageManager,
-        sound_manager: &SoundManager,
+        params: &mut GeneralParams,
         ship: &mut Ship,
         particles: &mut ParticlePool,
         float_letters: &mut FloatLetterPool,
@@ -352,7 +347,7 @@ impl Enemy {
         if ox > std::f32::consts::PI {
             ox = std::f32::consts::PI * 2. - ox;
         }
-        ox *= (tunnel.get_radius(self.pos.y) / tunnel::DEFAULT_RAD) * 3.;
+        ox *= (params.tunnel.get_radius(self.pos.y) / tunnel::DEFAULT_RAD) * 3.;
         let mut release_enemy = false;
         let mut release_shot = false;
         if spec
@@ -361,7 +356,7 @@ impl Enemy {
         {
             self.shield -= shot.damage();
             if self.shield <= 0 {
-                self.destroyed(spec, sound_manager, tunnel, ship, particles, rand);
+                self.destroyed(spec, params, ship, particles, rand);
                 release_enemy = true;
             } else {
                 self.damaged = true;
@@ -378,7 +373,7 @@ impl Enemy {
                             0.4 + rand.gen_f32(0.4),
                             0.3,
                             16,
-                            tunnel,
+                            params.tunnel,
                             particles_rand,
                         );
                     });
@@ -394,20 +389,18 @@ impl Enemy {
                             0.4 + rand.gen_f32(0.4),
                             0.3,
                             16,
-                            tunnel,
+                            params.tunnel,
                             particles_rand,
                         );
                     });
                 }
-                sound_manager.play_se("hit.wav");
+                params.sound_manager.play_se("hit.wav");
             }
             release_shot = shot.add_score(
                 spec.score(),
                 self.pos,
-                shared_state,
-                stage_manager,
-                sound_manager,
-                ship,
+                params,
+                ship.is_game_over(),
                 float_letters,
             );
         }
@@ -417,8 +410,7 @@ impl Enemy {
     fn destroyed(
         &self,
         spec: &ShipSpec,
-        sound_manager: &SoundManager,
-        tunnel: &Tunnel,
+        params: &GeneralParams,
         ship: &mut Ship,
         particles: &mut ParticlePool,
         rand: &mut Rand,
@@ -436,7 +428,7 @@ impl Enemy {
                     0.2 + rand.gen_f32(0.8),
                     0.4,
                     24,
-                    tunnel,
+                    params.tunnel,
                     particles_rand,
                 );
             });
@@ -444,14 +436,15 @@ impl Enemy {
                 break;
             }
         }
-        spec.shape.add_fragments(self.pos, tunnel, particles, rand);
+        spec.shape
+            .add_fragments(self.pos, params.tunnel, particles, rand);
         ship.rank_up(spec.is_boss());
         if self.first_shield == 1 {
-            sound_manager.play_se("small_dest.wav");
+            params.sound_manager.play_se("small_dest.wav");
         } else if self.first_shield < 20 {
-            sound_manager.play_se("middle_dest.wav");
+            params.sound_manager.play_se("middle_dest.wav");
         } else {
-            sound_manager.play_se("boss_dest.wav");
+            params.sound_manager.play_se("boss_dest.wav");
             ship.set_screen_shake(56, 0.064);
         }
     }
@@ -744,10 +737,7 @@ impl EnemyPool {
     pub fn check_shot_hit(
         &mut self,
         shot: &mut Shot,
-        tunnel: &Tunnel,
-        shared_state: &mut SharedState,
-        stage_manager: &StageManager,
-        sound_manager: &SoundManager,
+        params: &mut GeneralParams,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         particles: &mut ParticlePool,
@@ -765,10 +755,7 @@ impl EnemyPool {
                 let (release_enemy, rel_shot) = enemy.check_shot_hit(
                     spec,
                     shot,
-                    tunnel,
-                    shared_state,
-                    stage_manager,
-                    sound_manager,
+                    params,
                     ship,
                     particles,
                     float_letters,

@@ -12,12 +12,10 @@ use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::ParticlePool;
 use crate::tt::actor::shot::Shot;
 use crate::tt::actor::{Pool, PoolActorRef};
-use crate::tt::manager::stage::StageManager;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::Ship;
-use crate::tt::sound::SoundManager;
-use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{self, Tunnel};
+use crate::tt::GeneralParams;
 
 #[derive(Default)]
 pub struct Bullet {
@@ -105,8 +103,7 @@ impl Bullet {
     fn mov(
         &mut self,
         manager: &mut BulletsManager,
-        sound_manager: &SoundManager,
-        tunnel: &Tunnel,
+        params: &GeneralParams,
         ship: &mut Ship,
         particles: &mut ParticlePool,
         rand: &mut Rand,
@@ -178,13 +175,13 @@ impl Bullet {
                 bullet.pos.x += std::f32::consts::PI * 2.;
             }
             if self.is_visible && self.disap_cnt <= 0 {
-                if ship.check_bullet_hit(bullet.pos, self.ppos, sound_manager, tunnel, particles) {
+                if ship.check_bullet_hit(bullet.pos, self.ppos, params, particles) {
                     release = true;
                     destroy = true;
                 }
                 if bullet.pos.y < -2.
                     || (!bullet.long_range && bullet.pos.y > ship.in_sight_depth())
-                    || !tunnel.check_in_screen(bullet.pos, ship)
+                    || !params.tunnel.check_in_screen(bullet.pos, ship)
                 {
                     start_disappear = true;
                 }
@@ -210,11 +207,8 @@ impl Bullet {
     fn check_shot_hit(
         &mut self,
         shot: &mut Shot,
-        tunnel: &Tunnel,
-        shared_state: &mut SharedState,
-        stage_manager: &StageManager,
-        sound_manager: &SoundManager,
-        ship: &Ship,
+        params: &mut GeneralParams,
+        game_over: bool,
         float_letters: &mut FloatLetterPool,
     ) -> bool {
         if !self.is_visible || self.disap_cnt > 0 {
@@ -226,19 +220,11 @@ impl Bullet {
         if ox > std::f32::consts::PI {
             ox = std::f32::consts::PI * 2. - ox;
         }
-        ox *= (tunnel.get_radius(bullet_pos.y) / tunnel::DEFAULT_RAD) * 3.;
+        ox *= (params.tunnel.get_radius(bullet_pos.y) / tunnel::DEFAULT_RAD) * 3.;
         let mut release_shot = false;
         if shot.shape.as_ref().unwrap().check_collision(ox, oy) {
             self.start_disappear();
-            release_shot = shot.add_score(
-                10,
-                bullet_pos,
-                shared_state,
-                stage_manager,
-                sound_manager,
-                ship,
-                float_letters,
-            );
+            release_shot = shot.add_score(10, bullet_pos, params, game_over, float_letters);
         }
         release_shot
     }
@@ -423,9 +409,7 @@ impl BulletPool {
 
     pub fn mov(
         &mut self,
-        tunnel: &Tunnel,
-        shared_state: &mut SharedState,
-        sound_manager: &SoundManager,
+        params: &mut GeneralParams,
         ship: &mut Ship,
         particles: &mut ParticlePool,
     ) {
@@ -438,14 +422,7 @@ impl BulletPool {
                 let bullet = &mut self.pool[bullet_ref];
                 let invariant_bullet = unsafe { &mut *(bullet as *mut Bullet) };
                 let mut manager = BulletsManager::new(invariant_pool, invariant_bullet);
-                bullet.mov(
-                    &mut manager,
-                    sound_manager,
-                    tunnel,
-                    ship,
-                    particles,
-                    &mut self.bullet_rand,
-                )
+                bullet.mov(&mut manager, params, ship, particles, &mut self.bullet_rand)
             };
             if release {
                 self.pool.release(bullet_ref);
@@ -456,7 +433,7 @@ impl BulletPool {
         }
         if ship_destroyed {
             self.clear_visible();
-            shared_state.ship_destroyed();
+            params.shared_state.ship_destroyed();
         }
         self.cnt += 1;
     }
@@ -493,24 +470,13 @@ impl BulletPool {
     pub fn check_shot_hit(
         &mut self,
         shot: &mut Shot,
-        tunnel: &Tunnel,
-        shared_state: &mut SharedState,
-        stage_manager: &StageManager,
-        sound_manager: &SoundManager,
-        ship: &Ship,
+        params: &mut GeneralParams,
+        game_over: bool,
         float_letters: &mut FloatLetterPool,
     ) -> bool {
         let mut release_shot = false;
         for bullet in &mut self.pool {
-            let rel_shot = bullet.check_shot_hit(
-                shot,
-                tunnel,
-                shared_state,
-                stage_manager,
-                sound_manager,
-                ship,
-                float_letters,
-            );
+            let rel_shot = bullet.check_shot_hit(shot, params, game_over, float_letters);
             if rel_shot {
                 release_shot = true;
             }

@@ -6,6 +6,7 @@ use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::letter::{self, Letter};
 use crate::tt::screen::Screen;
 use crate::tt::tunnel::Tunnel;
+use crate::tt::GeneralParams;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
 
@@ -116,9 +117,9 @@ impl FloatLetterPool {
         }
     }
 
-    pub fn draw(&self, screen: &Screen, letter: &Letter, tunnel: &Tunnel) {
+    pub fn draw(&self, params: &GeneralParams) {
         for fl in &self.pool {
-            fl.draw(screen, letter, tunnel);
+            fl.draw(params.screen, params.letter, params.tunnel);
         }
     }
 }

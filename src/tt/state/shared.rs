@@ -5,7 +5,7 @@ use crate::tt::letter::Direction;
 use crate::tt::manager::stage::StageManager;
 use crate::tt::ship::Ship;
 use crate::tt::sound::SoundManager;
-use crate::tt::ActionParams;
+use crate::tt::{GeneralParams, MoreParams};
 
 const DEFAULT_EXTEND_SCORE: u32 = 100000;
 const MAX_EXTEND_SCORE: u32 = 500000;
@@ -151,8 +151,13 @@ impl<'a> SharedState<'a> {
         }
     }
 
-    pub fn draw_front(&self, params: &ActionParams, _render_args: &RenderArgs) {
-        params.ship.draw_front(params);
+    pub fn draw_front(
+        &self,
+        params: &GeneralParams,
+        more_params: &MoreParams,
+        _render_args: &RenderArgs,
+    ) {
+        more_params.ship.draw_front(params);
         let letter = params.letter;
         letter.draw_num(self.score as usize, 610., 0., 15.);
         letter.draw_string("/", 510., 40., 7.);
@@ -167,7 +172,7 @@ impl<'a> SharedState<'a> {
         }
         letter.draw_string_ex1("LEVEL", 20., 410., 8., Direction::ToRight, 1);
         letter.draw_num(params.stage_manager.level() as usize, 135., 410., 8.);
-        if params.ship.is_game_over() {
+        if more_params.ship.is_game_over() {
             letter.draw_string("GAME OVER", 140., 180., 20.);
         }
     }

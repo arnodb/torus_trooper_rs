@@ -1,12 +1,12 @@
 use crate::util::rand::Rand;
 
-use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::ship_spec::ShipSpec;
-use crate::tt::actor::enemy::{Enemy, EnemyPool, EnemySetOption};
+use crate::tt::actor::enemy::{Enemy, EnemySetOption};
 use crate::tt::barrage::BarrageManager;
 use crate::tt::screen::Screen;
-use crate::tt::ship::{self, Ship};
+use crate::tt::ship;
 use crate::tt::tunnel::{SliceColor, SliceDrawState, Torus, Tunnel};
+use crate::tt::MoreParams;
 
 const BOSS_APP_RANK: [u32; ship::GRADE_NUM] = [100, 160, 250];
 
@@ -142,10 +142,8 @@ impl StageManager {
         seed: u64,
         screen: &Screen,
         tunnel: &mut Tunnel,
-        ship: &mut Ship,
-        bullets: &mut BulletPool,
-        enemies: &mut EnemyPool,
         barrage_manager: &mut BarrageManager,
+        more_params: &mut MoreParams,
     ) {
         self.rand.set_seed(seed);
         tunnel.start(Torus::new(seed));
@@ -163,16 +161,14 @@ impl StageManager {
             line: TUNNEL_COLOR_PATTERN_LINE
                 [self.tunnel_color_line_idx % TUNNEL_COLOR_PATTERN_LINE.len()],
         };
-        self.create_next_zone(screen, ship, bullets, enemies, barrage_manager);
+        self.create_next_zone(screen, barrage_manager, more_params);
     }
 
     fn create_next_zone(
         &mut self,
         screen: &Screen,
-        ship: &mut Ship,
-        bullets: &mut BulletPool,
-        enemies: &mut EnemyPool,
         barrage_manager: &mut BarrageManager,
+        more_params: &mut MoreParams,
     ) {
         self.level += LEVEL_UP_RATIO;
         self.medium_boss_zone = !self.medium_boss_zone;
@@ -182,7 +178,7 @@ impl StageManager {
         }
         self.dark_line = !self.dark_line;
         self.tunnel_color_change_cnt = TUNNEL_COLOR_CHANGE_INTERVAL;
-        enemies.clear(bullets);
+        more_params.enemies.clear(more_params.bullets);
         self.next_small_app_dist = 0.;
         self.next_medium_app_dist = 0.;
         self.set_next_small_app_dist();
@@ -195,7 +191,7 @@ impl StageManager {
         } else {
             self.boss_num = 1;
         }
-        enemies.renew_ship_specs(
+        more_params.enemies.renew_ship_specs(
             self.level,
             self.grade,
             self.medium_boss_zone,
@@ -205,7 +201,9 @@ impl StageManager {
         );
         let boss_app_rank = BOSS_APP_RANK[self.grade as usize] - self.boss_num + self.zone_end_rank;
         self.zone_end_rank += BOSS_APP_RANK[self.grade as usize];
-        ship.set_boss_app(boss_app_rank, self.boss_num, self.zone_end_rank);
+        more_params
+            .ship
+            .set_boss_app(boss_app_rank, self.boss_num, self.zone_end_rank);
         self.next_boss_app_dist = 9999999.;
         self.boss_mode_end_cnt = -1;
     }
@@ -214,27 +212,25 @@ impl StageManager {
         &mut self,
         screen: &Screen,
         tunnel: &Tunnel,
-        ship: &mut Ship,
-        bullets: &mut BulletPool,
-        enemies: &mut EnemyPool,
         barrage_manager: &mut BarrageManager,
+        more_params: &mut MoreParams,
     ) {
-        if ship.in_boss_mode() {
+        if more_params.ship.in_boss_mode() {
             if self.next_boss_app_dist > 99999. {
                 self.next_boss_app_dist = (self.rand.gen_usize(50) + 100) as f32;
                 self.next_small_app_dist = 9999999.;
                 self.next_medium_app_dist = 9999999.;
             }
-            self.next_boss_app_dist -= ship.speed();
+            self.next_boss_app_dist -= more_params.ship.speed();
             if self.boss_num > 0 && self.next_boss_app_dist <= 0. {
-                enemies.get_boss_instance_and(|enemy, spec| {
+                more_params.enemies.get_boss_instance_and(|enemy, spec| {
                     self.add_enemy(ship::IN_SIGHT_DEPTH_DEFAULT * 4., enemy, spec, tunnel);
                 });
                 self.boss_num -= 1;
                 self.next_boss_app_dist = (self.rand.gen_usize(30) + 60) as f32;
             }
-            if self.boss_num <= 0 && enemies.get_num() <= 0 {
-                ship.goto_next_zone_forced();
+            if self.boss_num <= 0 && more_params.enemies.get_num() <= 0 {
+                more_params.ship.goto_next_zone_forced();
             }
             return;
         } else {
@@ -247,25 +243,25 @@ impl StageManager {
             }
             if self.boss_mode_end_cnt >= 0 {
                 self.boss_mode_end_cnt -= 1;
-                bullets.clear_visible();
+                more_params.bullets.clear_visible();
                 if self.boss_mode_end_cnt < 0 {
-                    self.create_next_zone(screen, ship, bullets, enemies, barrage_manager);
-                    ship.start_next_zone();
+                    self.create_next_zone(screen, barrage_manager, more_params);
+                    more_params.ship.start_next_zone();
                 }
             }
         }
-        self.next_small_app_dist -= ship.speed();
+        self.next_small_app_dist -= more_params.ship.speed();
         if self.next_small_app_dist <= 0. {
             let y = ship::IN_SIGHT_DEPTH_DEFAULT * (4. + self.rand.gen_f32(0.5));
-            enemies.get_small_instance_and(|enemy, spec| {
+            more_params.enemies.get_small_instance_and(|enemy, spec| {
                 self.add_enemy(y, enemy, spec, tunnel);
             });
             self.set_next_small_app_dist();
         }
-        self.next_medium_app_dist -= ship.speed();
+        self.next_medium_app_dist -= more_params.ship.speed();
         if self.next_medium_app_dist <= 0. {
             let y = ship::IN_SIGHT_DEPTH_DEFAULT * (4. + self.rand.gen_f32(0.5));
-            enemies.get_medium_instance_and(|enemy, spec| {
+            more_params.enemies.get_medium_instance_and(|enemy, spec| {
                 self.add_enemy(y, enemy, spec, tunnel);
             });
             self.set_next_medium_app_dist();

@@ -12,7 +12,7 @@ use crate::tt::manager::MoveAction;
 use crate::tt::pad::{PadButtons, PadDirection};
 use crate::tt::screen::Screen;
 use crate::tt::ship;
-use crate::tt::ActionParams;
+use crate::tt::{GeneralParams, MoreParams};
 
 use super::Manager;
 
@@ -51,7 +51,12 @@ impl TitleManager {
         })
     }
 
-    pub fn mov(&mut self, has_replay_data: bool, params: &mut ActionParams) -> MoveAction {
+    pub fn mov(
+        &mut self,
+        has_replay_data: bool,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+    ) -> MoveAction {
         let pref_manager = &mut params.pref_manager;
         let dir = params.pad.get_direction();
         if !self.replay_mode {
@@ -113,10 +118,10 @@ impl TitleManager {
                 if !self.dir_pressed {
                     self.dir_pressed = true;
                     if dir & PadDirection::RIGHT != PadDirection::NONE {
-                        params.ship.camera_mode(false);
+                        more_params.ship.camera_mode(false);
                     }
                     if dir & PadDirection::LEFT != PadDirection::NONE {
-                        params.ship.camera_mode(true);
+                        more_params.ship.camera_mode(true);
                     }
                 }
             }
@@ -124,10 +129,10 @@ impl TitleManager {
                 if !self.dir_pressed {
                     self.dir_pressed = true;
                     if dir & PadDirection::UP != PadDirection::NONE {
-                        params.ship.draw_front_mode(true);
+                        more_params.ship.draw_front_mode(true);
                     }
                     if dir & PadDirection::DOWN != PadDirection::NONE {
-                        params.ship.draw_front_mode(false);
+                        more_params.ship.draw_front_mode(false);
                     }
                 }
             }
@@ -351,7 +356,7 @@ impl TitleManager {
 }
 
 impl Manager for TitleManager {
-    fn start(&mut self, params: &mut ActionParams) {
+    fn start(&mut self, params: &mut GeneralParams, _more_params: &mut MoreParams) {
         let pref_manager = &params.pref_manager;
         self.cnt = 0;
         self.grade = pref_manager.selected_grade();
@@ -363,7 +368,12 @@ impl Manager for TitleManager {
         self.replay_mode = false;
     }
 
-    fn draw(&self, params: &mut ActionParams, _render_args: &RenderArgs) {
+    fn draw(
+        &self,
+        params: &mut GeneralParams,
+        _more_params: &mut MoreParams,
+        _render_args: &RenderArgs,
+    ) {
         if self.replay_change_ratio >= 1.0 {
             return;
         }
@@ -418,7 +428,7 @@ impl Manager for TitleManager {
         }
     }
 
-    fn draw_front(&self, params: &ActionParams, _render_args: &RenderArgs) {
+    fn draw_front(&self, params: &GeneralParams, _render_args: &RenderArgs) {
         if self.replay_change_ratio > 0. {
             return;
         }

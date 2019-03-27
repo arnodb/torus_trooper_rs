@@ -42,7 +42,7 @@ use crate::tt::ship::Ship;
 use crate::tt::sound::SoundManager;
 use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{Torus, Tunnel};
-use crate::tt::ActionParams;
+use crate::tt::{GeneralParams, MoreParams};
 use crate::util::rand::Rand;
 
 struct MainLoop {
@@ -88,7 +88,7 @@ impl MainLoop {
 
         let mut events = Events::new(EventSettings::new().swap_buffers(true));
 
-        let mut params = ActionParams {
+        let mut params = GeneralParams {
             pref_manager: &mut pref_manager,
             screen: &mut screen,
             letter: &letter,
@@ -97,19 +97,21 @@ impl MainLoop {
             stage_manager: &mut stage_manager,
             sound_manager: &mut sound_manager,
             camera: &mut camera,
-            ship: &mut ship,
             tunnel: &mut tunnel,
             barrage_manager: &mut barrage_manager,
+            #[cfg(feature = "game_recorder")]
+            next_recorder_id: record_next_id!(),
+        };
+        let mut more_params = MoreParams {
+            ship: &mut ship,
             shots: &mut shots,
             bullets: &mut bullets,
             enemies: &mut enemies,
             particles: &mut particles,
             float_letters: &mut float_letters,
-            #[cfg(feature = "game_recorder")]
-            next_recorder_id: record_next_id!(),
         };
 
-        manager.start(&mut params);
+        manager.start(&mut params, &mut more_params);
 
         let start_time = Instant::now();
         let mut prev_millis = 0;
@@ -137,16 +139,16 @@ impl MainLoop {
             }
 
             for _i in 0..frame {
-                let action = manager.mov(&mut params);
+                let action = manager.mov(&mut params, &mut more_params);
                 match action {
                     MoveAction::StartTitle(from_game_over) => {
                         record_event_end!(from_game_over);
                         record_stop!();
-                        manager.start_title(&mut params, false, from_game_over);
+                        manager.start_title(&mut params, &mut more_params, false, from_game_over);
                     }
                     MoveAction::StartInGame => {
                         let new_seed = Rand::rand_seed();
-                        manager.start_in_game(new_seed, &mut params);
+                        manager.start_in_game(new_seed, &mut params, &mut more_params);
                     }
                     MoveAction::BreakLoop => self.done = true,
                     MoveAction::None => (),
@@ -158,7 +160,7 @@ impl MainLoop {
             }
 
             if let Some(r) = e.render_args() {
-                manager.draw(&mut params, &r);
+                manager.draw(&mut params, &mut more_params, &r);
             }
 
             if let Some(b) = e.button_args() {
