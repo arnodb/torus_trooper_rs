@@ -15,6 +15,7 @@ use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::manager::stage::StageManager;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::Ship;
+use crate::tt::sound::SoundManager;
 use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{self, Tunnel};
 
@@ -104,6 +105,7 @@ impl Bullet {
     fn mov(
         &mut self,
         manager: &mut BulletsManager,
+        sound_manager: &SoundManager,
         tunnel: &Tunnel,
         ship: &mut Ship,
         particles: &mut ParticlePool,
@@ -176,7 +178,7 @@ impl Bullet {
                 bullet.pos.x += std::f32::consts::PI * 2.;
             }
             if self.is_visible && self.disap_cnt <= 0 {
-                if ship.check_bullet_hit(bullet.pos, self.ppos, tunnel, particles) {
+                if ship.check_bullet_hit(bullet.pos, self.ppos, sound_manager, tunnel, particles) {
                     release = true;
                     destroy = true;
                 }
@@ -211,6 +213,7 @@ impl Bullet {
         tunnel: &Tunnel,
         shared_state: &mut SharedState,
         stage_manager: &StageManager,
+        sound_manager: &SoundManager,
         ship: &Ship,
         float_letters: &mut FloatLetterPool,
     ) -> bool {
@@ -232,6 +235,7 @@ impl Bullet {
                 bullet_pos,
                 shared_state,
                 stage_manager,
+                sound_manager,
                 ship,
                 float_letters,
             );
@@ -421,6 +425,7 @@ impl BulletPool {
         &mut self,
         tunnel: &Tunnel,
         shared_state: &mut SharedState,
+        sound_manager: &SoundManager,
         ship: &mut Ship,
         particles: &mut ParticlePool,
     ) {
@@ -433,7 +438,14 @@ impl BulletPool {
                 let bullet = &mut self.pool[bullet_ref];
                 let invariant_bullet = unsafe { &mut *(bullet as *mut Bullet) };
                 let mut manager = BulletsManager::new(invariant_pool, invariant_bullet);
-                bullet.mov(&mut manager, tunnel, ship, particles, &mut self.bullet_rand)
+                bullet.mov(
+                    &mut manager,
+                    sound_manager,
+                    tunnel,
+                    ship,
+                    particles,
+                    &mut self.bullet_rand,
+                )
             };
             if release {
                 self.pool.release(bullet_ref);
@@ -484,6 +496,7 @@ impl BulletPool {
         tunnel: &Tunnel,
         shared_state: &mut SharedState,
         stage_manager: &StageManager,
+        sound_manager: &SoundManager,
         ship: &Ship,
         float_letters: &mut FloatLetterPool,
     ) -> bool {
@@ -494,6 +507,7 @@ impl BulletPool {
                 tunnel,
                 shared_state,
                 stage_manager,
+                sound_manager,
                 ship,
                 float_letters,
             );

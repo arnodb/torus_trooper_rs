@@ -27,8 +27,8 @@ impl TitleState {
     }
 
     pub fn start(&mut self, params: &mut ActionParams) {
-        // TODO SoundManager.haltBgm();
-        // TODO SoundManager.disableSe();
+        params.sound_manager.halt_bgm();
+        params.sound_manager.disable_se();
         self.manager.start(params);
         self.clear_all(params);
         self.start_replay(params);
@@ -56,7 +56,7 @@ impl TitleState {
             params.float_letters.set_seed(replay_data.seed);
             params.particles.set_seed(replay_data.seed);
             params.shots.set_seed(replay_data.seed);
-            // TODO SoundManager.setRandSeed(_seed);
+            params.sound_manager.set_rand_seed(replay_data.seed);
             params
                 .ship
                 .start(true, replay_data.grade, replay_data.seed, params.camera);
@@ -71,9 +71,11 @@ impl TitleState {
                 params.enemies,
                 params.barrage_manager,
             );
-            params
-                .shared_state
-                .init_game_state(params.stage_manager, params.bullets);
+            params.shared_state.init_game_state(
+                params.stage_manager,
+                params.sound_manager,
+                params.bullets,
+            );
             params.ship.set_screen_shake(0, 0.);
             self.game_over_cnt = 0;
             params.tunnel.set_ship_pos(0., 0.);
@@ -105,6 +107,7 @@ impl State for TitleState {
                 params.tunnel,
                 params.shared_state,
                 params.stage_manager,
+                params.sound_manager,
                 params.shots,
                 params.bullets,
                 params.particles,
@@ -121,14 +124,18 @@ impl State for TitleState {
                 .enemies
                 .mov(params.tunnel, params.ship, params.bullets, params.particles)
             {
-                params
-                    .shared_state
-                    .goto_next_zone(false, params.stage_manager, params.bullets);
+                params.shared_state.goto_next_zone(
+                    false,
+                    params.stage_manager,
+                    params.sound_manager,
+                    params.bullets,
+                );
             }
             params.shots.mov(
                 params.tunnel,
                 params.shared_state,
                 params.stage_manager,
+                params.sound_manager,
                 params.ship,
                 params.bullets,
                 params.enemies,
@@ -138,6 +145,7 @@ impl State for TitleState {
             params.bullets.mov(
                 params.tunnel,
                 params.shared_state,
+                params.sound_manager,
                 params.ship,
                 params.particles,
             );

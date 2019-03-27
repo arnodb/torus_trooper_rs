@@ -46,7 +46,7 @@ impl InGameState {
         params.float_letters.set_seed(seed);
         params.particles.set_seed(seed);
         params.shots.set_seed(seed);
-        // TODO SoundManager.setRandSeed(_seed);
+        params.sound_manager.set_rand_seed(seed);
         params.ship.start(false, grade, seed, params.camera);
         params.stage_manager.start(
             level as f32,
@@ -59,19 +59,19 @@ impl InGameState {
             params.enemies,
             params.barrage_manager,
         );
-        params
-            .shared_state
-            .init_game_state(params.stage_manager, params.bullets);
-        /* TODO sound
-        SoundManager.playBgm();
-        startBgmCnt = -1;
-        */
+        params.shared_state.init_game_state(
+            params.stage_manager,
+            params.sound_manager,
+            params.bullets,
+        );
+        params.sound_manager.play_bgm();
+        params.shared_state.start_bgm_clear();
         params.ship.set_screen_shake(0, 0.);
         self.game_over_cnt = 0;
         self.pause_cnt = 0;
         params.tunnel.set_ship_pos(0., 0.);
         params.tunnel.set_slices();
-        // TODO sound SoundManager.enableSe();
+        params.sound_manager.enable_se();
     }
 
     pub fn replay_data(&mut self, params: &mut ActionParams) -> ReplayData {
@@ -98,19 +98,14 @@ impl State for InGameState {
             self.pause_cnt += 1;
             return MoveAction::None;
         }
-        /* TODO sound
-        if (startBgmCnt > 0) {
-            startBgmCnt--;
-            if (startBgmCnt <= 0)
-            SoundManager.nextBgm();
-        }
-        */
+        params.shared_state.start_bgm_tick(params.sound_manager);
         params.ship.mov(
             *pad,
             params.camera,
             params.tunnel,
             params.shared_state,
             params.stage_manager,
+            params.sound_manager,
             params.shots,
             params.bullets,
             params.particles,
@@ -127,14 +122,18 @@ impl State for InGameState {
             .enemies
             .mov(params.tunnel, params.ship, params.bullets, params.particles)
         {
-            params
-                .shared_state
-                .goto_next_zone(false, params.stage_manager, params.bullets);
+            params.shared_state.goto_next_zone(
+                false,
+                params.stage_manager,
+                params.sound_manager,
+                params.bullets,
+            );
         }
         params.shots.mov(
             params.tunnel,
             params.shared_state,
             params.stage_manager,
+            params.sound_manager,
             params.ship,
             params.bullets,
             params.enemies,
@@ -144,6 +143,7 @@ impl State for InGameState {
         params.bullets.mov(
             params.tunnel,
             params.shared_state,
+            params.sound_manager,
             params.ship,
             params.particles,
         );
@@ -155,10 +155,8 @@ impl State for InGameState {
             if !params.ship.is_game_over() {
                 params.ship.game_over();
                 self.btn_pressed = true;
-                /* TODO sound
-                SoundManager.fadeBgm();
-                SoundManager.disableSe();
-                */
+                params.sound_manager.fade_bgm();
+                params.sound_manager.disable_se();
                 params.pref_manager.record_result(
                     params.stage_manager.level() as u32,
                     params.shared_state.score(),
@@ -177,10 +175,9 @@ impl State for InGameState {
             if self.game_over_cnt > 1200 {
                 action = MoveAction::StartTitle(false);
             }
-        } /* TODO sound else if time <= nextBeepTime) {
-              SoundManager.playSe("timeup_beep.wav");
-              nextBeepTime -= 1000;
-          }*/
+        } else if params.shared_state.check_beep_time() {
+            params.sound_manager.play_se("timeup_beep.wav");
+        }
         action
     }
 

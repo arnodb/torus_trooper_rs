@@ -13,6 +13,7 @@ use crate::tt::screen::Screen;
 use crate::tt::shape::shot_shape::ShotShape;
 use crate::tt::shape::{Drawable, ResizableDrawable};
 use crate::tt::ship::{self, Ship};
+use crate::tt::sound::SoundManager;
 use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::Tunnel;
 use crate::util::rand::Rand;
@@ -51,19 +52,25 @@ pub struct Shot {
 }
 
 impl Shot {
-    pub fn set(&mut self) {
-        self.set_charge(false)
+    pub fn set(&mut self, sound_manager: &SoundManager) {
+        self.set_charge(false, sound_manager)
     }
 
-    pub fn set_charge(&mut self, charge: bool) {
-        self.set_charge_star(charge, false)
+    pub fn set_charge(&mut self, charge: bool, sound_manager: &SoundManager) {
+        self.set_charge_star(charge, false, sound_manager)
     }
 
-    pub fn set_charge_star(&mut self, charge: bool, star: bool) {
-        self.set_charge_star_deg(charge, star, 0.)
+    pub fn set_charge_star(&mut self, charge: bool, star: bool, sound_manager: &SoundManager) {
+        self.set_charge_star_deg(charge, star, 0., sound_manager)
     }
 
-    pub fn set_charge_star_deg(&mut self, charge: bool, star: bool, d: f32) {
+    pub fn set_charge_star_deg(
+        &mut self,
+        charge: bool,
+        star: bool,
+        d: f32,
+        sound_manager: &SoundManager,
+    ) {
         self.cnt = 0;
         self.multiplier = 1;
         self.in_charge = charge;
@@ -82,7 +89,7 @@ impl Shot {
             self.trg_size = 1.;
             self.damage = 1;
             self.star_shell = star;
-            // TODO SoundManager.playSe("shot.wav");
+            sound_manager.play_se("shot.wav");
         }
     }
 
@@ -90,14 +97,14 @@ impl Shot {
         self.pos = Vector::new_at(p.x, p.y + 0.3);
     }
 
-    pub fn release(&mut self) -> bool {
+    pub fn release(&mut self, sound_manager: &SoundManager) -> bool {
         if (self.charge_cnt as f32) < MAX_CHARGE as f32 * CHARGE_RELEASE_RATIO {
             return true;
         }
         self.in_charge = false;
         self.range = RANGE_MIN + self.charge_cnt as f32 * RANGE_RATIO;
         self.trg_size = SIZE_MIN + self.charge_cnt as f32 * SIZE_RATIO;
-        // TODO SoundManager.playSe("charge_shot.wav");
+        sound_manager.play_se("charge_shot.wav");
         return false;
     }
 
@@ -106,6 +113,7 @@ impl Shot {
         tunnel: &Tunnel,
         shared_state: &mut SharedState,
         stage_manager: &StageManager,
+        sound_manager: &SoundManager,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
@@ -120,7 +128,7 @@ impl Shot {
                 self.trg_size = (SIZE_MIN + self.charge_cnt as f32 * SIZE_RATIO) * 0.33;
             }
             if (self.charge_se_cnt % 52) == 0 {
-                // TODO SoundManager.playSe("charge.wav");
+                sound_manager.play_se("charge.wav");
             }
             self.charge_se_cnt += 1;
         } else {
@@ -142,6 +150,7 @@ impl Shot {
                     tunnel,
                     shared_state,
                     stage_manager,
+                    sound_manager,
                     ship,
                     float_letters,
                 );
@@ -154,6 +163,7 @@ impl Shot {
                 tunnel,
                 shared_state,
                 stage_manager,
+                sound_manager,
                 ship,
                 bullets,
                 particles,
@@ -194,6 +204,7 @@ impl Shot {
         pos: Vector,
         shared_state: &mut SharedState,
         stage_manager: &StageManager,
+        sound_manager: &SoundManager,
         ship: &Ship,
         float_letters: &mut FloatLetterPool,
     ) -> bool {
@@ -201,6 +212,7 @@ impl Shot {
             sc * self.multiplier,
             ship.is_game_over(),
             stage_manager.level(),
+            sound_manager,
         );
         if self.multiplier > 1 {
             let size = if sc >= 100 {
@@ -303,6 +315,7 @@ impl ShotPool {
         tunnel: &Tunnel,
         shared_state: &mut SharedState,
         stage_manager: &StageManager,
+        sound_manager: &SoundManager,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         enemies: &mut EnemyPool,
@@ -316,6 +329,7 @@ impl ShotPool {
                     tunnel,
                     shared_state,
                     stage_manager,
+                    sound_manager,
                     ship,
                     bullets,
                     enemies,

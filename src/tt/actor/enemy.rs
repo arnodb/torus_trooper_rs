@@ -9,6 +9,7 @@ use crate::tt::screen::Screen;
 use crate::tt::shape::bit_shape::BitShape;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::{self, Ship};
+use crate::tt::sound::SoundManager;
 use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{self, Tunnel};
 use crate::util::rand::Rand;
@@ -340,6 +341,7 @@ impl Enemy {
         tunnel: &Tunnel,
         shared_state: &mut SharedState,
         stage_manager: &StageManager,
+        sound_manager: &SoundManager,
         ship: &mut Ship,
         particles: &mut ParticlePool,
         float_letters: &mut FloatLetterPool,
@@ -359,7 +361,7 @@ impl Enemy {
         {
             self.shield -= shot.damage();
             if self.shield <= 0 {
-                self.destroyed(spec, tunnel, ship, particles, rand);
+                self.destroyed(spec, sound_manager, tunnel, ship, particles, rand);
                 release_enemy = true;
             } else {
                 self.damaged = true;
@@ -397,13 +399,14 @@ impl Enemy {
                         );
                     });
                 }
-                // TODO SoundManager.playSe("hit.wav");
+                sound_manager.play_se("hit.wav");
             }
             release_shot = shot.add_score(
                 spec.score(),
                 self.pos,
                 shared_state,
                 stage_manager,
+                sound_manager,
                 ship,
                 float_letters,
             );
@@ -414,6 +417,7 @@ impl Enemy {
     fn destroyed(
         &self,
         spec: &ShipSpec,
+        sound_manager: &SoundManager,
         tunnel: &Tunnel,
         ship: &mut Ship,
         particles: &mut ParticlePool,
@@ -443,11 +447,11 @@ impl Enemy {
         spec.shape.add_fragments(self.pos, tunnel, particles, rand);
         ship.rank_up(spec.is_boss());
         if self.first_shield == 1 {
-            // TODO SoundManager.playSe("small_dest.wav");
+            sound_manager.play_se("small_dest.wav");
         } else if self.first_shield < 20 {
-            // TODO SoundManager.playSe("middle_dest.wav");
+            sound_manager.play_se("middle_dest.wav");
         } else {
-            // TODO SoundManager.playSe("boss_dest.wav");
+            sound_manager.play_se("boss_dest.wav");
             ship.set_screen_shake(56, 0.064);
         }
     }
@@ -743,6 +747,7 @@ impl EnemyPool {
         tunnel: &Tunnel,
         shared_state: &mut SharedState,
         stage_manager: &StageManager,
+        sound_manager: &SoundManager,
         ship: &mut Ship,
         bullets: &mut BulletPool,
         particles: &mut ParticlePool,
@@ -763,6 +768,7 @@ impl EnemyPool {
                     tunnel,
                     shared_state,
                     stage_manager,
+                    sound_manager,
                     ship,
                     particles,
                     float_letters,

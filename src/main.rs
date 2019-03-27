@@ -39,6 +39,7 @@ use crate::tt::pad::GamePad;
 use crate::tt::prefs::PrefManager;
 use crate::tt::screen::Screen;
 use crate::tt::ship::Ship;
+use crate::tt::sound::SoundManager;
 use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{Torus, Tunnel};
 use crate::tt::ActionParams;
@@ -79,6 +80,9 @@ impl MainLoop {
 
         let mut stage_manager = StageManager::new(initial_seed);
 
+        let mut sound_manager = SoundManager::new(false)?;
+        sound_manager.init(false)?;
+
         let mut manager = GameManager::new(&screen)?;
         let mut shared_state = SharedState::new();
 
@@ -91,6 +95,7 @@ impl MainLoop {
             pad: &mut pad,
             shared_state: &mut shared_state,
             stage_manager: &mut stage_manager,
+            sound_manager: &mut sound_manager,
             camera: &mut camera,
             ship: &mut ship,
             tunnel: &mut tunnel,

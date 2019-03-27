@@ -4,6 +4,7 @@ use crate::tt::actor::bullet::BulletPool;
 use crate::tt::letter::Direction;
 use crate::tt::manager::stage::StageManager;
 use crate::tt::ship::Ship;
+use crate::tt::sound::SoundManager;
 use crate::tt::ActionParams;
 
 const DEFAULT_EXTEND_SCORE: u32 = 100000;
@@ -32,6 +33,7 @@ pub struct SharedState<'a> {
     next_beep_time: i32,
     time_changed_msg: &'a str,
     time_changed_show_cnt: i32,
+    start_bgm_cnt: i32,
 }
 
 impl<'a> SharedState<'a> {
@@ -43,21 +45,28 @@ impl<'a> SharedState<'a> {
             next_beep_time: 0,
             time_changed_msg: "",
             time_changed_show_cnt: -1,
+            start_bgm_cnt: -1,
         }
     }
 
-    pub fn init_game_state(&mut self, stage_manager: &StageManager, bullets: &mut BulletPool) {
+    pub fn init_game_state(
+        &mut self,
+        stage_manager: &StageManager,
+        sound_manager: &SoundManager,
+        bullets: &mut BulletPool,
+    ) {
         self.score = 0;
         self.next_extend = 0;
         self.set_next_extend(stage_manager.level());
         self.time_changed_show_cnt = -1;
-        self.goto_next_zone(true, stage_manager, bullets);
+        self.goto_next_zone(true, stage_manager, sound_manager, bullets);
     }
 
     pub fn goto_next_zone(
         &mut self,
         is_first: bool,
         stage_manager: &StageManager,
+        sound_manager: &SoundManager,
         bullets: &mut BulletPool,
     ) {
         bullets.clear_visible();
@@ -69,27 +78,31 @@ impl<'a> SharedState<'a> {
                 self.change_time(NEXT_ZONE_ADDITION_TIME, NEXT_ZONE_ADDITION_TIME_MSG);
             } else {
                 self.change_time(NEXT_LEVEL_ADDITION_TIME, NEXT_LEVEL_ADDITION_TIME_MSG);
-                /* TODO sound
-                startBgmCnt = 90;
-                SoundManager.fadeBgm();
-                */
+                self.start_bgm_cnt = 90;
+                sound_manager.fade_bgm();
             }
         }
     }
 
-    pub fn add_score(&mut self, score: u32, game_over: bool, level: f32) {
+    pub fn add_score(
+        &mut self,
+        score: u32,
+        game_over: bool,
+        level: f32,
+        sound_manager: &SoundManager,
+    ) {
         if !game_over {
             self.score += score;
             while self.score > self.next_extend {
                 self.set_next_extend(level);
-                self.extend_ship();
+                self.extend_ship(sound_manager);
             }
         }
     }
 
-    fn extend_ship(&mut self) {
+    fn extend_ship(&mut self, sound_manager: &SoundManager) {
         self.change_time(EXTEND_TIME, EXTEND_TIME_MSG);
-        // TODO SoundManager.playSe("extend.wav");
+        sound_manager.play_se("extend.wav");
     }
 
     fn set_next_extend(&mut self, level: f32) {
@@ -129,6 +142,15 @@ impl<'a> SharedState<'a> {
         }
     }
 
+    pub fn check_beep_time(&mut self) -> bool {
+        if self.time <= self.next_beep_time {
+            self.next_beep_time -= 1000;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn draw_front(&self, params: &ActionParams, _render_args: &RenderArgs) {
         params.ship.draw_front(params);
         let letter = params.letter;
@@ -147,6 +169,19 @@ impl<'a> SharedState<'a> {
         letter.draw_num(params.stage_manager.level() as usize, 135., 410., 8.);
         if params.ship.is_game_over() {
             letter.draw_string("GAME OVER", 140., 180., 20.);
+        }
+    }
+
+    pub fn start_bgm_clear(&mut self) {
+        self.start_bgm_cnt = -1;
+    }
+
+    pub fn start_bgm_tick(&mut self, sound_manager: &mut SoundManager) {
+        if self.start_bgm_cnt > 0 {
+            self.start_bgm_cnt -= 1;
+            if self.start_bgm_cnt <= 0 {
+                sound_manager.next_bgm();
+            }
         }
     }
 

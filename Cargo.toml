@@ -17,6 +17,7 @@ rand = "0.5"
 rand_core = "0.3"
 rand_xorshift = "0.1"
 rle_vec = "0.4"
+sdl2 = { version = "0.32", features = ["mixer"] }
 serde = "0.9"
 serde_derive = "0.9"
 

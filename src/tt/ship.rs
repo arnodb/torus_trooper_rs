@@ -14,6 +14,7 @@ use crate::tt::pad::{Pad, PadButtons, PadDirection};
 use crate::tt::screen::Screen;
 use crate::tt::shape::ship_shape::ShipShape;
 use crate::tt::shape::Drawable;
+use crate::tt::sound::SoundManager;
 use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{Tunnel, DEFAULT_RAD};
 use crate::tt::ActionParams;
@@ -193,6 +194,7 @@ impl Ship {
         tunnel: &mut Tunnel,
         shared_state: &mut SharedState,
         stage_manager: &StageManager,
+        sound_manager: &SoundManager,
         shots: &mut ShotPool,
         bullets: &mut BulletPool,
         particles: &mut ParticlePool,
@@ -253,7 +255,12 @@ impl Ship {
         self.tunnel_ofs += self.speed;
         let tmv = self.tunnel_ofs as usize;
         tunnel.go_to_next_slice(tmv);
-        shared_state.add_score(tmv as u32, self.is_game_over(), stage_manager.level());
+        shared_state.add_score(
+            tmv as u32,
+            self.is_game_over(),
+            stage_manager.level(),
+            sound_manager,
+        );
         self.tunnel_ofs = self.pos.y - f32::floor(self.pos.y);
         if self.pos.y >= tunnel.get_torus_length() as f32 {
             self.pos.y -= tunnel.get_torus_length() as f32;
@@ -358,12 +365,12 @@ impl Ship {
         if btn & PadButtons::B != PadButtons::NONE {
             if self.charging_shot.is_none() {
                 let charging_shot = shots.get_charging_instance();
-                shots[charging_shot].set_charge(true);
+                shots[charging_shot].set_charge(true, sound_manager);
                 self.charging_shot = Some(charging_shot);
             }
         } else {
             if let Some(charging_shot) = self.charging_shot {
-                let release = shots[charging_shot].release();
+                let release = shots[charging_shot].release(sound_manager);
                 if release {
                     shots.release(charging_shot)
                 }
@@ -374,9 +381,9 @@ impl Ship {
                     self.fire_cnt = FIRE_INTERVAL;
                     shots.get_instance_and(|shot| {
                         if (self.fire_shot_cnt % STAR_SHELL_INTERVAL) == 0 {
-                            shot.set_charge_star(false, true);
+                            shot.set_charge_star(false, true, sound_manager);
                         } else {
-                            shot.set();
+                            shot.set(sound_manager);
                         }
                         self.gunpoint_pos.x = self.rel_pos.x
                             + GUNPOINT_WIDTH * ((self.fire_shot_cnt as f32 % 2.) * 2. - 1.);
@@ -399,9 +406,9 @@ impl Ship {
                             d = -d;
                         }
                         if (self.side_fire_shot_cnt % STAR_SHELL_INTERVAL) == 0 {
-                            shot.set_charge_star_deg(false, true, d);
+                            shot.set_charge_star_deg(false, true, d, sound_manager);
                         } else {
-                            shot.set_charge_star_deg(false, false, d);
+                            shot.set_charge_star_deg(false, false, d, sound_manager);
                         }
                         self.gunpoint_pos.x = self.rel_pos.x
                             + GUNPOINT_WIDTH * ((self.fire_shot_cnt as f32 % 2.) * 2. - 1.);
@@ -545,6 +552,7 @@ impl Ship {
         &mut self,
         p: Vector,
         pp: Vector,
+        sound_manager: &SoundManager,
         tunnel: &Tunnel,
         particles: &mut ParticlePool,
     ) -> bool {
@@ -569,7 +577,7 @@ impl Ship {
             if inab >= 0. && inab <= inaa {
                 let hd = sofs.x * sofs.x + sofs.y * sofs.y - inab * inab / inaa;
                 if hd >= 0. && hd <= HIT_WIDTH {
-                    self.destroyed(tunnel, particles);
+                    self.destroyed(tunnel, sound_manager, particles);
                     return true;
                 }
             }
@@ -577,7 +585,12 @@ impl Ship {
         false
     }
 
-    fn destroyed(&mut self, tunnel: &Tunnel, particles: &mut ParticlePool) {
+    fn destroyed(
+        &mut self,
+        tunnel: &Tunnel,
+        sound_manager: &SoundManager,
+        particles: &mut ParticlePool,
+    ) {
         if self.cnt <= 0 {
             return;
         }
@@ -599,7 +612,7 @@ impl Ship {
                 );
             });
         }
-        // TODO SoundManager.playSe("myship_dest.wav");
+        sound_manager.play_se("myship_dest.wav");
         self.set_screen_shake(32, 0.05);
         self.restart();
         self.cnt = -RESTART_CNT;

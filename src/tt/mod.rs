@@ -9,10 +9,11 @@ pub mod prefs;
 pub mod screen;
 pub mod shape;
 pub mod ship;
+pub mod sound;
 pub mod state;
 pub mod tunnel;
 
-pub struct ActionParams<'a> {
+pub struct ActionParams<'a, 'shared, 'sound> {
     pub pref_manager: &'a mut prefs::PrefManager,
 
     pub screen: &'a mut screen::Screen,
@@ -20,9 +21,11 @@ pub struct ActionParams<'a> {
 
     pub pad: &'a mut pad::Pad,
 
-    pub shared_state: &'a mut state::shared::SharedState<'a>,
+    pub shared_state: &'a mut state::shared::SharedState<'shared>,
 
     pub stage_manager: &'a mut manager::stage::StageManager,
+
+    pub sound_manager: &'a mut sound::SoundManager<'sound>,
 
     pub camera: &'a mut camera::Camera,
     pub ship: &'a mut ship::Ship,
