@@ -15,7 +15,7 @@ impl PrefManager {
     }
 
     pub fn save(&self) -> Result<(), GameError> {
-        Ok(self.prefs.save(&APP_INFO, "prefs")?)
+        Ok(save_prefs_file(&self.prefs, "prefs")?)
     }
 
     pub fn max_level(&self, gd: u32) -> u32 {
@@ -114,7 +114,7 @@ pub fn load_prefs_file<T: Preferences + Default, S: AsRef<str>>(key: S) -> T {
     }
 }
 
-pub fn save_prefs_file<T: Preferences, S: AsRef<str>>(prefs: T, key: S) -> Result<(), GameError> {
+pub fn save_prefs_file<T: Preferences, S: AsRef<str>>(prefs: &T, key: S) -> Result<(), GameError> {
     prefs.save(&APP_INFO, key)?;
     Ok(())
 }

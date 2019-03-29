@@ -79,7 +79,7 @@ impl GameManager {
             self.in_game_state.replay_data(params)
         };
         if from_game_over {
-            save_prefs_file(replay_data.clone(), "last_replay")?;
+            save_prefs_file(&replay_data, "last_replay")?;
         }
         self.title_state.set_replay_data(replay_data);
         self.state = GameState::Title;
