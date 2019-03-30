@@ -6,6 +6,8 @@ extern crate failure;
 extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate validator_derive;
 
 #[macro_use]
 mod macros;
@@ -19,10 +21,13 @@ pub mod glu;
 #[cfg(feature = "game_recorder")]
 mod game_recorder;
 
+use clap::{App, Arg};
 use failure::Backtrace;
 use piston::event_loop::*;
 use piston::input::*;
+use std::str::FromStr;
 use std::time::Instant;
+use validator::Validate;
 
 use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::EnemyPool;
@@ -46,18 +51,21 @@ use crate::tt::{GeneralParams, MoreParams};
 use crate::util::rand::Rand;
 
 struct MainLoop {
-    done: bool,
+    options: Options,
 }
 
 impl MainLoop {
-    fn new() -> Self {
-        MainLoop { done: false }
+    fn new(options: Options) -> Self {
+        MainLoop { options }
     }
 
     fn main(&mut self) -> Result<(), GameError> {
         let mut pref_manager = PrefManager::new();
 
-        let mut screen = Screen::new();
+        let mut screen = Screen::new(
+            self.options.brightness as f32 / 100.,
+            self.options.luminosity as f32 / 100.,
+        );
         screen.init_opengl()?;
 
         let mut pad = GamePad::new(false);
@@ -80,7 +88,7 @@ impl MainLoop {
 
         let mut stage_manager = StageManager::new(initial_seed);
 
-        let mut sound_manager = SoundManager::new(false)?;
+        let mut sound_manager = SoundManager::new(!self.options.sound)?;
         sound_manager.init(false)?;
 
         let mut manager = GameManager::new(&screen)?;
@@ -115,6 +123,8 @@ impl MainLoop {
 
         let start_time = Instant::now();
         let mut prev_millis = 0;
+
+        let mut done = false;
 
         while let Some(e) = events.next(
             params
@@ -155,7 +165,7 @@ impl MainLoop {
                         let new_seed = Rand::rand_seed();
                         manager.start_in_game(new_seed, &mut params, &mut more_params)?;
                     }
-                    MoveAction::BreakLoop => self.done = true,
+                    MoveAction::BreakLoop => done = true,
                     MoveAction::None => (),
                 }
             }
@@ -165,6 +175,7 @@ impl MainLoop {
             }
 
             if let Some(r) = e.render_args() {
+                Screen::clear();
                 manager.draw(&mut params, &mut more_params, &r);
             }
 
@@ -176,7 +187,7 @@ impl MainLoop {
                 params.pad.handle_focus_event(f);
             }
 
-            if self.done {
+            if done {
                 break;
             }
         }
@@ -185,6 +196,54 @@ impl MainLoop {
     }
 }
 
+const NAME: &'static str = env!("CARGO_PKG_NAME");
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const AUTHORS: &'static str = env!("CARGO_PKG_AUTHORS");
+const DESCRIPTION: &'static str = env!("CARGO_PKG_DESCRIPTION");
+
+// TODO window/fullscreen
+// TODO res
+// TODO reverse
+#[derive(Validate)]
+struct Options {
+    #[validate(range(min = "0", max = "100"))]
+    brightness: usize,
+    #[validate(range(min = "0", max = "100"))]
+    luminosity: usize,
+    sound: bool,
+}
+
 fn main() {
-    MainLoop::new().main().unwrap();
+    let matches = App::new(NAME)
+        .version(VERSION)
+        .author(AUTHORS)
+        .about(DESCRIPTION)
+        .arg(
+            Arg::with_name("brightness")
+                .long("brightness")
+                .long_help("0-100")
+                .default_value("100"),
+        )
+        .arg(
+            Arg::with_name("luminosity")
+                .long("luminosity")
+                .alias("luminous")
+                .long_help("0-100")
+                .default_value("0"),
+        )
+        .arg(Arg::with_name("nosound").long("nosound"))
+        .get_matches();
+    let options = Options {
+        brightness: usize::from_str(matches.value_of("brightness").unwrap()).unwrap(),
+        luminosity: usize::from_str(matches.value_of("luminosity").unwrap()).unwrap(),
+        sound: !matches.is_present("nosound"),
+    };
+    match options.validate() {
+        Ok(_) => {
+            MainLoop::new(options).main().unwrap();
+        }
+        Err(_) => {
+            std::process::exit(1);
+        }
+    }
 }

@@ -17,6 +17,12 @@ pub trait State {
         more_params: &mut MoreParams,
         render_args: &RenderArgs,
     );
+    fn draw_luminous(
+        &self,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+        render_args: &RenderArgs,
+    );
     fn draw_front(
         &self,
         params: &GeneralParams,

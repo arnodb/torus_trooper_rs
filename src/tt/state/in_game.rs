@@ -213,6 +213,15 @@ impl State for InGameState {
         more_params.shots.draw(params.tunnel);
     }
 
+    fn draw_luminous(
+        &self,
+        params: &mut GeneralParams,
+        more_params: &mut MoreParams,
+        _render_args: &RenderArgs,
+    ) {
+        more_params.particles.draw_luminous(params.screen);
+    }
+
     fn draw_front(
         &self,
         params: &GeneralParams,

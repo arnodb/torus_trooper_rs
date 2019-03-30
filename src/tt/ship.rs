@@ -504,12 +504,12 @@ impl Ship {
                 gl::MatrixMode(gl::GL_PROJECTION);
                 gl::LoadIdentity();
                 let np = screen.near_plane() * camera.zoom();
-                let p_size = screen.physical_size();
+                let (p_width, p_height) = screen.physical_size();
                 gl::Frustum(
                     -np as f64,
                     np as f64,
-                    (-np * p_size.1 as f32 / p_size.0 as f32) as f64,
-                    (np * p_size.1 as f32 / p_size.0 as f32) as f64,
+                    (-np * p_height as f32 / p_width as f32) as f64,
+                    (np * p_height as f32 / p_width as f32) as f64,
                     0.1,
                     screen.far_plane() as f64,
                 );

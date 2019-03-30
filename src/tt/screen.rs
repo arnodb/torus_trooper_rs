@@ -15,16 +15,22 @@ pub struct Screen {
     near_plane: f32,
     far_plane: f32,
     window: Option<Window>,
+    luminous_screen: Option<LuminousScreen>,
 }
 
 impl Screen {
-    pub fn new() -> Self {
+    pub fn new(brightness: f32, luminosity: f32) -> Self {
         Screen {
-            brightness: 1.,
+            brightness,
             size: [640, 480].into(),
             near_plane: 0.1,
             far_plane: 1000.,
             window: None,
+            luminous_screen: if luminosity > 0. {
+                Some(LuminousScreen::new(luminosity))
+            } else {
+                None
+            },
         }
     }
 
@@ -35,7 +41,10 @@ impl Screen {
         } else {
             1.
         };
-        ((self.size.width as f64 * dpi_factor) as u32, (self.size.height as f64 * dpi_factor) as u32)
+        (
+            (self.size.width as f64 * dpi_factor) as u32,
+            (self.size.height as f64 * dpi_factor) as u32,
+        )
     }
 
     #[cfg(feature = "sdl_backend")]
@@ -74,14 +83,14 @@ impl Screen {
     }
 
     fn screen_resized(&self) {
-        let p_size = self.physical_size();
+        let (p_width, p_height) = self.physical_size();
         unsafe {
-            gl::Viewport(0, 0, p_size.0 as i32, p_size.1 as i32);
+            gl::Viewport(0, 0, p_width as i32, p_height as i32);
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::LoadIdentity();
             //gluPerspective(45.0f, cast(GLfloat) width / cast(GLfloat) height, nearPlane, farPlane);
             let ratio_threshold = 480. / 640.;
-            let screen_ratio = p_size.1 as f32 / p_size.0 as f32;
+            let screen_ratio = p_width as f32 / p_height as f32;
             if screen_ratio >= ratio_threshold {
                 gl::Frustum(
                     -self.near_plane as f64,
@@ -161,16 +170,23 @@ impl Screen {
             gl::Disable(gl::GL_TEXTURE_2D);
         }
         self.set_clear_color_rgba(0., 0., 0., 1.);
+        if let Some(luminous_screen) = &mut self.luminous_screen {
+            luminous_screen.init();
+        }
         self.far_plane = 10000.;
         self.screen_resized();
     }
 
     pub fn view_ortho_fixed() {
+        Screen::view_ortho(640., 480.)
+    }
+
+    pub fn view_ortho(width: f32, height: f32) {
         unsafe {
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::PushMatrix();
             gl::LoadIdentity();
-            gl::Ortho(0., 640., 480., 0., -1., 1.);
+            gl::Ortho(0., width as f64, height as f64, 0., -1., 1.);
             gl::MatrixMode(gl::GL_MODELVIEW);
             gl::PushMatrix();
             gl::LoadIdentity();
@@ -183,6 +199,159 @@ impl Screen {
             gl::PopMatrix();
             gl::MatrixMode(gl::GL_MODELVIEW);
             gl::PopMatrix();
+        }
+    }
+
+    // Luminous
+
+    pub fn start_render_to_luminous_screen(&self) -> bool {
+        if let Some(luminous_screen) = &self.luminous_screen {
+            luminous_screen.start_render();
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn end_render_to_luminous_screen(&self) {
+        if let Some(luminous_screen) = &self.luminous_screen {
+            luminous_screen.end_render(self);
+        }
+    }
+
+    pub fn draw_luminous(&self) {
+        if let Some(luminous_screen) = &self.luminous_screen {
+            luminous_screen.draw(self);
+        }
+    }
+}
+
+const LUMINOUS_TEXTURE_WIDTH: usize = 64;
+const LUMINOUS_TEXTURE_HEIGHT: usize = 64;
+
+const LM_OFS: [[f32; 2]; 2] = [[-2., -1.], [2., 1.]];
+const LM_OFS_BS: f32 = 3.;
+
+pub struct LuminousScreen {
+    luminous_texture: u32,
+    td: Box<[u32; LUMINOUS_TEXTURE_WIDTH * LUMINOUS_TEXTURE_HEIGHT * 4]>,
+    luminosity: f32,
+}
+
+impl LuminousScreen {
+    fn new(luminosity: f32) -> Self {
+        LuminousScreen {
+            luminous_texture: 0,
+            td: Box::new([0 as u32; LUMINOUS_TEXTURE_WIDTH * LUMINOUS_TEXTURE_HEIGHT * 4]),
+            luminosity,
+        }
+    }
+
+    fn init(&mut self) {
+        self.make_kuminous_texture();
+    }
+
+    fn make_kuminous_texture(&mut self) {
+        unsafe {
+            gl::GenTextures(1, &mut self.luminous_texture);
+            gl::BindTexture(gl::GL_TEXTURE_2D, self.luminous_texture);
+            gl::TexImage2D(
+                gl::GL_TEXTURE_2D,
+                0,
+                4,
+                LUMINOUS_TEXTURE_WIDTH as i32,
+                LUMINOUS_TEXTURE_HEIGHT as i32,
+                0,
+                gl::GL_RGBA,
+                gl::GL_UNSIGNED_BYTE,
+                self.td.as_ptr() as *const std::ffi::c_void,
+            );
+            gl::TexParameteri(
+                gl::GL_TEXTURE_2D,
+                gl::GL_TEXTURE_MIN_FILTER,
+                gl::GL_LINEAR as i32,
+            );
+            gl::TexParameteri(
+                gl::GL_TEXTURE_2D,
+                gl::GL_TEXTURE_MAG_FILTER,
+                gl::GL_LINEAR as i32,
+            );
+        }
+    }
+
+    fn start_render(&self) {
+        unsafe {
+            gl::Viewport(
+                0,
+                0,
+                LUMINOUS_TEXTURE_WIDTH as i32,
+                LUMINOUS_TEXTURE_HEIGHT as i32,
+            );
+        }
+    }
+
+    fn end_render(&self, screen: &Screen) {
+        unsafe {
+            gl::BindTexture(gl::GL_TEXTURE_2D, self.luminous_texture);
+            gl::CopyTexImage2D(
+                gl::GL_TEXTURE_2D,
+                0,
+                gl::GL_RGBA,
+                0,
+                0,
+                LUMINOUS_TEXTURE_WIDTH as i32,
+                LUMINOUS_TEXTURE_HEIGHT as i32,
+                0,
+            );
+        }
+        let (p_width, p_height) = screen.physical_size();
+        unsafe {
+            gl::Viewport(0, 0, p_width as i32, p_height as i32);
+        }
+    }
+
+    fn draw(&self, screen: &Screen) {
+        unsafe {
+            gl::Enable(gl::GL_TEXTURE_2D);
+            gl::BindTexture(gl::GL_TEXTURE_2D, self.luminous_texture);
+        }
+        let (p_width, p_height) = screen.physical_size();
+        Screen::view_ortho(p_width as f32, p_height as f32);
+        unsafe {
+            gl::Color4f(1., 0.8, 0.9, self.luminosity);
+            gl::Begin(gl::GL_QUADS);
+            for i in 0..2 {
+                gl::TexCoord2f(0., 1.);
+                gl::Vertex2f(LM_OFS[i][0] * LM_OFS_BS, LM_OFS[i][1] * LM_OFS_BS);
+                gl::TexCoord2f(0., 0.);
+                gl::Vertex2f(
+                    LM_OFS[i][0] * LM_OFS_BS,
+                    p_height as f32 + LM_OFS[i][1] * LM_OFS_BS,
+                );
+                gl::TexCoord2f(1., 0.);
+                gl::Vertex2f(
+                    p_width as f32 + LM_OFS[i][0] * LM_OFS_BS,
+                    p_height as f32 + LM_OFS[i][1] * LM_OFS_BS,
+                );
+                gl::TexCoord2f(1., 1.);
+                gl::Vertex2f(
+                    p_width as f32 + LM_OFS[i][0] * LM_OFS_BS,
+                    LM_OFS[i][1] * LM_OFS_BS,
+                );
+            }
+            gl::End();
+        }
+        Screen::view_perspective();
+        unsafe {
+            gl::Disable(gl::GL_TEXTURE_2D);
+        }
+    }
+}
+
+impl Drop for LuminousScreen {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.luminous_texture);
         }
     }
 }

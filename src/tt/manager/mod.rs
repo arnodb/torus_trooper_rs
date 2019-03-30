@@ -157,15 +157,28 @@ impl Manager for GameManager {
         more_params: &mut MoreParams,
         render_args: &RenderArgs,
     ) {
-        /* TODO
-        if (screen.startRenderToLuminousScreen()) {
-            glPushMatrix();
-            ship.setEyepos();
-            state.drawLuminous();
-            glPopMatrix();
-            screen.endRenderToLuminousScreen();
+        if params.screen.start_render_to_luminous_screen() {
+            unsafe {
+                gl::PushMatrix();
+            }
+            more_params
+                .ship
+                .set_eye_pos(params.screen, params.camera, params.tunnel);
+            match self.state {
+                GameState::Title => {
+                    self.title_state
+                        .draw_luminous(params, more_params, render_args)
+                }
+                GameState::InGame => {
+                    self.in_game_state
+                        .draw_luminous(params, more_params, render_args)
+                }
+            }
+            unsafe {
+                gl::PopMatrix();
+            }
+            params.screen.end_render_to_luminous_screen();
         }
-        */
         Screen::clear();
         unsafe {
             gl::PushMatrix();
@@ -180,6 +193,7 @@ impl Manager for GameManager {
         unsafe {
             gl::PopMatrix();
         }
+        params.screen.draw_luminous();
         Screen::view_ortho_fixed();
         match self.state {
             GameState::Title => {

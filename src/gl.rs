@@ -22,6 +22,7 @@ pub const GL_UNSIGNED_BYTE: u32 = 0x1401;
 pub const GL_MODELVIEW: u32 = 0x1700;
 pub const GL_PROJECTION: u32 = 0x1701;
 pub const GL_RGB: u32 = 0x1907;
+pub const GL_RGBA: u32 = 0x1908;
 pub const GL_LINEAR: u32 = 0x2601;
 pub const GL_TEXTURE_MAG_FILTER: u32 = 0x2801;
 pub const GL_TEXTURE_MIN_FILTER: u32 = 0x2801;

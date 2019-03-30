@@ -246,6 +246,34 @@ impl Particle {
             gl::PopMatrix();
         }
     }
+
+    fn draw_luminous(&self, screen: &Screen) {
+        if self.lum_alp < 0.2 || {
+            if let ParticleSpec::Spark = self.spec {
+                false
+            } else {
+                true
+            }
+        } {
+            return;
+        }
+        unsafe {
+            gl::Begin(gl::GL_TRIANGLE_FAN);
+        }
+        screen.set_color_rgba(self.r, self.g, self.b, self.lum_alp * 0.6);
+        unsafe {
+            gl::Vertex3f(self.psp.x, self.psp.y, self.psp.z);
+        }
+        screen.set_color_rgba(self.r, self.g, self.b, 0.);
+        unsafe {
+            gl::Vertex3f(self.sp.x - SIZE, self.sp.y - SIZE, self.sp.z);
+            gl::Vertex3f(self.sp.x + SIZE, self.sp.y - SIZE, self.sp.z);
+            gl::Vertex3f(self.sp.x + SIZE, self.sp.y + SIZE, self.sp.z);
+            gl::Vertex3f(self.sp.x - SIZE, self.sp.y + SIZE, self.sp.z);
+            gl::Vertex3f(self.sp.x - SIZE, self.sp.y - SIZE, self.sp.z);
+            gl::End();
+        }
+    }
 }
 
 pub struct ParticlePool {
@@ -305,6 +333,12 @@ impl ParticlePool {
     pub fn draw(&mut self, screen: &Screen) {
         for particle in &self.pool {
             particle.draw(screen);
+        }
+    }
+
+    pub fn draw_luminous(&mut self, screen: &Screen) {
+        for particle in &self.pool {
+            particle.draw_luminous(screen);
         }
     }
 }

@@ -175,12 +175,12 @@ impl State for TitleState {
             let rcr = f32::min(self.manager.replay_change_ratio() * 2.4, 1.);
             unsafe {
                 let screen = &params.screen;
-                let p_size = screen.physical_size();
+                let (p_width, p_height) = screen.physical_size();
                 gl::Viewport(
                     0,
                     0,
-                    (p_size.0 as f32 / 4. * (3. + rcr)) as i32,
-                    p_size.1 as i32,
+                    (p_width as f32 / 4. * (3. + rcr)) as i32,
+                    p_height as i32,
                 );
                 gl::Enable(gl::GL_CULL_FACE);
             }
@@ -215,12 +215,12 @@ impl State for TitleState {
         }
         unsafe {
             let screen = &params.screen;
-            let p_size = screen.physical_size();
-            gl::Viewport(0, 0, p_size.0 as i32, p_size.1 as i32);
+            let (p_width, p_height) = screen.physical_size();
+            gl::Viewport(0, 0, p_width as i32, p_height as i32);
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::LoadIdentity();
             let ratio_threshold = 480. / 640.;
-            let screen_ratio = p_size.1 as f32 / p_size.0 as f32;
+            let screen_ratio = p_height as f32 / p_width as f32;
             if screen_ratio >= ratio_threshold {
                 gl::Frustum(
                     -screen.near_plane() as f64,
@@ -245,6 +245,14 @@ impl State for TitleState {
             gl::MatrixMode(gl::GL_MODELVIEW);
         }
         self.manager.draw(params, more_params, render_args)
+    }
+
+    fn draw_luminous(
+        &self,
+        _params: &mut GeneralParams,
+        _more_params: &mut MoreParams,
+        _render_args: &RenderArgs,
+    ) {
     }
 
     fn draw_front(
