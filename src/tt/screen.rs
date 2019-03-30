@@ -1,3 +1,4 @@
+use failure::Backtrace;
 #[cfg(feature = "glutin_backend")]
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::OpenGL;
@@ -35,20 +36,17 @@ impl Screen {
     }
 
     #[cfg(feature = "glutin_backend")]
-    pub fn physical_size(&self) -> (u32, u32) {
+    pub fn physical_size(&self) -> (f64, f64) {
         let dpi_factor = if let Some(window) = &self.window {
             window.window.get_hidpi_factor()
         } else {
             1.
         };
-        (
-            (self.size.width as f64 * dpi_factor) as u32,
-            (self.size.height as f64 * dpi_factor) as u32,
-        )
+        (self.size.width * dpi_factor, self.size.height * dpi_factor)
     }
 
     #[cfg(feature = "sdl_backend")]
-    pub fn physical_size(&self) -> (u32, u32) {
+    pub fn physical_size(&self) -> (f64, f64) {
         (self.size.width, self.size.height)
     }
 
@@ -67,13 +65,32 @@ impl Screen {
     // Screen3D
 
     pub fn init_opengl(&mut self) -> Result<(), GameError> {
+        let window = self
+            .window_settings()
+            .build()
+            .map_err(|err| GameError::Fatal(err.description().to_string(), Backtrace::new()))?;
+        self.init_opengl_internal(window)
+    }
+
+    #[cfg(feature = "sdl_backend")]
+    pub fn init_opengl_sdl(
+        &mut self,
+        video_subsystem: sdl2::VideoSubsystem,
+    ) -> Result<(), GameError> {
+        let window = Window::with_subsystem(video_subsystem, &self.window_settings())
+            .map_err(|err| GameError::Fatal(err, Backtrace::new()))?;
+        self.init_opengl_internal(window)
+    }
+
+    fn window_settings(&self) -> WindowSettings {
         let opengl = OpenGL::V2_1;
-        let mut window: Window = WindowSettings::new("Torus Trooper", self.size)
+        WindowSettings::new("Torus Trooper", self.size)
             .opengl(opengl)
             .vsync(true)
             .exit_on_esc(false)
-            .build()?;
+    }
 
+    fn init_opengl_internal(&mut self, mut window: Window) -> Result<(), GameError> {
         gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
         self.window = Some(window);
         let size = self.size;
@@ -90,13 +107,13 @@ impl Screen {
             gl::LoadIdentity();
             //gluPerspective(45.0f, cast(GLfloat) width / cast(GLfloat) height, nearPlane, farPlane);
             let ratio_threshold = 480. / 640.;
-            let screen_ratio = p_width as f32 / p_height as f32;
+            let screen_ratio = p_width / p_height;
             if screen_ratio >= ratio_threshold {
                 gl::Frustum(
                     -self.near_plane as f64,
                     self.near_plane as f64,
-                    (-self.near_plane * screen_ratio) as f64,
-                    (self.near_plane * screen_ratio) as f64,
+                    -self.near_plane as f64 * screen_ratio,
+                    self.near_plane as f64 * screen_ratio,
                     0.1,
                     self.far_plane as f64,
                 );
@@ -104,10 +121,10 @@ impl Screen {
                 // This allows to see at least what can be seen horizontally and vertically
                 // with the default ratio -- arnodb
                 gl::Frustum(
-                    (-self.near_plane * ratio_threshold / screen_ratio) as f64,
-                    (self.near_plane * ratio_threshold / screen_ratio) as f64,
-                    (-self.near_plane * ratio_threshold) as f64,
-                    (self.near_plane * ratio_threshold) as f64,
+                    -self.near_plane as f64 * ratio_threshold / screen_ratio,
+                    self.near_plane as f64 * ratio_threshold / screen_ratio,
+                    -self.near_plane as f64 * ratio_threshold,
+                    self.near_plane as f64 * ratio_threshold,
                     0.1,
                     self.far_plane as f64,
                 );

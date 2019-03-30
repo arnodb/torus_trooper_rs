@@ -6,7 +6,6 @@ use std::fs;
 
 use crate::tt::errors::SoundError;
 use crate::util::rand::Rand;
-use sdl2::Sdl;
 use std::path::Path;
 
 pub struct SoundManager<'a> {
@@ -17,7 +16,6 @@ pub struct SoundManager<'a> {
     prev_bgm_idx: usize,
     next_idx_mv: isize,
     rand: Rand,
-    sdl: Option<Sdl>,
 }
 
 const MUSIC_DIR_NAME: &str = "sounds/musics";
@@ -35,15 +33,13 @@ impl<'a> SoundManager<'a> {
             prev_bgm_idx: 0,
             next_idx_mv: 0,
             rand: Rand::new(Rand::rand_seed()),
-            sdl: None,
         })
     }
 
-    pub fn init(&mut self, no_sound: bool) -> Result<(), SoundError> {
-        if no_sound {
+    pub fn init(&mut self) -> Result<(), SoundError> {
+        if self.no_sound {
             return Ok(());
         }
-        let sdl = sdl2::init().map_err(|str| SoundError::Sdl(str, Backtrace::new()))?;
         let frequency = 44_100;
         let format = AUDIO_S16;
         let channels = 1;
@@ -54,8 +50,6 @@ impl<'a> SoundManager<'a> {
         self.bgm = SoundManager::load_musics()?;
         self.se = SoundManager::load_chunks()?;
         self.prev_bgm_idx = self.bgm.len();
-
-        self.sdl = Some(sdl);
 
         Ok(())
     }

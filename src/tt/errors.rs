@@ -10,8 +10,6 @@ pub enum GameError {
     Sound(#[cause] SoundError, Backtrace),
     #[fail(display = "BulletML parse error")]
     BulletML(#[cause] bulletml::parse::Error, Backtrace),
-    #[fail(display = "String error")]
-    String(String, Backtrace),
     #[fail(display = "Fatal error")]
     Fatal(String, Backtrace),
 }
@@ -37,12 +35,6 @@ impl From<SoundError> for GameError {
 impl From<bulletml::parse::Error> for GameError {
     fn from(inner: bulletml::parse::Error) -> Self {
         GameError::BulletML(inner, Backtrace::new())
-    }
-}
-
-impl From<String> for GameError {
-    fn from(inner: String) -> Self {
-        GameError::String(inner, Backtrace::new())
     }
 }
 

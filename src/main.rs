@@ -60,13 +60,22 @@ impl MainLoop {
     }
 
     fn main(&mut self) -> Result<(), GameError> {
+        #[cfg(feature = "sdl_backend")]
+        let sdl = sdl2::init().map_err(|err| GameError::Fatal(err, Backtrace::new()))?;
+
         let mut pref_manager = PrefManager::new();
 
         let mut screen = Screen::new(
             self.options.brightness as f32 / 100.,
             self.options.luminosity as f32 / 100.,
         );
+        #[cfg(not(feature = "sdl_backend"))]
         screen.init_opengl()?;
+        #[cfg(feature = "sdl_backend")]
+        screen.init_opengl_sdl(
+            sdl.video()
+                .map_err(|err| GameError::Fatal(err, Backtrace::new()))?,
+        )?;
 
         let mut pad = GamePad::new(false);
 
@@ -89,7 +98,7 @@ impl MainLoop {
         let mut stage_manager = StageManager::new(initial_seed);
 
         let mut sound_manager = SoundManager::new(!self.options.sound)?;
-        sound_manager.init(false)?;
+        sound_manager.init()?;
 
         let mut manager = GameManager::new(&screen)?;
         let mut shared_state = SharedState::new();

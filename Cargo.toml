@@ -13,10 +13,10 @@ failure = "0.1"
 glutin = { version = "0.18", optional = true }
 image = "0.20"
 lazy_static = "1.1"
-piston = "0.38"
-piston2d-opengl_graphics = "0.55"
-pistoncore-glutin_window = { version = "0.50", optional = true }
-pistoncore-sdl2_window = { version = "0.51", optional = true }
+piston = "0.42"
+piston2d-opengl_graphics = "0.59"
+pistoncore-glutin_window = { version = "0.54", optional = true }
+pistoncore-sdl2_window = { version = "0.55", optional = true }
 preferences = { git = "https://github.com/Eh2406/preferences-rs.git", branch = "patch-1", revision = "4f426cf52da97d3b8914e10d4492f953d4304238" }
 rand = "0.5"
 rand_core = "0.3"

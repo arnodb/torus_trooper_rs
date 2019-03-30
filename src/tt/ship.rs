@@ -508,8 +508,8 @@ impl Ship {
                 gl::Frustum(
                     -np as f64,
                     np as f64,
-                    (-np * p_height as f32 / p_width as f32) as f64,
-                    (np * p_height as f32 / p_width as f32) as f64,
+                    -np as f64 * p_height / p_width,
+                    np as f64 * p_height / p_width,
                     0.1,
                     screen.far_plane() as f64,
                 );
