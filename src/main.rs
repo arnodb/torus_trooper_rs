@@ -60,8 +60,11 @@ impl MainLoop {
     }
 
     fn main(&mut self) -> Result<(), GameError> {
-        #[cfg(feature = "sdl_backend")]
         let sdl = sdl2::init().map_err(|err| GameError::Fatal(err, Backtrace::new()))?;
+        let sdl_joystick = sdl.joystick().map(|j| Some(j)).unwrap_or_else(|err| {
+            eprintln!("{}", err);
+            None
+        });
 
         let mut pref_manager = PrefManager::new();
 
@@ -77,7 +80,7 @@ impl MainLoop {
                 .map_err(|err| GameError::Fatal(err, Backtrace::new()))?,
         )?;
 
-        let mut pad = GamePad::new(false);
+        let mut pad = GamePad::new(false, sdl_joystick)?;
 
         let letter = Letter::new(&screen);
 

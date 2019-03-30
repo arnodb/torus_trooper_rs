@@ -162,7 +162,7 @@ impl State for InGameState {
                 );
             }
             self.game_over_cnt += 1;
-            let btn = params.pad.get_buttons();
+            let btn = params.pad.get_state().buttons;
             if btn & PadButtons::A != PadButtons::NONE {
                 if self.game_over_cnt > 60 && !self.btn_pressed {
                     action = MoveAction::StartTitle(true);

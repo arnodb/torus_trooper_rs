@@ -9,7 +9,7 @@ use crate::util::vector::{Vector, Vector3};
 
 use crate::tt::errors::GameError;
 use crate::tt::manager::MoveAction;
-use crate::tt::pad::{PadButtons, PadDirection};
+use crate::tt::pad::{PadButtons, PadDirection, PadState};
 use crate::tt::screen::Screen;
 use crate::tt::ship;
 use crate::tt::{GeneralParams, MoreParams};
@@ -58,7 +58,10 @@ impl TitleManager {
         more_params: &mut MoreParams,
     ) -> MoveAction {
         let pref_manager = &mut params.pref_manager;
-        let dir = params.pad.get_direction();
+        let PadState {
+            direction: dir,
+            buttons: btn,
+        } = params.pad.get_state();
         if !self.replay_mode {
             if dir & (PadDirection::RIGHT | PadDirection::LEFT) != PadDirection::NONE {
                 if !self.dir_pressed {
@@ -141,7 +144,6 @@ impl TitleManager {
             self.dir_pressed = false;
             self.key_repeat_cnt = 0;
         }
-        let btn = params.pad.get_buttons();
         let mut action = MoveAction::None;
         if btn & PadButtons::ANY != PadButtons::NONE {
             if !self.btn_pressed {

@@ -1,14 +1,19 @@
 use failure::Backtrace;
 #[cfg(feature = "glutin_backend")]
-use glutin_window::GlutinWindow as Window;
+use glutin_window::GlutinWindow;
 use opengl_graphics::OpenGL;
 use piston::window::{OpenGLWindow, Size, WindowSettings};
 #[cfg(feature = "sdl_backend")]
-use sdl2_window::Sdl2Window as Window;
+use sdl2_window::Sdl2Window;
 
 use crate::gl;
 
 use crate::tt::errors::GameError;
+
+#[cfg(feature = "glutin_backend")]
+type Window = GlutinWindow;
+#[cfg(feature = "sdl_backend")]
+type Window = Sdl2Window;
 
 pub struct Screen {
     brightness: f32,
@@ -77,7 +82,7 @@ impl Screen {
         &mut self,
         video_subsystem: sdl2::VideoSubsystem,
     ) -> Result<(), GameError> {
-        let window = Window::with_subsystem(video_subsystem, &self.window_settings())
+        let window = Sdl2Window::with_subsystem(video_subsystem, &self.window_settings())
             .map_err(|err| GameError::Fatal(err, Backtrace::new()))?;
         self.init_opengl_internal(window)
     }
@@ -88,6 +93,7 @@ impl Screen {
             .opengl(opengl)
             .vsync(true)
             .exit_on_esc(false)
+            .controllers(false)
     }
 
     fn init_opengl_internal(&mut self, mut window: Window) -> Result<(), GameError> {

@@ -205,10 +205,10 @@ impl Ship {
     ) {
         self.cnt += 1;
         let (mut btn, mut dir) = if !self.replay_mode {
-            let ps = params.pad.record();
+            let ps = params.pad.record_state();
             (ps.buttons, ps.direction)
         } else {
-            let ps = params.pad.replay();
+            let ps = params.pad.replay_state();
             if let Some(ps) = ps {
                 (ps.buttons, ps.direction)
             } else {
