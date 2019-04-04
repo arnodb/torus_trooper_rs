@@ -9,8 +9,8 @@ bitflags = "1.0"
 bulletml = { git = "https://github.com/arnodb/bulletml_rs.git" }
 diff = { version = "0.1", optional = true }
 failure = "0.1"
-glutin = { version = "0.18", optional = true }
-image = "0.20"
+glutin = { version = "0.19", optional = true }
+image = "0.21"
 lazy_static = "1.1"
 piston = "0.42"
 piston2d-opengl_graphics = "0.59"
@@ -28,7 +28,7 @@ serde_json = { version = "0.9", optional = true }
 structopt = "0.2"
 
 [build-dependencies]
-gl_generator = "0.9"
+gl_generator = "0.10"
 
 [features]
 default = ["glutin_backend"]
