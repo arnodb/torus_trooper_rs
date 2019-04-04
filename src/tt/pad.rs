@@ -74,14 +74,25 @@ impl GamePad {
                 direction: PadDirection::NONE,
                 buttons: PadButtons::NONE,
             },
-            joystick: joystick_subsystem
-                .map_or(Ok(None), |joystick_subsystem| {
-                    joystick_subsystem.set_event_state(false);
-                    joystick_subsystem
-                        .open(0)
-                        .map(|j| Some((joystick_subsystem, j)))
-                })
-                .map_err(|err| GameError::Fatal(err.description().to_string(), Backtrace::new()))?,
+            joystick: joystick_subsystem.map_or_else(
+                || Ok(None),
+                |joystick_subsystem| {
+                    let num = joystick_subsystem
+                        .num_joysticks()
+                        .map_err(|err| GameError::Fatal(err, Backtrace::new()))?;
+                    if num > 0 {
+                        joystick_subsystem.set_event_state(false);
+                        joystick_subsystem
+                            .open(0)
+                            .map(|j| Some((joystick_subsystem, j)))
+                            .map_err(|err| {
+                                GameError::Fatal(err.description().to_string(), Backtrace::new())
+                            })
+                    } else {
+                        Ok(None)
+                    }
+                },
+            )?,
             record: RleVec::new(),
             record_run_index: 0,
             record_run_sub_index: 0,
