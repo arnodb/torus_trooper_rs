@@ -26,11 +26,11 @@ pub struct Screen {
 }
 
 impl Screen {
-    pub fn new(brightness: f32, luminosity: f32, fullscreen: bool) -> Self {
+    pub fn new(brightness: f32, luminosity: f32, fullscreen: bool, size: Size) -> Self {
         Screen {
             brightness,
             fullscreen,
-            size: [640, 480].into(),
+            size,
             near_plane: 0.1,
             far_plane: 1000.,
             window: None,

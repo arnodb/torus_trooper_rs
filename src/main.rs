@@ -70,6 +70,7 @@ impl MainLoop {
             self.options.brightness as f32 / 100.,
             self.options.luminosity as f32 / 100.,
             self.options.fullscreen,
+            [self.options.width as u32, self.options.height as u32].into(),
         );
         #[cfg(not(feature = "sdl_backend"))]
         screen.init_opengl()?;
@@ -223,17 +224,20 @@ fn parse_luminosity(s: &str) -> Result<usize, Box<Error>> {
     Ok(val)
 }
 
-// TODO res
 #[derive(StructOpt, Debug)]
 struct Options {
     #[structopt(long, default_value = "100", parse(try_from_str = "parse_brightness"))]
     brightness: usize,
     #[structopt(long, default_value = "0", parse(try_from_str = "parse_luminosity"))]
     luminosity: usize,
-    #[structopt(long = "nosound")]
-    no_sound: bool,
+    #[structopt(long, default_value = "640")]
+    width: usize,
+    #[structopt(long, default_value = "480")]
+    height: usize,
     #[structopt(long)]
     fullscreen: bool,
+    #[structopt(long = "nosound")]
+    no_sound: bool,
     #[structopt(long)]
     reverse: bool,
 }
