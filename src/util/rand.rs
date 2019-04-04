@@ -1,4 +1,4 @@
-use rand::XorShiftRng;
+use rand_xorshift::XorShiftRng;
 use rand_core::{RngCore, SeedableRng};
 use std::time::{SystemTime, UNIX_EPOCH};
 
