@@ -17,6 +17,7 @@ type Window = Sdl2Window;
 
 pub struct Screen {
     brightness: f32,
+    fullscreen: bool,
     size: Size,
     near_plane: f32,
     far_plane: f32,
@@ -25,9 +26,10 @@ pub struct Screen {
 }
 
 impl Screen {
-    pub fn new(brightness: f32, luminosity: f32) -> Self {
+    pub fn new(brightness: f32, luminosity: f32, fullscreen: bool) -> Self {
         Screen {
             brightness,
+            fullscreen,
             size: [640, 480].into(),
             near_plane: 0.1,
             far_plane: 1000.,
@@ -92,6 +94,7 @@ impl Screen {
         WindowSettings::new("Torus Trooper", self.size)
             .opengl(opengl)
             .vsync(true)
+            .fullscreen(self.fullscreen)
             .exit_on_esc(false)
             .controllers(false)
     }

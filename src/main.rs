@@ -69,6 +69,7 @@ impl MainLoop {
         let mut screen = Screen::new(
             self.options.brightness as f32 / 100.,
             self.options.luminosity as f32 / 100.,
+            self.options.fullscreen,
         );
         #[cfg(not(feature = "sdl_backend"))]
         screen.init_opengl()?;
@@ -78,7 +79,7 @@ impl MainLoop {
                 .map_err(|err| GameError::Fatal(err, Backtrace::new()))?,
         )?;
 
-        let mut pad = GamePad::new(false, sdl_joystick)?;
+        let mut pad = GamePad::new(self.options.reverse, sdl_joystick)?;
 
         let letter = Letter::new(&screen);
 
@@ -222,9 +223,7 @@ fn parse_luminosity(s: &str) -> Result<usize, Box<Error>> {
     Ok(val)
 }
 
-// TODO window/fullscreen
 // TODO res
-// TODO reverse
 #[derive(StructOpt, Debug)]
 struct Options {
     #[structopt(long, default_value = "100", parse(try_from_str = "parse_brightness"))]
@@ -233,6 +232,10 @@ struct Options {
     luminosity: usize,
     #[structopt(long = "nosound")]
     no_sound: bool,
+    #[structopt(long)]
+    fullscreen: bool,
+    #[structopt(long)]
+    reverse: bool,
 }
 
 fn main() {
