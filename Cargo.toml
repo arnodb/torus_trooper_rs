@@ -7,7 +7,6 @@ authors = ["Arnaud de Bossoreille <arnaud.debossoreille@gmail.com>"]
 [dependencies]
 bitflags = "1.0"
 bulletml = { git = "https://github.com/arnodb/bulletml_rs.git" }
-clap = "2.32"
 diff = { version = "0.1", optional = true }
 failure = "0.1"
 glutin = { version = "0.18", optional = true }
@@ -26,8 +25,7 @@ sdl2 = { version = "0.32", features = ["mixer"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = { version = "0.9", optional = true }
-validator = "0.8"
-validator_derive = "0.8"
+structopt = "0.2"
 
 [build-dependencies]
 gl_generator = "0.9"

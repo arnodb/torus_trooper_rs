@@ -6,8 +6,6 @@ extern crate failure;
 extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate validator_derive;
 
 #[macro_use]
 mod macros;
@@ -21,13 +19,12 @@ pub mod glu;
 #[cfg(feature = "game_recorder")]
 mod game_recorder;
 
-use clap::{App, Arg};
 use failure::Backtrace;
 use piston::event_loop::*;
 use piston::input::*;
 use std::str::FromStr;
 use std::time::Instant;
-use validator::Validate;
+use structopt::StructOpt;
 
 use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::EnemyPool;
@@ -49,6 +46,7 @@ use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{Torus, Tunnel};
 use crate::tt::{GeneralParams, MoreParams};
 use crate::util::rand::Rand;
+use std::error::Error;
 
 struct MainLoop {
     options: Options,
@@ -100,7 +98,7 @@ impl MainLoop {
 
         let mut stage_manager = StageManager::new(initial_seed);
 
-        let mut sound_manager = SoundManager::new(!self.options.sound)?;
+        let mut sound_manager = SoundManager::new(self.options.no_sound)?;
         sound_manager.init()?;
 
         let mut manager = GameManager::new(&screen)?;
@@ -208,54 +206,36 @@ impl MainLoop {
     }
 }
 
-const NAME: &'static str = env!("CARGO_PKG_NAME");
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-const AUTHORS: &'static str = env!("CARGO_PKG_AUTHORS");
-const DESCRIPTION: &'static str = env!("CARGO_PKG_DESCRIPTION");
+fn parse_brightness(s: &str) -> Result<usize, Box<Error>> {
+    let val = usize::from_str(s)?;
+    if val > 100 {
+        Err("brightness must if in the range [0-100]")?;
+    }
+    Ok(val)
+}
+
+fn parse_luminosity(s: &str) -> Result<usize, Box<Error>> {
+    let val = usize::from_str(s)?;
+    if val > 100 {
+        Err("luminosity must if in the range [0-100]")?;
+    }
+    Ok(val)
+}
 
 // TODO window/fullscreen
 // TODO res
 // TODO reverse
-#[derive(Validate)]
+#[derive(StructOpt, Debug)]
 struct Options {
-    #[validate(range(min = "0", max = "100"))]
+    #[structopt(long, default_value = "100", parse(try_from_str = "parse_brightness"))]
     brightness: usize,
-    #[validate(range(min = "0", max = "100"))]
+    #[structopt(long, default_value = "0", parse(try_from_str = "parse_luminosity"))]
     luminosity: usize,
-    sound: bool,
+    #[structopt(long = "nosound")]
+    no_sound: bool,
 }
 
 fn main() {
-    let matches = App::new(NAME)
-        .version(VERSION)
-        .author(AUTHORS)
-        .about(DESCRIPTION)
-        .arg(
-            Arg::with_name("brightness")
-                .long("brightness")
-                .long_help("0-100")
-                .default_value("100"),
-        )
-        .arg(
-            Arg::with_name("luminosity")
-                .long("luminosity")
-                .alias("luminous")
-                .long_help("0-100")
-                .default_value("0"),
-        )
-        .arg(Arg::with_name("nosound").long("nosound"))
-        .get_matches();
-    let options = Options {
-        brightness: usize::from_str(matches.value_of("brightness").unwrap()).unwrap(),
-        luminosity: usize::from_str(matches.value_of("luminosity").unwrap()).unwrap(),
-        sound: !matches.is_present("nosound"),
-    };
-    match options.validate() {
-        Ok(_) => {
-            MainLoop::new(options).main().unwrap();
-        }
-        Err(_) => {
-            std::process::exit(1);
-        }
-    }
+    let options = Options::from_args();
+    MainLoop::new(options).main().unwrap();
 }
