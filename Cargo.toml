@@ -24,7 +24,7 @@ rle_vec = { version = "0.4", features = ["serialize"] }
 sdl2 = { version = "0.32", features = ["mixer"] }
 serde = "1.0"
 serde_derive = "1.0"
-serde_json = { version = "0.9", optional = true }
+serde_json = { version = "1.0", optional = true }
 structopt = "0.2"
 
 [build-dependencies]
