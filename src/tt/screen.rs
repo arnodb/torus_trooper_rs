@@ -116,7 +116,7 @@ impl Screen {
             gl::LoadIdentity();
             //gluPerspective(45.0f, cast(GLfloat) width / cast(GLfloat) height, nearPlane, farPlane);
             let ratio_threshold = 480. / 640.;
-            let screen_ratio = p_width / p_height;
+            let screen_ratio = p_height / p_width;
             if screen_ratio >= ratio_threshold {
                 gl::Frustum(
                     -self.near_plane as f64,
