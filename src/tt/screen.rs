@@ -19,6 +19,7 @@ pub struct Screen {
     brightness: f32,
     fullscreen: bool,
     size: Size,
+    ortho_size: Size,
     near_plane: f32,
     far_plane: f32,
     window: Option<Window>,
@@ -31,6 +32,7 @@ impl Screen {
             brightness,
             fullscreen,
             size,
+            ortho_size: Screen::to_ortho_size(size),
             near_plane: 0.1,
             far_plane: 1000.,
             window: None,
@@ -55,6 +57,10 @@ impl Screen {
     #[cfg(feature = "sdl_backend")]
     pub fn physical_size(&self) -> (f64, f64) {
         (self.size.width, self.size.height)
+    }
+
+    pub fn ortho_size(&self) -> (f64, f64) {
+        (self.ortho_size.width, self.ortho_size.height)
     }
 
     pub fn near_plane(&self) -> f32 {
@@ -108,6 +114,22 @@ impl Screen {
         Ok(())
     }
 
+    fn to_ortho_size(physical_size: Size) -> Size {
+        let ratio_threshold = 480. / 640.;
+        let screen_ratio = physical_size.height / physical_size.width;
+        if screen_ratio >= ratio_threshold {
+            Size {
+                width: 640.,
+                height: 640. * screen_ratio,
+            }
+        } else {
+            Size {
+                width: 480. / screen_ratio,
+                height: 480.,
+            }
+        }
+    }
+
     fn screen_resized(&self) {
         let (p_width, p_height) = self.physical_size();
         unsafe {
@@ -144,6 +166,7 @@ impl Screen {
 
     pub fn resized<S: Into<Size>>(&mut self, size: S) {
         self.size = size.into();
+        self.ortho_size = Screen::to_ortho_size(self.size);
         self.screen_resized();
     }
 
@@ -203,8 +226,8 @@ impl Screen {
         self.screen_resized();
     }
 
-    pub fn view_ortho_fixed() {
-        Screen::view_ortho(640., 480.)
+    pub fn view_ortho_fixed(&self) {
+        Screen::view_ortho(self.ortho_size.width as f32, self.ortho_size.height as f32);
     }
 
     pub fn view_ortho(width: f32, height: f32) {

@@ -194,7 +194,7 @@ impl Manager for GameManager {
             gl::PopMatrix();
         }
         params.screen.draw_luminous();
-        Screen::view_ortho_fixed();
+        params.screen.view_ortho_fixed();
         match self.state {
             GameState::Title => {
                 self.title_state

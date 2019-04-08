@@ -314,8 +314,8 @@ impl TitleManager {
         display_list
     }
 
-    fn calc_cursor_pos(gd: usize, lv: u32) -> Vector {
-        let mut x = 460. + gd as f32 * 70.;
+    fn calc_cursor_pos(ortho_width: f32, gd: usize, lv: u32) -> Vector {
+        let mut x = ortho_width - 180. + gd as f32 * 70.;
         let mut y = 90.;
         if lv > 1 {
             y += 30. + lv as f32;
@@ -387,7 +387,7 @@ impl Manager for TitleManager {
         unsafe {
             gl::PopMatrix();
         }
-        Screen::view_ortho_fixed();
+        params.screen.view_ortho_fixed();
         unsafe {
             gl::Disable(gl::GL_BLEND);
         }
@@ -397,12 +397,21 @@ impl Manager for TitleManager {
         if rcr > 1. {
             rcr = 1.;
         }
+        let (o_width, o_height) = screen.ortho_size();
         unsafe {
             gl::Begin(gl::GL_QUADS);
-            gl::Vertex3f(450. + (640. - 450.) * rcr, 0., 0.);
-            gl::Vertex3f(640., 0., 0.);
-            gl::Vertex3f(640., 480., 0.);
-            gl::Vertex3f(450. + (640. - 450.) * rcr, 480., 0.);
+            gl::Vertex3f(
+                o_width as f32 + 190. * o_width as f32 * (rcr - 1.) / 640.,
+                0.,
+                0.,
+            );
+            gl::Vertex3f(o_width as f32, 0., 0.);
+            gl::Vertex3f(o_width as f32, o_height as f32, 0.);
+            gl::Vertex3f(
+                o_width as f32 + 190. * o_width as f32 * (rcr - 1.) / 640.,
+                o_height as f32,
+                0.,
+            );
             gl::End();
             gl::Enable(gl::GL_BLEND);
         }
@@ -418,6 +427,13 @@ impl Manager for TitleManager {
                 1.8,
                 3.5 - self.replay_change_ratio * 1.5,
             );
+            let ratio_threshold = 480. / 640.;
+            let ortho_ratio = o_height / o_width;
+            if ortho_ratio >= ratio_threshold {
+                gl::Scalef(1., 1. + (o_height as f32 - 480.) * 1.4 / 480., 1.);
+            } else {
+                gl::Scalef(1. + (o_width as f32 - 640.) * 0.35 / 640., 1., 1.);
+            }
             gl::Rotatef(30., 1., 0., 0.);
             gl::Rotatef(f32::sin(self.cnt as f32 * 0.005) * 12., 0., 1., 0.);
             gl::Rotatef(self.cnt as f32 * 0.2, 0., 0., 1.);
@@ -439,9 +455,10 @@ impl Manager for TitleManager {
         if self.replay_change_ratio > 0. {
             return;
         }
+        let (o_width, o_height) = params.screen.ortho_size();
         unsafe {
             gl::PushMatrix();
-            gl::Translatef(508., 400., 0.);
+            gl::Translatef(o_width as f32 - 132., o_height as f32 - 80., 0.);
             gl::Rotatef(-20., 0., 0., 1.);
             gl::Scalef(128., 64., 1.);
             gl::LineWidth(2.);
@@ -460,13 +477,13 @@ impl Manager for TitleManager {
         unsafe {
             gl::Begin(gl::GL_TRIANGLE_FAN);
             gl::TexCoord2f(0., 0.);
-            gl::Vertex3f(470., 380., 0.);
+            gl::Vertex3f(o_width as f32 - 170., o_height as f32 - 100., 0.);
             gl::TexCoord2f(1., 0.);
-            gl::Vertex3f(598., 380., 0.);
+            gl::Vertex3f(o_width as f32 - 42., o_height as f32 - 100., 0.);
             gl::TexCoord2f(1., 1.);
-            gl::Vertex3f(598., 428., 0.);
+            gl::Vertex3f(o_width as f32 - 42., o_height as f32 - 52., 0.);
             gl::TexCoord2f(0., 1.);
-            gl::Vertex3f(470., 428., 0.);
+            gl::Vertex3f(o_width as f32 - 170., o_height as f32 - 52., 0.);
             gl::End();
             gl::Disable(gl::GL_TEXTURE_2D);
         }
@@ -475,7 +492,7 @@ impl Manager for TitleManager {
             unsafe {
                 gl::LineWidth(2.);
             }
-            let cursor_pos = TitleManager::calc_cursor_pos(i, 1);
+            let cursor_pos = TitleManager::calc_cursor_pos(o_width as f32, i, 1);
             self.draw_cursor_ring(cursor_pos, 15.);
             letter.draw_string(
                 ship::GRADE_LETTER[i],
@@ -488,10 +505,10 @@ impl Manager for TitleManager {
             }
             let ml = params.pref_manager.max_level(i as u32);
             if ml > 1 {
-                let e_cursor_pos = TitleManager::calc_cursor_pos(i, ml);
+                let e_cursor_pos = TitleManager::calc_cursor_pos(o_width as f32, i, ml);
                 self.draw_cursor_ring(e_cursor_pos, 15.);
                 letter.draw_num(ml as usize, e_cursor_pos.x + 7., e_cursor_pos.y - 8., 6.);
-                let l2_cursor_pos = TitleManager::calc_cursor_pos(i, 2);
+                let l2_cursor_pos = TitleManager::calc_cursor_pos(o_width as f32, i, 2);
                 unsafe {
                     gl::Begin(gl::GL_LINES);
                     gl::Vertex3f(cursor_pos.x - 29., cursor_pos.y + 7., 0.);
@@ -507,15 +524,21 @@ impl Manager for TitleManager {
             }
         }
         let grade_str = ship::GRADE_STR[self.grade as usize];
-        letter.draw_string(grade_str, 560. - grade_str.len() as f32 * 19., 4., 9.);
-        letter.draw_num(self.level as usize, 620., 10., 6.);
-        letter.draw_string("LV", 570., 10., 6.);
+        letter.draw_string(
+            grade_str,
+            o_width as f32 - 80. - grade_str.len() as f32 * 19.,
+            4.,
+            9.,
+        );
+        letter.draw_num(self.level as usize, o_width as f32 - 20., 10., 6.);
+        letter.draw_string("LV", o_width as f32 - 70., 10., 6.);
         let gd = params.pref_manager.grade_data(self.grade);
-        letter.draw_num(gd.hi_score as usize, 620., 45., 8.);
-        letter.draw_num(gd.start_level as usize, 408., 54., 5.);
-        letter.draw_num(gd.end_level as usize, 453., 54., 5.);
-        letter.draw_string("-", 423., 54., 5.);
-        let cursor_pos = TitleManager::calc_cursor_pos(self.grade as usize, self.level);
+        letter.draw_num(gd.hi_score as usize, o_width as f32 - 20., 45., 8.);
+        letter.draw_num(gd.start_level as usize, o_width as f32 - 232., 54., 5.);
+        letter.draw_num(gd.end_level as usize, o_width as f32 - 187., 54., 5.);
+        letter.draw_string("-", o_width as f32 - 217., 54., 5.);
+        let cursor_pos =
+            TitleManager::calc_cursor_pos(o_width as f32, self.grade as usize, self.level);
         self.draw_cursor_ring(cursor_pos, 18. + f32::sin(self.cnt as f32 * 0.1) * 3.);
     }
 }

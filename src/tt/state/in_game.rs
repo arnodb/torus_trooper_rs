@@ -231,8 +231,14 @@ impl State for InGameState {
         params
             .shared_state
             .draw_front(params, more_params, render_args);
+        let (o_width, o_height) = params.screen.ortho_size();
         if self.pause_cnt > 0 && (self.pause_cnt % 64) < 32 {
-            params.letter.draw_string("PAUSE", 240., 185., 17.);
+            params.letter.draw_string(
+                "PAUSE",
+                o_width as f32 / 2. - 80.,
+                o_height as f32 / 2. - 55.,
+                17.,
+            );
         }
     }
 }

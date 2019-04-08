@@ -694,11 +694,22 @@ impl Ship {
 
     pub fn draw_front(&self, params: &GeneralParams) {
         let letter = params.letter;
-        letter.draw_num((self.speed * 2500.) as usize, 490., 420., 20.);
-        letter.draw_string("KM/H", 540., 445., 12.);
-        letter.draw_num(self.rank as usize, 150., 432., 16.);
-        letter.draw_string("/", 185., 448., 10.);
-        letter.draw_num((self.zone_end_rank - self.rank) as usize, 250., 448., 10.);
+        let (o_width, o_height) = params.screen.ortho_size();
+        letter.draw_num(
+            (self.speed * 2500.) as usize,
+            o_width as f32 - 150.,
+            o_height as f32 - 60.,
+            20.,
+        );
+        letter.draw_string("KM/H", o_width as f32 - 100., o_height as f32 - 35., 12.);
+        letter.draw_num(self.rank as usize, 150., o_height as f32 - 48., 16.);
+        letter.draw_string("/", 185., o_height as f32 - 32., 10.);
+        letter.draw_num(
+            (self.zone_end_rank - self.rank) as usize,
+            250.,
+            o_height as f32 - 32.,
+            10.,
+        );
         /*Letter.drawString("LAP", 20, 388, 8, Letter.Direction.TO_RIGHT, 1);
         Letter.drawNum(lap, 120, 388, 8);
         Letter.drawString(".", 130, 386, 8);

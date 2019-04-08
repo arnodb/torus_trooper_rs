@@ -159,21 +159,51 @@ impl<'a> SharedState<'a> {
     ) {
         more_params.ship.draw_front(params);
         let letter = params.letter;
-        letter.draw_num(self.score as usize, 610., 0., 15.);
-        letter.draw_string("/", 510., 40., 7.);
-        letter.draw_num((self.next_extend - self.score) as usize, 615., 40., 7.);
+        let (o_width, o_height) = params.screen.ortho_size();
+        letter.draw_num(self.score as usize, o_width as f32 - 30., 0., 15.);
+        letter.draw_string("/", o_width as f32 - 130., 40., 7.);
+        letter.draw_num(
+            (self.next_extend - self.score) as usize,
+            o_width as f32 - 25.,
+            40.,
+            7.,
+        );
         if self.time > BEEP_START_TIME {
             letter.draw_time(self.time as isize, 220., 24., 15.);
         } else {
             letter.draw_time_ex(self.time as isize, 220., 24., 15., 1);
         }
         if self.time_changed_show_cnt >= 0 && (self.time_changed_show_cnt % 64) > 32 {
-            letter.draw_string_ex1(self.time_changed_msg, 250., 24., 7., Direction::ToRight, 1);
+            letter.draw_string_ex1(
+                self.time_changed_msg,
+                o_width as f32 / 2. - 70.,
+                24.,
+                7.,
+                Direction::ToRight,
+                1,
+            );
         }
-        letter.draw_string_ex1("LEVEL", 20., 410., 8., Direction::ToRight, 1);
-        letter.draw_num(params.stage_manager.level() as usize, 135., 410., 8.);
+        letter.draw_string_ex1(
+            "LEVEL",
+            20.,
+            o_height as f32 - 70.,
+            8.,
+            Direction::ToRight,
+            1,
+        );
+        letter.draw_num(
+            params.stage_manager.level() as usize,
+            135.,
+            o_height as f32 - 70.,
+            8.,
+        );
         if more_params.ship.is_game_over() {
-            letter.draw_string("GAME OVER", 140., 180., 20.);
+            letter.draw_string(
+                "GAME OVER",
+                o_width as f32 / 2. - 180.,
+                o_height as f32 / 2. - 60.,
+                20.,
+            );
         }
     }
 
