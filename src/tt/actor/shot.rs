@@ -104,7 +104,7 @@ impl Shot {
         self.range = RANGE_MIN + self.charge_cnt as f32 * RANGE_RATIO;
         self.trg_size = SIZE_MIN + self.charge_cnt as f32 * SIZE_RATIO;
         sound_manager.play_se("charge_shot.wav");
-        return false;
+        false
     }
 
     fn mov(

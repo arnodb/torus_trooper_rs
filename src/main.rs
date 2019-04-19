@@ -59,7 +59,7 @@ impl MainLoop {
 
     fn main(&mut self) -> Result<(), GameError> {
         let sdl = sdl2::init().map_err(|err| GameError::Fatal(err, Backtrace::new()))?;
-        let sdl_joystick = sdl.joystick().map(|j| Some(j)).unwrap_or_else(|err| {
+        let sdl_joystick = sdl.joystick().map(Some).unwrap_or_else(|err| {
             eprintln!("{}", err);
             None
         });

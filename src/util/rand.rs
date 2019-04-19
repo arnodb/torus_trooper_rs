@@ -44,6 +44,7 @@ impl Rand {
         self.rng = XorShiftRng::seed_from_u64(seed);
     }
 
+    #[allow(clippy::let_and_return)]
     pub fn gen_f32(&mut self, high: f32) -> f32 {
         let next = self.rng.next_u64();
         let value = next as f32 * high / u64::max_value() as f32;
@@ -51,6 +52,7 @@ impl Rand {
         value
     }
 
+    #[allow(clippy::let_and_return)]
     pub fn gen_signed_f32(&mut self, high: f32) -> f32 {
         let next = self.rng.next_u64();
         let value = next as f32 * high * 2.0 / u64::max_value() as f32 - high;
@@ -59,6 +61,7 @@ impl Rand {
     }
 
     #[cfg(target_pointer_width = "32")]
+    #[allow(clippy::let_and_return)]
     pub fn gen_usize(&mut self, high: usize) -> usize {
         let value = if high == 0 {
             0
@@ -70,6 +73,7 @@ impl Rand {
     }
 
     #[cfg(target_pointer_width = "64")]
+    #[allow(clippy::let_and_return)]
     pub fn gen_usize(&mut self, high: usize) -> usize {
         let value = if high == 0 {
             0

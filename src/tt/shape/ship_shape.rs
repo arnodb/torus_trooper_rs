@@ -506,7 +506,7 @@ impl ShipShape {
         }
     }
 
-    fn create_display_list(structure: &Vec<Structure>, screen: &Screen) -> DisplayList {
+    fn create_display_list(structure: &[Structure], screen: &Screen) -> DisplayList {
         let mut display_list = DisplayList::new(1);
         display_list.new_list();
         for st in structure {
@@ -547,22 +547,14 @@ impl ShipShape {
             rocket_length,
             structure::Shape::Rocket,
             1.,
-            match damaged {
-                false => 1,
-                true => 0,
-            },
+            if damaged { 0 } else { 1 },
             0,
         );
         sts.push(st);
         let wofs = offset;
         let whgt = rocket_length * (rand.gen_f32(0.5) + 1.5);
         for i in 0..wing_num {
-            let inverse = (((i % 2) * 2) - 1)
-                * match rev {
-                    false => 1,
-                    true => -1,
-                }
-                == 1;
+            let inverse = (((i % 2) * 2) - 1) * if rev { -1 } else { 1 } == 1;
             let mut pos_x = ox + f32::sin(od1) * wofs;
             let pos_y = oy + f32::cos(od1) * wofs;
             let mut d1 = wing_d1 * 180. / std::f32::consts::PI;
@@ -581,10 +573,7 @@ impl ShipShape {
                 whgt,
                 shp,
                 shape_x_reverse,
-                match damaged {
-                    false => color,
-                    true => 0,
-                },
+                if damaged { 0 } else { color },
                 div_num,
             );
             sts.push(st);

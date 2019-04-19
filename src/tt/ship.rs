@@ -285,7 +285,7 @@ impl Ship {
                 self.rel_pos.y += RELPOS_Y_MOVE;
             } else {
                 self.target_speed += ACCEL_RATIO[self.grade as usize];
-                if !(btn & PadButtons::B != PadButtons::NONE)
+                if btn & PadButtons::B == PadButtons::NONE
                     && !self.in_boss_mode
                     && !self.is_boss_mode_end
                 {
@@ -423,13 +423,14 @@ impl Ship {
         if self.fire_cnt > 0 {
             self.fire_cnt -= 1;
         }
-        let mut ssc = 99999;
-        if self.speed > SPEED_DEFAULT[self.grade as usize] * 1.33 {
-            ssc = (100_000.
+        let ssc = if self.speed > SPEED_DEFAULT[self.grade as usize] * 1.33 {
+            (100_000.
                 / ((self.speed - SPEED_DEFAULT[self.grade as usize] * 1.33) * 99999.
                     / (SPEED_MAX[self.grade as usize] - SPEED_DEFAULT[self.grade as usize])
-                    + 1.)) as u32;
-        }
+                    + 1.)) as u32
+        } else {
+            99999
+        };
         if self.side_fire_cnt > ssc {
             self.side_fire_cnt = ssc;
         }
@@ -506,12 +507,12 @@ impl Ship {
                 let np = screen.near_plane() * camera.zoom();
                 let (p_width, p_height) = screen.physical_size();
                 gl::Frustum(
-                    -np as f64,
-                    np as f64,
-                    -np as f64 * p_height / p_width,
-                    np as f64 * p_height / p_width,
+                    -f64::from(np),
+                    f64::from(np),
+                    -f64::from(np) * p_height / p_width,
+                    f64::from(np) * p_height / p_width,
                     0.1,
-                    screen.far_plane() as f64,
+                    f64::from(screen.far_plane()),
                 );
                 gl::MatrixMode(gl::GL_MODELVIEW);
             }
@@ -531,14 +532,14 @@ impl Ship {
             l += m;
         }
         glu::look_at(
-            e.x as f64,
-            e.y as f64,
-            e.z as f64,
-            l.x as f64,
-            l.y as f64,
-            l.z as f64,
-            f64::sin(deg as f64),
-            -f64::cos(deg as f64),
+            f64::from(e.x),
+            f64::from(e.y),
+            f64::from(e.z),
+            f64::from(l.x),
+            f64::from(l.y),
+            f64::from(l.z),
+            f64::sin(f64::from(deg)),
+            -f64::cos(f64::from(deg)),
             0.,
         );
     }
@@ -561,9 +562,9 @@ impl Ship {
         }
         let mut bmv = pp - p;
         if bmv.x > std::f32::consts::PI {
-            bmv.x = bmv.x - std::f32::consts::PI * 2.;
+            bmv.x -= std::f32::consts::PI * 2.;
         } else if bmv.x < -std::f32::consts::PI {
-            bmv.x = bmv.x + std::f32::consts::PI * 2.;
+            bmv.x += std::f32::consts::PI * 2.;
         }
         let inaa = bmv.x * bmv.x + bmv.y * bmv.y;
         if inaa > 0.00001 {
@@ -617,7 +618,7 @@ impl Ship {
     }
 
     pub fn has_collision(&self) -> bool {
-        !(self.cnt <= -INVINCIBLE_CNT)
+        self.cnt > -INVINCIBLE_CNT
     }
 
     pub fn rank_up(&mut self, is_boss: bool) -> bool {

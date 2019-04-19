@@ -33,7 +33,7 @@ impl Screen {
             brightness,
             fullscreen,
             size,
-            ortho_size: Screen::to_ortho_size(size),
+            ortho_size: Screen::physical_size_to_ortho_size(size),
             near_plane: 0.1,
             far_plane: 1000.,
             window: None,
@@ -115,7 +115,7 @@ impl Screen {
         Ok(())
     }
 
-    fn to_ortho_size(physical_size: Size) -> Size {
+    fn physical_size_to_ortho_size(physical_size: Size) -> Size {
         let ratio_threshold = 480. / 640.;
         let screen_ratio = physical_size.height / physical_size.width;
         if screen_ratio >= ratio_threshold {
@@ -142,23 +142,23 @@ impl Screen {
             let screen_ratio = p_height / p_width;
             if screen_ratio >= ratio_threshold {
                 gl::Frustum(
-                    -self.near_plane as f64,
-                    self.near_plane as f64,
-                    -self.near_plane as f64 * screen_ratio,
-                    self.near_plane as f64 * screen_ratio,
+                    f64::from(-self.near_plane),
+                    f64::from(self.near_plane),
+                    -f64::from(self.near_plane) * screen_ratio,
+                    f64::from(self.near_plane) * screen_ratio,
                     0.1,
-                    self.far_plane as f64,
+                    f64::from(self.far_plane),
                 );
             } else {
                 // This allows to see at least what can be seen horizontally and vertically
                 // with the default ratio -- arnodb
                 gl::Frustum(
-                    -self.near_plane as f64 * ratio_threshold / screen_ratio,
-                    self.near_plane as f64 * ratio_threshold / screen_ratio,
-                    -self.near_plane as f64 * ratio_threshold,
-                    self.near_plane as f64 * ratio_threshold,
+                    -f64::from(self.near_plane) * ratio_threshold / screen_ratio,
+                    f64::from(self.near_plane) * ratio_threshold / screen_ratio,
+                    -f64::from(self.near_plane) * ratio_threshold,
+                    f64::from(self.near_plane) * ratio_threshold,
                     0.1,
-                    self.far_plane as f64,
+                    f64::from(self.far_plane),
                 );
             }
             gl::MatrixMode(gl::GL_MODELVIEW);
@@ -167,7 +167,7 @@ impl Screen {
 
     pub fn resized<S: Into<Size>>(&mut self, size: S) {
         self.size = size.into();
-        self.ortho_size = Screen::to_ortho_size(self.size);
+        self.ortho_size = Screen::physical_size_to_ortho_size(self.size);
         self.screen_resized();
     }
 
@@ -237,7 +237,7 @@ impl Screen {
             gl::MatrixMode(gl::GL_PROJECTION);
             gl::PushMatrix();
             gl::LoadIdentity();
-            gl::Ortho(0., width as f64, height as f64, 0., -1., 1.);
+            gl::Ortho(0., f64::from(width), f64::from(height), 0., -1., 1.);
             gl::MatrixMode(gl::GL_MODELVIEW);
             gl::PushMatrix();
             gl::LoadIdentity();
@@ -280,7 +280,7 @@ impl Screen {
 const LUMINOUS_TEXTURE_WIDTH: usize = 64;
 const LUMINOUS_TEXTURE_HEIGHT: usize = 64;
 
-const LM_OFS: [[f32; 2]; 2] = [[-2., -1.], [2., 1.]];
+const LM_OFS: [(f32, f32); 2] = [(-2., -1.), (2., 1.)];
 const LM_OFS_BS: f32 = 3.;
 
 pub struct LuminousScreen {
@@ -371,24 +371,18 @@ impl LuminousScreen {
         unsafe {
             gl::Color4f(1., 0.8, 0.9, self.luminosity);
             gl::Begin(gl::GL_QUADS);
-            for i in 0..2 {
+            for lm_ofs in &LM_OFS {
                 gl::TexCoord2f(0., 1.);
-                gl::Vertex2f(LM_OFS[i][0] * LM_OFS_BS, LM_OFS[i][1] * LM_OFS_BS);
+                gl::Vertex2f(lm_ofs.0 * LM_OFS_BS, lm_ofs.1 * LM_OFS_BS);
                 gl::TexCoord2f(0., 0.);
-                gl::Vertex2f(
-                    LM_OFS[i][0] * LM_OFS_BS,
-                    p_height as f32 + LM_OFS[i][1] * LM_OFS_BS,
-                );
+                gl::Vertex2f(lm_ofs.0 * LM_OFS_BS, p_height as f32 + lm_ofs.1 * LM_OFS_BS);
                 gl::TexCoord2f(1., 0.);
                 gl::Vertex2f(
-                    p_width as f32 + LM_OFS[i][0] * LM_OFS_BS,
-                    p_height as f32 + LM_OFS[i][1] * LM_OFS_BS,
+                    p_width as f32 + lm_ofs.0 * LM_OFS_BS,
+                    p_height as f32 + lm_ofs.1 * LM_OFS_BS,
                 );
                 gl::TexCoord2f(1., 1.);
-                gl::Vertex2f(
-                    p_width as f32 + LM_OFS[i][0] * LM_OFS_BS,
-                    LM_OFS[i][1] * LM_OFS_BS,
-                );
+                gl::Vertex2f(p_width as f32 + lm_ofs.0 * LM_OFS_BS, lm_ofs.1 * LM_OFS_BS);
             }
             gl::End();
         }

@@ -107,7 +107,7 @@ impl State for TitleState {
                 return MoveAction::None;
             }
         }
-        let action = if self.replay_data.is_some() {
+        if self.replay_data.is_some() {
             more_params.ship.mov(
                 params,
                 more_params.shots,
@@ -161,8 +161,7 @@ impl State for TitleState {
             self.manager.mov(true, params, more_params)
         } else {
             self.manager.mov(false, params, more_params)
-        };
-        action
+        }
     }
 
     fn draw(
@@ -179,7 +178,7 @@ impl State for TitleState {
                 gl::Viewport(
                     0,
                     0,
-                    (p_width / 4. * (3. + rcr as f64)) as i32,
+                    (p_width / 4. * (3. + f64::from(rcr))) as i32,
                     p_height as i32,
                 );
                 gl::Enable(gl::GL_CULL_FACE);
@@ -223,23 +222,23 @@ impl State for TitleState {
             let screen_ratio = p_height / p_width;
             if screen_ratio >= ratio_threshold {
                 gl::Frustum(
-                    -screen.near_plane() as f64,
-                    screen.near_plane() as f64,
-                    -screen.near_plane() as f64 * screen_ratio,
-                    screen.near_plane() as f64 * screen_ratio,
+                    -f64::from(screen.near_plane()),
+                    f64::from(screen.near_plane()),
+                    -f64::from(screen.near_plane()) * screen_ratio,
+                    f64::from(screen.near_plane()) * screen_ratio,
                     0.1,
-                    screen.far_plane() as f64,
+                    f64::from(screen.far_plane()),
                 );
             } else {
                 // This allows to see at least what can be seen horizontally and vertically
                 // with the default ratio -- arnodb
                 gl::Frustum(
-                    -screen.near_plane() as f64 * ratio_threshold / screen_ratio,
-                    screen.near_plane() as f64 * ratio_threshold / screen_ratio,
-                    -screen.near_plane() as f64 * ratio_threshold,
-                    screen.near_plane() as f64 * ratio_threshold,
+                    -f64::from(screen.near_plane()) * ratio_threshold / screen_ratio,
+                    f64::from(screen.near_plane()) * ratio_threshold / screen_ratio,
+                    -f64::from(screen.near_plane()) * ratio_threshold,
+                    f64::from(screen.near_plane()) * ratio_threshold,
                     0.1,
-                    screen.far_plane() as f64,
+                    f64::from(screen.far_plane()),
                 );
             }
             gl::MatrixMode(gl::GL_MODELVIEW);

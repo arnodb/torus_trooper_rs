@@ -216,7 +216,7 @@ impl Letter {
 
     fn draw_letter_internal(idx: usize, c: usize, screen: &Screen) {
         let data = &SP_DATA[idx];
-        for point in data.into_iter() {
+        for point in data.iter() {
             let x = point[0];
             let mut y = -point[1];
             let mut size = point[2];

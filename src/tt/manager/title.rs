@@ -98,9 +98,10 @@ impl TitleManager {
                 if dir & PadDirection::DOWN != PadDirection::NONE {
                     self.level += mv;
                     if self.level > max_level {
-                        self.level = match self.key_repeat_cnt >= AUTO_REPEAT_START_TIME {
-                            true => max_level,
-                            false => 1,
+                        self.level = if self.key_repeat_cnt >= AUTO_REPEAT_START_TIME {
+                            max_level
+                        } else {
+                            1
                         };
                         self.key_repeat_cnt = 0;
                     }
@@ -108,9 +109,10 @@ impl TitleManager {
                 if dir & PadDirection::UP != PadDirection::NONE {
                     self.level -= mv;
                     if self.level < 1 {
-                        self.level = match self.key_repeat_cnt >= AUTO_REPEAT_START_TIME {
-                            true => 1,
-                            false => max_level,
+                        self.level = if self.key_repeat_cnt >= AUTO_REPEAT_START_TIME {
+                            1
+                        } else {
+                            max_level
                         };
                         self.key_repeat_cnt = 0;
                     }

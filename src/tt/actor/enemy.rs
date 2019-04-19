@@ -125,9 +125,7 @@ impl Enemy {
         } else if !ship.has_collision() {
             self.speed += (1.5 - self.speed) * 0.15;
         }
-        if spec.has_limit_y() {
-            self.speed = spec.speed_ship(self.speed, ship.speed());
-        } else if self.pos.y > 5. && self.pos.y < ship::IN_SIGHT_DEPTH_DEFAULT * 2. {
+        if spec.has_limit_y() || self.pos.y > 5. && self.pos.y < ship::IN_SIGHT_DEPTH_DEFAULT * 2. {
             self.speed = spec.speed_ship(self.speed, ship.speed());
         } else {
             self.speed = spec.speed(self.speed);
@@ -319,9 +317,7 @@ impl Enemy {
                 && self.pos.y > ship_rel_pos.y
                 && self.flip_mv_cnt <= 0
             {
-                if spec.no_fire_depth_limit {
-                    top_bullet.root_rank = 1.;
-                } else if self.pos.y <= ship.in_sight_depth() {
+                if spec.no_fire_depth_limit || self.pos.y <= ship.in_sight_depth() {
                     top_bullet.root_rank = 1.;
                 } else {
                     top_bullet.root_rank = 0.;
@@ -348,16 +344,14 @@ impl Enemy {
             ox = std::f32::consts::PI * 2. - ox;
         }
         ox *= (params.tunnel.get_radius(self.pos.y) / tunnel::DEFAULT_RAD) * 3.;
-        let mut release_enemy = false;
-        let mut release_shot = false;
         if spec
             .shape()
             .check_collision_shape(ox, oy, shot.shape.as_ref().unwrap(), 1.)
         {
             self.shield -= shot.damage();
-            if self.shield <= 0 {
+            let release_enemy = if self.shield <= 0 {
                 self.destroyed(spec, params, ship, particles, rand);
-                release_enemy = true;
+                true
             } else {
                 self.damaged = true;
                 for _ in 0..4 {
@@ -391,16 +385,19 @@ impl Enemy {
                     });
                 }
                 params.sound_manager.play_se("hit.wav");
-            }
-            release_shot = shot.add_score(
+                false
+            };
+            let release_shot = shot.add_score(
                 spec.score(),
                 self.pos,
                 params,
                 ship.is_game_over(),
                 float_letters,
             );
+            (release_enemy, release_shot)
+        } else {
+            (false, false)
         }
-        (release_enemy, release_shot)
     }
 
     fn destroyed(

@@ -29,6 +29,7 @@ enum MoveType {
 
 const MOVE_TYPES: [MoveType; 2] = [MoveType::Float, MoveType::Fix];
 
+#[allow(clippy::new_without_default)]
 impl Camera {
     pub fn new() -> Self {
         Camera {

@@ -17,6 +17,7 @@ pub struct InGameState {
     replay_data: ReplayData,
 }
 
+#[allow(clippy::new_without_default)]
 impl InGameState {
     pub fn new() -> Self {
         InGameState {

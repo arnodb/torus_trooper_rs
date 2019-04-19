@@ -353,7 +353,7 @@ impl Tunnel {
             xr = std::f32::consts::PI * 2. - xr;
         }
         xr *= self.get_radius(0.) / DEFAULT_RAD;
-        !(xr > v * (p.y + ofs))
+        xr <= v * (p.y + ofs)
     }
 
     pub fn get_torus_length(&self) -> usize {

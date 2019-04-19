@@ -222,12 +222,12 @@ impl Bullet {
             ox = std::f32::consts::PI * 2. - ox;
         }
         ox *= (params.tunnel.get_radius(bullet_pos.y) / tunnel::DEFAULT_RAD) * 3.;
-        let mut release_shot = false;
         if shot.shape.as_ref().unwrap().check_collision(ox, oy) {
             self.start_disappear();
-            release_shot = shot.add_score(10, bullet_pos, params, game_over, float_letters);
+            shot.add_score(10, bullet_pos, params, game_over, float_letters)
+        } else {
+            false
         }
-        release_shot
     }
 
     fn draw(&self, tunnel: &Tunnel) {
@@ -652,17 +652,17 @@ const VEL_SDM_SS_RATIO: f32 = 10. / 62.;
 
 impl<'a, 'm> AppRunner<TTRunnerData<'a, 'm>> for TTRunner {
     fn get_bullet_direction(&self, data: &TTRunnerData) -> f64 {
-        rtod(data.bullet.deg) as f64
+        f64::from(rtod(data.bullet.deg))
     }
 
     fn get_aim_direction(&self, data: &TTRunnerData) -> f64 {
         let b = data.bullet.pos;
         let t = data.target;
-        rtod(f32::atan2(t.x - b.x, t.y - b.y)) as f64
+        f64::from(rtod(f32::atan2(t.x - b.x, t.y - b.y)))
     }
 
     fn get_bullet_speed(&self, data: &TTRunnerData) -> f64 {
-        (data.bullet.speed * VEL_SS_SDM_RATIO) as f64
+        f64::from(data.bullet.speed * VEL_SS_SDM_RATIO)
     }
 
     fn get_default_speed(&self) -> f64 {
@@ -670,7 +670,7 @@ impl<'a, 'm> AppRunner<TTRunnerData<'a, 'm>> for TTRunner {
     }
 
     fn get_rank(&self, data: &TTRunnerData) -> f64 {
-        f32::min(data.bml_param.rank, 1.) as f64
+        f64::from(f32::min(data.bml_param.rank, 1.))
     }
 
     fn create_simple_bullet(&mut self, data: &mut TTRunnerData, direction: f64, speed: f64) {
@@ -722,7 +722,7 @@ impl<'a, 'm> AppRunner<TTRunnerData<'a, 'm>> for TTRunner {
     }
 
     fn get_rand(&self, data: &mut TTRunnerData) -> f64 {
-        data.rand.gen_f32(1.) as f64
+        f64::from(data.rand.gen_f32(1.))
     }
 }
 

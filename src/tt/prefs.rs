@@ -7,6 +7,7 @@ pub struct PrefManager {
     prefs: GamePreferences,
 }
 
+#[allow(clippy::new_without_default)]
 impl PrefManager {
     pub fn new() -> Self {
         let mut prefs = load_prefs_file::<GamePreferences, _>("prefs");

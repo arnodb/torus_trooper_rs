@@ -36,6 +36,7 @@ pub struct SharedState<'a> {
     start_bgm_cnt: i32,
 }
 
+#[allow(clippy::new_without_default)]
 impl<'a> SharedState<'a> {
     pub fn new() -> Self {
         SharedState {

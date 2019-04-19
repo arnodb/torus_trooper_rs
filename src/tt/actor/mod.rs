@@ -115,8 +115,8 @@ impl<T: Default> Pool<T> {
     }
 
     fn as_refs(&self) -> Vec<PoolActorRef> {
-        (&self.actors)
-            .into_iter()
+        self.actors
+            .iter()
             .enumerate()
             .filter_map(|(idx, pa)| match pa.state {
                 ActorState::Acting { generation, .. } => Some(PoolActorRef { idx, generation }),
@@ -184,7 +184,7 @@ impl<'a, T> IntoIterator for &'a Pool<T> {
     >;
 
     fn into_iter(self) -> Self::IntoIter {
-        (&self.actors).into_iter().filter_map(|pa| match pa.state {
+        self.actors.iter().filter_map(|pa| match pa.state {
             ActorState::Acting { .. } => Some(&pa.actor),
             ActorState::NotActing => None,
         })
@@ -199,11 +199,9 @@ impl<'a, T> IntoIterator for &'a mut Pool<T> {
     >;
 
     fn into_iter(self) -> Self::IntoIter {
-        (&mut self.actors)
-            .into_iter()
-            .filter_map(|pa| match pa.state {
-                ActorState::Acting { .. } => Some(&mut pa.actor),
-                ActorState::NotActing => None,
-            })
+        self.actors.iter_mut().filter_map(|pa| match pa.state {
+            ActorState::Acting { .. } => Some(&mut pa.actor),
+            ActorState::NotActing => None,
+        })
     }
 }

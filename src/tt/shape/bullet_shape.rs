@@ -61,10 +61,10 @@ impl BulletShape {
         display_list.new_list();
         let mut p = [Vector3::default(); 4];
         let mut np = [Vector3::default(); 4];
-        for i in 0..6 {
+        for square_point_dat in &SQUARE_POINT_DAT {
             let mut cp = Vector3::default();
             for j in 0..4 {
-                p[j] = Vector3::new_at_tuple(SQUARE_POINT_DAT[i][j]);
+                p[j] = Vector3::new_at_tuple(square_point_dat[j]);
                 cp += p[j];
             }
             cp /= 4.;
@@ -79,8 +79,8 @@ impl BulletShape {
             unsafe {
                 gl::Begin(gl::GL_LINE_LOOP);
             }
-            for j in 0..4 {
-                np[j].gl_vertex();
+            for np_item in &np {
+                np_item.gl_vertex();
             }
             unsafe {
                 gl::End();
@@ -90,8 +90,8 @@ impl BulletShape {
                     gl::Begin(gl::GL_TRIANGLE_FAN);
                 }
                 screen.set_color(Color::from(COLOR_RGB) * 0.7);
-                for j in 0..4 {
-                    np[j].gl_vertex();
+                for np_item in &np {
+                    np_item.gl_vertex();
                 }
                 unsafe {
                     gl::End();
@@ -157,10 +157,10 @@ impl BulletShape {
         display_list.new_list();
         let mut p = [Vector3::default(); 4];
         let mut np = [Vector3::default(); 4];
-        for i in 0..5 {
+        for bar_point_dat in &BAR_POINT_DAT {
             let mut cp = Vector3::default();
             for j in 0..4 {
-                p[j] = Vector3::new_at_tuple(BAR_POINT_DAT[i][j])
+                p[j] = Vector3::new_at_tuple(bar_point_dat[j])
                     * Vector3::new_at_tuple((0.7, 0.7, 1.75));
                 cp += p[j];
             }
@@ -176,8 +176,8 @@ impl BulletShape {
             unsafe {
                 gl::Begin(gl::GL_LINE_LOOP);
             }
-            for j in 0..4 {
-                np[j].gl_vertex();
+            for np_item in &np {
+                np_item.gl_vertex();
             }
             unsafe {
                 gl::End();
@@ -187,8 +187,8 @@ impl BulletShape {
                     gl::Begin(gl::GL_TRIANGLE_FAN);
                 }
                 screen.set_color(Color::from(COLOR_RGB) * 0.7);
-                for j in 0..4 {
-                    np[j].gl_vertex();
+                for np_item in &np {
+                    np_item.gl_vertex();
                 }
                 unsafe {
                     gl::End();

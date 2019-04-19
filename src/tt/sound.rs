@@ -76,7 +76,7 @@ impl<'a> SoundManager<'a> {
     fn load_chunks() -> Result<BTreeMap<String, (Chunk, i32)>, SoundError> {
         let mut chunks = BTreeMap::new();
         let chunk_path = Path::new(CHUNK_DIR_NAME);
-        for (file_name, ch) in vec![
+        for (file_name, ch) in &[
             ("shot.wav", 0),
             ("charge.wav", 1),
             ("charge_shot.wav", 1),
@@ -90,7 +90,7 @@ impl<'a> SoundManager<'a> {
         ] {
             let chunk = Chunk::from_file(chunk_path.join(file_name))
                 .map_err(|str| SoundError::Sdl(str, Backtrace::new()))?;
-            chunks.insert(file_name.to_string(), (chunk, ch));
+            chunks.insert(file_name.to_string(), (chunk, *ch));
         }
         Ok(chunks)
     }

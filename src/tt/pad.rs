@@ -155,9 +155,10 @@ impl GamePad {
             || self.keys.contains(&Key::Period)
             || self.keys.contains(&Key::LCtrl)
         {
-            buttons |= match self.button_reversed {
-                false => PadButtons::A,
-                true => PadButtons::B,
+            buttons |= if self.button_reversed {
+                PadButtons::B
+            } else {
+                PadButtons::A
             };
         }
         if self.keys.contains(&Key::X)
@@ -165,9 +166,10 @@ impl GamePad {
             || self.keys.contains(&Key::LAlt)
             || self.keys.contains(&Key::LShift)
         {
-            buttons |= match self.button_reversed {
-                false => PadButtons::B,
-                true => PadButtons::A,
+            buttons |= if self.button_reversed {
+                PadButtons::A
+            } else {
+                PadButtons::B
             };
         }
         buttons
@@ -181,19 +183,21 @@ impl GamePad {
                 || j.button(4).unwrap_or(false)
                 || j.button(7).unwrap_or(false);
             if btn1 {
-                buttons |= match self.button_reversed {
-                    false => PadButtons::A,
-                    true => PadButtons::B,
-                }
+                buttons |= if self.button_reversed {
+                    PadButtons::B
+                } else {
+                    PadButtons::A
+                };
             }
             let btn2 = j.button(1).unwrap_or(false)
                 || j.button(2).unwrap_or(false)
                 || j.button(5).unwrap_or(false)
                 || j.button(6).unwrap_or(false);
             if btn2 {
-                buttons |= match self.button_reversed {
-                    false => PadButtons::B,
-                    true => PadButtons::A,
+                buttons |= if self.button_reversed {
+                    PadButtons::A
+                } else {
+                    PadButtons::B
                 };
             }
         }

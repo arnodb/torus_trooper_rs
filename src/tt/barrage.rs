@@ -111,7 +111,7 @@ impl BarrageManager {
                         if let Some("xml") = file_name.path().extension().and_then(OsStr::to_str) {
                             let entry = bmls
                                 .entry(dir_name.file_name().to_os_string())
-                                .or_insert(BTreeMap::new());
+                                .or_insert_with(BTreeMap::new);
                             entry.insert(
                                 file_name.file_name().to_os_string(),
                                 Rc::new(BarrageManager::load_instance(&file_name.path())?),
