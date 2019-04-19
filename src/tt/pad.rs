@@ -43,10 +43,10 @@ bitflags! {
     pub struct PadDirection: u8 {
         const NONE = 0;
 
-        const UP = 0b00000001;
-        const DOWN = 0b00000010;
-        const LEFT = 0b00000100;
-        const RIGHT = 0b00001000;
+        const UP = 0b0000_0001;
+        const DOWN = 0b0000_0010;
+        const LEFT = 0b0000_0100;
+        const RIGHT = 0b0000_1000;
     }
 }
 
@@ -55,8 +55,8 @@ bitflags! {
     pub struct PadButtons: u8 {
         const NONE = 0;
 
-        const A = 0b00000001;
-        const B = 0b00000010;
+        const A = 0b0000_0001;
+        const B = 0b0000_0010;
 
         const ANY = Self::A.bits | Self::B.bits;
     }

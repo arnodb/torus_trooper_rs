@@ -34,6 +34,8 @@ const TUNNEL_COLOR_PATTERN_LINE: [(f32, f32, f32); 7] = [
     (0.6, 0.4, 1.),
 ];
 
+const MAX_APP_DIST: f32 = 9_999_999.;
+
 pub struct StageManager {
     rand: Rand,
     next_small_app_dist: f32,
@@ -150,7 +152,7 @@ impl StageManager {
         more_params
             .ship
             .set_boss_app(boss_app_rank, self.boss_num, self.zone_end_rank);
-        self.next_boss_app_dist = 9999999.;
+        self.next_boss_app_dist = MAX_APP_DIST;
         self.boss_mode_end_cnt = -1;
     }
 
@@ -164,8 +166,8 @@ impl StageManager {
         if more_params.ship.in_boss_mode() {
             if self.next_boss_app_dist > 99999. {
                 self.next_boss_app_dist = (self.rand.gen_usize(50) + 100) as f32;
-                self.next_small_app_dist = 9999999.;
-                self.next_medium_app_dist = 9999999.;
+                self.next_small_app_dist = MAX_APP_DIST;
+                self.next_medium_app_dist = MAX_APP_DIST;
             }
             self.next_boss_app_dist -= more_params.ship.speed();
             if self.boss_num > 0 && self.next_boss_app_dist <= 0. {
@@ -183,9 +185,9 @@ impl StageManager {
             if self.next_boss_app_dist < 99999. {
                 // Player's ship destroyed or overtook all bosses.
                 self.boss_mode_end_cnt = 60;
-                self.next_small_app_dist = 9999999.;
-                self.next_medium_app_dist = 9999999.;
-                self.next_boss_app_dist = 9999999.;
+                self.next_small_app_dist = MAX_APP_DIST;
+                self.next_medium_app_dist = MAX_APP_DIST;
+                self.next_boss_app_dist = MAX_APP_DIST;
             }
             if self.boss_mode_end_cnt >= 0 {
                 self.boss_mode_end_cnt -= 1;

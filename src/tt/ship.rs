@@ -41,6 +41,8 @@ const STAR_SHELL_INTERVAL: u32 = 7;
 
 const GUNPOINT_WIDTH: f32 = 0.05;
 
+const MAX_BOSS_APP_RANK: u32 = 9_999_999;
+
 pub struct Ship {
     replay_mode: bool,
     camera_mode: bool,
@@ -423,7 +425,7 @@ impl Ship {
         }
         let mut ssc = 99999;
         if self.speed > SPEED_DEFAULT[self.grade as usize] * 1.33 {
-            ssc = (100000.
+            ssc = (100_000.
                 / ((self.speed - SPEED_DEFAULT[self.grade as usize] * 1.33) * 99999.
                     / (SPEED_MAX[self.grade as usize] - SPEED_DEFAULT[self.grade as usize])
                     + 1.)) as u32;
@@ -630,7 +632,7 @@ impl Ship {
                 goto_next_zone = true;
                 self.in_boss_mode = false;
                 self.is_boss_mode_end = true;
-                self.boss_app_rank = 9999999;
+                self.boss_app_rank = MAX_BOSS_APP_RANK;
             }
         }
         if self.rank < self.zone_end_rank {
@@ -646,7 +648,7 @@ impl Ship {
         self.boss_app_num = 0;
         self.in_boss_mode = false;
         self.is_boss_mode_end = true;
-        self.boss_app_rank = 9999999;
+        self.boss_app_rank = MAX_BOSS_APP_RANK;
     }
 
     pub fn start_next_zone(&mut self) {

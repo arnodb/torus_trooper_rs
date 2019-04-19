@@ -7,10 +7,10 @@ use crate::tt::ship::Ship;
 use crate::tt::sound::SoundManager;
 use crate::tt::{GeneralParams, MoreParams};
 
-const DEFAULT_EXTEND_SCORE: u32 = 100000;
-const MAX_EXTEND_SCORE: u32 = 500000;
-const DEFAULT_TIME: i32 = 120000;
-const MAX_TIME: i32 = 120000;
+const DEFAULT_EXTEND_SCORE: u32 = 100_000;
+const MAX_EXTEND_SCORE: u32 = 500_000;
+const DEFAULT_TIME: i32 = 120_000;
+const MAX_TIME: i32 = 120_000;
 
 const SHIP_DESTROYED_PENALTY_TIME: i32 = -15000;
 const SHIP_DESTROYED_PENALTY_TIME_MSG: &str = "-15 SEC.";

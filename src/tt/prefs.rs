@@ -15,7 +15,8 @@ impl PrefManager {
     }
 
     pub fn save(&self) -> Result<(), GameError> {
-        Ok(save_prefs_file(&self.prefs, "prefs")?)
+        save_prefs_file(&self.prefs, "prefs")?;
+        Ok(())
     }
 
     pub fn max_level(&self, gd: u32) -> u32 {
