@@ -172,10 +172,10 @@ impl<'a> SharedState<'a> {
         if self.time > BEEP_START_TIME {
             letter.draw_time(self.time as isize, 220., 24., 15.);
         } else {
-            letter.draw_time_ex(self.time as isize, 220., 24., 15., 1);
+            letter.draw_time_color(self.time as isize, 220., 24., 15., 1);
         }
         if self.time_changed_show_cnt >= 0 && (self.time_changed_show_cnt % 64) > 32 {
-            letter.draw_string_ex1(
+            letter.draw_string_color(
                 self.time_changed_msg,
                 o_width as f32 / 2. - 70.,
                 24.,
@@ -184,7 +184,7 @@ impl<'a> SharedState<'a> {
                 1,
             );
         }
-        letter.draw_string_ex1(
+        letter.draw_string_color(
             "LEVEL",
             20.,
             o_height as f32 - 70.,

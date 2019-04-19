@@ -52,7 +52,7 @@ impl FloatLetter {
             gl::Translatef(0., 0., sp.z);
         }
         screen.set_alpha_color((1., 1., 1., 1.));
-        letter.draw_string_ex2(
+        letter.draw_string_full(
             &self.msg,
             sp.x,
             sp.y,
@@ -63,7 +63,7 @@ impl FloatLetter {
             self.d * 180. / std::f32::consts::PI,
         );
         screen.set_alpha_color((1., 1., 1., self.alpha));
-        letter.draw_string_ex2(
+        letter.draw_string_full(
             &self.msg,
             sp.x,
             sp.y,

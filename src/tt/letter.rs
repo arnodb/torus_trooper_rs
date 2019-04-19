@@ -36,27 +36,27 @@ impl Letter {
         Letter { display_list }
     }
 
-    fn draw_letter(&self, n: usize, x: f32, y: f32, s: f32, d: f32, c: usize) {
+    fn draw_letter(&self, letter: usize, x: f32, y: f32, scale: f32, deg: f32, color: usize) {
         unsafe {
             gl::PushMatrix();
             gl::Translatef(x, y, 0.);
-            gl::Scalef(s, s, s);
-            gl::Rotatef(d, 0., 0., 1.);
+            gl::Scalef(scale, scale, scale);
+            gl::Rotatef(deg, 0., 0., 1.);
         }
-        self.display_list.call((n + c * LETTER_NUM) as u32);
+        self.display_list.call((letter + color * LETTER_NUM) as u32);
         unsafe {
             gl::PopMatrix();
         }
     }
 
-    fn draw_letter_rev(&self, n: usize, x: f32, y: f32, s: f32, d: f32, c: usize) {
+    fn draw_letter_rev(&self, letter: usize, x: f32, y: f32, scale: f32, deg: f32, color: usize) {
         unsafe {
             gl::PushMatrix();
             gl::Translatef(x, y, 0.);
-            gl::Scalef(s, -s, s);
-            gl::Rotatef(d, 0., 0., 1.);
+            gl::Scalef(scale, -scale, scale);
+            gl::Rotatef(deg, 0., 0., 1.);
         }
-        self.display_list.call((n + c * LETTER_NUM) as u32);
+        self.display_list.call((letter + color * LETTER_NUM) as u32);
         unsafe {
             gl::PopMatrix();
         }
@@ -77,80 +77,87 @@ impl Letter {
         }) as usize
     }
 
-    pub fn draw_string(&self, str: &str, lx: f32, y: f32, s: f32) {
-        self.draw_string_ex1(str, lx, y, s, Direction::ToRight, 0)
+    pub fn draw_string(&self, str: &str, lx: f32, y: f32, scale: f32) {
+        self.draw_string_color(str, lx, y, scale, Direction::ToRight, 0)
     }
 
-    pub fn draw_string_ex1(&self, str: &str, lx: f32, y: f32, s: f32, d: Direction, cl: usize) {
-        self.draw_string_ex2(str, lx, y, s, d, cl, false, 0.)
-    }
-
-    pub fn draw_string_ex2(
+    pub fn draw_string_color(
         &self,
         str: &str,
         lx: f32,
         y: f32,
-        s: f32,
+        scale: f32,
         d: Direction,
-        cl: usize,
-        rev: bool,
-        od: f32,
+        color: usize,
     ) {
-        let mut mut_x = lx + LETTER_WIDTH * s / 2.;
-        let mut mut_y = y + LETTER_HEIGHT * s / 2.;
-        let ld: f32 = match d {
+        self.draw_string_full(str, lx, y, scale, d, color, false, 0.)
+    }
+
+    pub fn draw_string_full(
+        &self,
+        str: &str,
+        lx: f32,
+        y: f32,
+        scale: f32,
+        d: Direction,
+        color: usize,
+        rev: bool,
+        odeg: f32,
+    ) {
+        let mut mut_x = lx + LETTER_WIDTH * scale / 2.;
+        let mut mut_y = y + LETTER_HEIGHT * scale / 2.;
+        let ldeg: f32 = match d {
             Direction::ToRight => 0.,
             Direction::ToDown => 90.,
             Direction::ToLeft => 180.,
             Direction::ToUp => 270.,
-        } + od;
+        } + odeg;
         for c in str.chars() {
             if c != ' ' {
                 let idx = Letter::convert_char_to_int(c);
                 if rev {
-                    self.draw_letter_rev(idx, mut_x, mut_y, s, ld, cl);
+                    self.draw_letter_rev(idx, mut_x, mut_y, scale, ldeg, color);
                 } else {
-                    self.draw_letter(idx, mut_x, mut_y, s, ld, cl);
+                    self.draw_letter(idx, mut_x, mut_y, scale, ldeg, color);
                 }
             }
-            if od == 0. {
+            if odeg == 0. {
                 match d {
                     Direction::ToRight => {
-                        mut_x += s * LETTER_WIDTH;
+                        mut_x += scale * LETTER_WIDTH;
                     }
                     Direction::ToDown => {
-                        mut_y += s * LETTER_WIDTH;
+                        mut_y += scale * LETTER_WIDTH;
                     }
                     Direction::ToLeft => {
-                        mut_x -= s * LETTER_WIDTH;
+                        mut_x -= scale * LETTER_WIDTH;
                     }
                     Direction::ToUp => {
-                        mut_y -= s * LETTER_WIDTH;
+                        mut_y -= scale * LETTER_WIDTH;
                     }
                 }
             } else {
-                mut_x += f32::cos(ld * std::f32::consts::PI / 180.) * s * LETTER_WIDTH;
-                mut_y += f32::sin(ld * std::f32::consts::PI / 180.) * s * LETTER_WIDTH;
+                mut_x += f32::cos(ldeg * std::f32::consts::PI / 180.) * scale * LETTER_WIDTH;
+                mut_y += f32::sin(ldeg * std::f32::consts::PI / 180.) * scale * LETTER_WIDTH;
             }
         }
     }
 
-    pub fn draw_num(&self, num: usize, lx: f32, y: f32, s: f32) {
-        self.draw_num_ex(num, lx, y, s, Direction::ToRight, 0, 0)
+    pub fn draw_num(&self, num: usize, lx: f32, y: f32, scale: f32) {
+        self.draw_num_digit(num, lx, y, scale, Direction::ToRight, 0)
     }
 
-    pub fn draw_num_ex(
+    pub fn draw_num_digit(
         &self,
         num: usize,
         lx: f32,
         y: f32,
-        s: f32,
+        scale: f32,
         d: Direction,
-        cl: usize,
-        dg: isize,
+        digit: isize,
     ) {
-        let mut mut_x = lx + LETTER_WIDTH * s / 2.;
-        let mut mut_y = y + LETTER_HEIGHT * s / 2.;
+        let mut mut_x = lx + LETTER_WIDTH * scale / 2.;
+        let mut mut_y = y + LETTER_HEIGHT * scale / 2.;
         let ld: f32 = match d {
             Direction::ToRight => 0.,
             Direction::ToDown => 90.,
@@ -158,55 +165,55 @@ impl Letter {
             Direction::ToUp => 270.,
         };
         let mut n = num;
-        let mut digit = dg;
+        let mut dg = digit;
         loop {
-            self.draw_letter(n % 10, mut_x, mut_y, s, ld, cl);
+            self.draw_letter(n % 10, mut_x, mut_y, scale, ld, 0);
             match d {
                 Direction::ToRight => {
-                    mut_x -= s * LETTER_WIDTH;
+                    mut_x -= scale * LETTER_WIDTH;
                 }
                 Direction::ToDown => {
-                    mut_y -= s * LETTER_WIDTH;
+                    mut_y -= scale * LETTER_WIDTH;
                 }
                 Direction::ToLeft => {
-                    mut_x += s * LETTER_WIDTH;
+                    mut_x += scale * LETTER_WIDTH;
                 }
                 Direction::ToUp => {
-                    mut_y += s * LETTER_WIDTH;
+                    mut_y += scale * LETTER_WIDTH;
                 }
             }
             n /= 10;
-            digit -= 1;
-            if n <= 0 && digit <= 0 {
+            dg -= 1;
+            if n <= 0 && dg <= 0 {
                 break;
             }
         }
     }
 
-    pub fn draw_time(&self, time: isize, lx: f32, y: f32, s: f32) {
-        self.draw_time_ex(time, lx, y, s, 0)
+    pub fn draw_time(&self, time: isize, lx: f32, y: f32, scale: f32) {
+        self.draw_time_color(time, lx, y, scale, 0)
     }
 
-    pub fn draw_time_ex(&self, time: isize, lx: f32, y: f32, s: f32, cl: usize) {
+    pub fn draw_time_color(&self, time: isize, lx: f32, y: f32, scale: f32, color: usize) {
         let mut n: usize = if time >= 0 { time as usize } else { 0 };
         let mut mut_x = lx;
         for i in 0..7 {
             if i != 4 {
-                self.draw_letter(n % 10, mut_x, y, s, 0., cl);
+                self.draw_letter(n % 10, mut_x, y, scale, 0., color);
                 n /= 10;
             } else {
-                self.draw_letter(n % 6, mut_x, y, s, 0., cl);
+                self.draw_letter(n % 6, mut_x, y, scale, 0., color);
                 n /= 6;
             }
             if (i & 1) == 1 || i == 0 {
                 match i {
-                    3 => self.draw_letter(41, mut_x + s * 1.16, y, s, 0., cl),
-                    5 => self.draw_letter(40, mut_x + s * 1.16, y, s, 0., cl),
+                    3 => self.draw_letter(41, mut_x + scale * 1.16, y, scale, 0., color),
+                    5 => self.draw_letter(40, mut_x + scale * 1.16, y, scale, 0., color),
                     _ => (),
                 }
-                mut_x -= s * LETTER_WIDTH;
+                mut_x -= scale * LETTER_WIDTH;
             } else {
-                mut_x -= s * LETTER_WIDTH * 1.3;
+                mut_x -= scale * LETTER_WIDTH * 1.3;
             }
             if n <= 0 {
                 break;
@@ -214,7 +221,7 @@ impl Letter {
         }
     }
 
-    fn draw_letter_internal(idx: usize, c: usize, screen: &Screen) {
+    fn draw_letter_internal(idx: usize, color: usize, screen: &Screen) {
         let data = &SP_DATA[idx];
         for point in data.iter() {
             let x = point[0];
@@ -226,12 +233,12 @@ impl Letter {
             size *= 1.4;
             length *= 1.05;
             deg %= 180.;
-            if c == 2 {
+            if color == 2 {
                 Letter::draw_box_line(x, y, size, length, deg);
-            } else if c == 3 {
+            } else if color == 3 {
                 Letter::draw_box_poly(x, y, size, length, deg);
             } else {
-                Letter::draw_box(x, y, size, length, deg, COLOR_RGB[c].into(), screen);
+                Letter::draw_box(x, y, size, length, deg, COLOR_RGB[color].into(), screen);
             }
         }
     }
