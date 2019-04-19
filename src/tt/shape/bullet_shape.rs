@@ -1,12 +1,13 @@
 use crate::gl;
 
 use crate::tt::screen::Screen;
+use crate::util::color::Color;
 use crate::util::display_list::DisplayList;
 use crate::util::vector::Vector3;
 
 use super::Drawable;
 
-const COLOR_RGB: [f32; 3] = [1., 0.7, 0.8];
+const COLOR_RGB: (f32, f32, f32) = (1., 0.7, 0.8);
 
 const SQUARE_POINT_DAT: [[(f32, f32, f32); 4]; 6] = [
     [(-1., -1., 1.), (1., -1., 1.), (1., 1., 1.), (-1., 1., 1.)],
@@ -71,9 +72,9 @@ impl BulletShape {
                 np[j] = Vector3::blend(p[j], cp, 0.6);
             }
             if !wire_shape {
-                screen.set_color_rgb(COLOR_RGB[0], COLOR_RGB[1], COLOR_RGB[2]);
+                screen.set_color(COLOR_RGB);
             } else {
-                screen.set_color_rgb(COLOR_RGB[0] * 0.6, COLOR_RGB[1], COLOR_RGB[2]);
+                screen.set_color((COLOR_RGB.0 * 0.6, COLOR_RGB.1, COLOR_RGB.2));
             }
             unsafe {
                 gl::Begin(gl::GL_LINE_LOOP);
@@ -88,7 +89,7 @@ impl BulletShape {
                 unsafe {
                     gl::Begin(gl::GL_TRIANGLE_FAN);
                 }
-                screen.set_color_rgb(COLOR_RGB[0] * 0.7, COLOR_RGB[1] * 0.7, COLOR_RGB[2] * 0.7);
+                screen.set_color(Color::from(COLOR_RGB) * 0.7);
                 for j in 0..4 {
                     np[j].gl_vertex();
                 }
@@ -120,9 +121,9 @@ impl BulletShape {
             let np2 = Vector3::blend(p2, cp, 0.6);
             let np3 = Vector3::blend(p3, cp, 0.6);
             if !wire_shape {
-                screen.set_color_rgb(COLOR_RGB[0], COLOR_RGB[1], COLOR_RGB[2]);
+                screen.set_color(COLOR_RGB);
             } else {
-                screen.set_color_rgb(COLOR_RGB[0] * 0.6, COLOR_RGB[1], COLOR_RGB[2]);
+                screen.set_color((COLOR_RGB.0 * 0.6, COLOR_RGB.1, COLOR_RGB.2));
             }
             unsafe {
                 gl::Begin(gl::GL_LINE_LOOP);
@@ -137,9 +138,9 @@ impl BulletShape {
                 unsafe {
                     gl::Begin(gl::GL_TRIANGLE_FAN);
                 }
-                screen.set_color_rgb(COLOR_RGB[0] * 0.7, COLOR_RGB[1] * 0.7, COLOR_RGB[2] * 0.7);
+                screen.set_color(Color::from(COLOR_RGB) * 0.7);
                 np1.gl_vertex();
-                screen.set_color_rgb(COLOR_RGB[0] * 0.4, COLOR_RGB[1] * 0.4, COLOR_RGB[2] * 0.4);
+                screen.set_color(Color::from(COLOR_RGB) * 0.4);
                 np2.gl_vertex();
                 np3.gl_vertex();
                 unsafe {
@@ -168,9 +169,9 @@ impl BulletShape {
                 np[j] = Vector3::blend(p[j], cp, 0.6);
             }
             if !wire_shape {
-                screen.set_color_rgb(COLOR_RGB[0], COLOR_RGB[1], COLOR_RGB[2]);
+                screen.set_color(COLOR_RGB);
             } else {
-                screen.set_color_rgb(COLOR_RGB[0] * 0.6, COLOR_RGB[1], COLOR_RGB[2]);
+                screen.set_color((COLOR_RGB.0 * 0.6, COLOR_RGB.1, COLOR_RGB.2));
             }
             unsafe {
                 gl::Begin(gl::GL_LINE_LOOP);
@@ -185,7 +186,7 @@ impl BulletShape {
                 unsafe {
                     gl::Begin(gl::GL_TRIANGLE_FAN);
                 }
-                screen.set_color_rgb(COLOR_RGB[0] * 0.7, COLOR_RGB[1] * 0.7, COLOR_RGB[2] * 0.7);
+                screen.set_color(Color::from(COLOR_RGB) * 0.7);
                 for j in 0..4 {
                     np[j].gl_vertex();
                 }

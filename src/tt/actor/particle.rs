@@ -5,6 +5,7 @@ use crate::gl;
 use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::screen::Screen;
 use crate::tt::tunnel::Tunnel;
+use crate::util::color::Color;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
 
@@ -19,9 +20,7 @@ pub struct Particle {
     psp: Vector3,
     rsp: Vector3,
     rpsp: Vector3,
-    r: f32,
-    g: f32,
-    b: f32,
+    color: Color,
     lum_alp: f32,
     cnt: i32,
     in_course: bool,
@@ -58,9 +57,7 @@ impl Particle {
         d: f32,
         mz: f32,
         speed: f32,
-        r: f32,
-        g: f32,
-        b: f32,
+        color: Color,
         c: i32,
         tunnel: &Tunnel,
         rand: &mut Rand,
@@ -68,9 +65,7 @@ impl Particle {
         self.pos = Vector3::new_at(p.x, p.y, z);
         let sb = rand.gen_f32(0.8) + 0.4;
         self.vel = Vector3::new_at(f32::sin(d) * speed * sb, f32::cos(d) * speed * sb, mz);
-        self.r = r;
-        self.g = g;
-        self.b = b;
+        self.color = color;
         self.cnt = c + rand.gen_usize((c / 2) as usize) as i32;
         self.lum_alp = 0.8 + rand.gen_f32(0.2);
         self.in_course = if let ParticleSpec::Star = spec {
@@ -175,9 +170,9 @@ impl Particle {
         unsafe {
             gl::Begin(gl::GL_TRIANGLE_FAN);
         }
-        screen.set_color_rgba(self.r, self.g, self.b, 0.5);
+        screen.set_alpha_color(self.color.with_alpha(0.5));
         self.psp.gl_vertex();
-        screen.set_color_rgba(self.r, self.g, self.b, 0.);
+        screen.set_alpha_color(self.color.with_alpha(0.));
         unsafe {
             gl::Vertex3f(self.sp.x - SIZE, self.sp.y - SIZE, self.sp.z);
             gl::Vertex3f(self.sp.x + SIZE, self.sp.y - SIZE, self.sp.z);
@@ -190,9 +185,9 @@ impl Particle {
             unsafe {
                 gl::Begin(gl::GL_TRIANGLE_FAN);
             }
-            screen.set_color_rgba(self.r, self.g, self.b, 0.2);
+            screen.set_alpha_color(self.color.with_alpha(0.2));
             self.rpsp.gl_vertex();
-            screen.set_color_rgba(self.r, self.g, self.b, 0.);
+            screen.set_alpha_color(self.color.with_alpha(0.));
             unsafe {
                 gl::Vertex3f(self.rsp.x - SIZE, self.rsp.y - SIZE, self.sp.z);
                 gl::Vertex3f(self.rsp.x + SIZE, self.rsp.y - SIZE, self.sp.z);
@@ -208,9 +203,9 @@ impl Particle {
         unsafe {
             gl::Begin(gl::GL_LINES);
         }
-        screen.set_color_rgba(self.r, self.g, self.b, 1.);
+        screen.set_alpha_color(self.color.with_alpha(1.));
         self.psp.gl_vertex();
-        screen.set_color_rgba(self.r, self.g, self.b, 0.2);
+        screen.set_alpha_color(self.color.with_alpha(0.2));
         self.sp.gl_vertex();
         unsafe {
             gl::End();
@@ -227,7 +222,7 @@ impl Particle {
             gl::Rotatef(d2, 0., 1., 0.);
             gl::Begin(gl::GL_LINE_LOOP);
         }
-        screen.set_color_rgba(self.r, self.g, self.b, 0.5);
+        screen.set_alpha_color(self.color.with_alpha(0.5));
         unsafe {
             gl::Vertex3f(width, 0., height);
             gl::Vertex3f(-width, 0., height);
@@ -236,7 +231,7 @@ impl Particle {
             gl::End();
             gl::Begin(gl::GL_TRIANGLE_FAN);
         }
-        screen.set_color_rgba(self.r, self.g, self.b, 0.2);
+        screen.set_alpha_color(self.color.with_alpha(0.2));
         unsafe {
             gl::Vertex3f(width, 0., height);
             gl::Vertex3f(-width, 0., height);
@@ -260,11 +255,11 @@ impl Particle {
         unsafe {
             gl::Begin(gl::GL_TRIANGLE_FAN);
         }
-        screen.set_color_rgba(self.r, self.g, self.b, self.lum_alp * 0.6);
+        screen.set_alpha_color(self.color.with_alpha(self.lum_alp * 0.6));
         unsafe {
             gl::Vertex3f(self.psp.x, self.psp.y, self.psp.z);
         }
-        screen.set_color_rgba(self.r, self.g, self.b, 0.);
+        screen.set_alpha_color(self.color.with_alpha(0.));
         unsafe {
             gl::Vertex3f(self.sp.x - SIZE, self.sp.y - SIZE, self.sp.z);
             gl::Vertex3f(self.sp.x + SIZE, self.sp.y - SIZE, self.sp.z);

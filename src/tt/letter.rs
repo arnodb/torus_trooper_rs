@@ -1,13 +1,14 @@
 const LETTER_WIDTH: f32 = 2.1;
 const LETTER_HEIGHT: f32 = 3.0;
 const COLOR_NUM: usize = 4;
-const COLOR_RGB: [[f32; 3]; 2] = [[1., 1., 1.], [0.9, 0.7, 0.5]];
+const COLOR_RGB: [(f32, f32, f32); 2] = [(1., 1., 1.), (0.9, 0.7, 0.5)];
 const LETTER_NUM: usize = 44;
 const DISPLAY_LIST_NUM: usize = LETTER_NUM * COLOR_NUM;
 
 use crate::gl;
 
 use crate::tt::screen::Screen;
+use crate::util::color::Color;
 use crate::util::display_list::DisplayList;
 
 pub struct Letter {
@@ -230,38 +231,18 @@ impl Letter {
             } else if c == 3 {
                 Letter::draw_box_poly(x, y, size, length, deg);
             } else {
-                Letter::draw_box(
-                    x,
-                    y,
-                    size,
-                    length,
-                    deg,
-                    COLOR_RGB[c][0],
-                    COLOR_RGB[c][1],
-                    COLOR_RGB[c][2],
-                    screen,
-                );
+                Letter::draw_box(x, y, size, length, deg, COLOR_RGB[c].into(), screen);
             }
         }
     }
 
-    fn draw_box(
-        x: f32,
-        y: f32,
-        width: f32,
-        height: f32,
-        deg: f32,
-        r: f32,
-        g: f32,
-        b: f32,
-        screen: &Screen,
-    ) {
+    fn draw_box(x: f32, y: f32, width: f32, height: f32, deg: f32, color: Color, screen: &Screen) {
         unsafe {
             gl::PushMatrix();
             gl::Translatef(x - width / 2., y - height / 2., 0.);
             gl::Rotatef(deg, 0., 0., 1.);
         }
-        screen.set_color_rgba(r, g, b, 0.5);
+        screen.set_alpha_color(color.with_alpha(0.5));
         unsafe {
             gl::Begin(gl::GL_TRIANGLE_FAN);
         }
@@ -269,7 +250,7 @@ impl Letter {
         unsafe {
             gl::End();
         }
-        screen.set_color_rgb(r, g, b);
+        screen.set_color(color);
         unsafe {
             gl::Begin(gl::GL_LINE_LOOP);
         }

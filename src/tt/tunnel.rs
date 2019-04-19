@@ -4,6 +4,7 @@ use crate::gl;
 
 use crate::tt::screen::Screen;
 use crate::tt::ship::Ship;
+use crate::util::color::Color;
 use crate::util::display_list::DisplayList;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
@@ -479,17 +480,10 @@ pub struct RingToDraw<'a> {
 const DEPTH: f32 = 5.;
 
 #[derive(Clone, Copy, Debug)]
-pub struct SliceColor {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-}
-
-#[derive(Clone, Copy, Debug)]
 pub struct SliceDrawState {
     pub dark_line_ratio: f32,
-    pub line: SliceColor,
-    pub poly: SliceColor,
+    pub line: Color,
+    pub poly: Color,
 }
 
 #[derive(Clone)]
@@ -599,11 +593,7 @@ impl Slice {
                     (pi * prev_slice.state.point_num as f32 / self.state.point_num as f32) as usize;
                 let ps_prev_pi = (prev_pi * prev_slice.state.point_num as f32
                     / self.state.point_num as f32) as usize;
-                screen.set_color_rgb(
-                    draw_state.line.r * line_bn,
-                    draw_state.line.g * line_bn,
-                    draw_state.line.b * line_bn,
-                );
+                screen.set_color(draw_state.line * line_bn);
                 unsafe {
                     gl::Begin(gl::GL_LINE_STRIP);
                 }
@@ -615,12 +605,7 @@ impl Slice {
                 }
                 if poly_bn > 0. {
                     if round_slice || (!poly_first && width > 0.) {
-                        screen.set_color_rgba(
-                            draw_state.poly.r,
-                            draw_state.poly.g,
-                            draw_state.poly.b,
-                            poly_bn,
-                        );
+                        screen.set_alpha_color((draw_state.poly, poly_bn));
                         unsafe {
                             gl::Begin(gl::GL_TRIANGLE_FAN);
                         }
@@ -636,12 +621,7 @@ impl Slice {
                             0.9,
                         )
                         .gl_vertex();
-                        screen.set_color_rgba(
-                            draw_state.poly.r,
-                            draw_state.poly.g,
-                            draw_state.poly.b,
-                            poly_bn / 2.,
-                        );
+                        screen.set_alpha_color((draw_state.poly, poly_bn / 2.));
                         Vector3::blend(
                             self.point_pos[prev_pi as usize],
                             prev_slice.point_pos[ps_pi],
@@ -678,7 +658,7 @@ impl Slice {
             pi = self.point_from;
             let ps_pi =
                 (pi * prev_slice.state.point_num as f32 / self.state.point_num as f32) as usize;
-            screen.set_color_rgb(line_bn / 3. * 2., line_bn / 3. * 2., line_bn);
+            screen.set_color((line_bn / 3. * 2., line_bn / 3. * 2., line_bn));
             unsafe {
                 gl::Begin(gl::GL_LINE_STRIP);
             }
@@ -715,7 +695,7 @@ impl Slice {
         let mut rad_ofs = Vector3::new_at(0., self.state.rad, 0.);
         rad_ofs.roll_z(deg).roll_y(self.d1).roll_x(self.d2);
         rad_ofs += self.center_pos;
-        screen.set_color_rgb(1. * light_bn, 1. * light_bn, 0.6 * light_bn);
+        screen.set_color(Color::from((1., 1., 0.6)) * light_bn);
         unsafe {
             gl::Begin(gl::GL_LINE_LOOP);
             gl::Vertex3f(rad_ofs.x - 0.5, rad_ofs.y - 0.5, rad_ofs.z);
@@ -724,9 +704,9 @@ impl Slice {
             gl::Vertex3f(rad_ofs.x - 0.5, rad_ofs.y + 0.5, rad_ofs.z);
             gl::End();
             gl::Begin(gl::GL_TRIANGLE_FAN);
-            screen.set_color_rgb(0.5 * light_bn, 0.5 * light_bn, 0.3 * light_bn);
+            screen.set_color(Color::from((0.5, 0.5, 0.3)) * light_bn);
             gl::Vertex3f(rad_ofs.x, rad_ofs.y, rad_ofs.z);
-            screen.set_color_rgb(0.9 * light_bn, 0.9 * light_bn, 0.6 * light_bn);
+            screen.set_color(Color::from((0.9, 0.9, 0.6)) * light_bn);
             gl::Vertex3f(rad_ofs.x - 0.5, rad_ofs.y - 0.5, rad_ofs.z);
             gl::Vertex3f(rad_ofs.x - 0.5, rad_ofs.y + 0.5, rad_ofs.z);
             gl::Vertex3f(rad_ofs.x + 0.5, rad_ofs.y + 0.5, rad_ofs.z);
@@ -986,8 +966,8 @@ impl SliceState {
     }
 }
 
-const NORMAL_COLOR: [f32; 3] = [0.5, 1., 0.9];
-const FINAL_COLOR: [f32; 3] = [1., 0.9, 0.5];
+const NORMAL_COLOR: (f32, f32, f32) = (0.5, 1., 0.9);
+const FINAL_COLOR: (f32, f32, f32) = (1., 0.9, 0.5);
 
 #[derive(Debug)]
 struct Ring {
@@ -1068,7 +1048,7 @@ impl Ring {
             RingType::Normal => NORMAL_COLOR,
             RingType::Final => FINAL_COLOR,
         };
-        screen.set_color_rgb(color[0] * a, color[1] * a, color[2] * a);
+        screen.set_color(Color::from(color) * a);
         unsafe {
             gl::PushMatrix();
             gl::Translatef(p.x, p.y, p.z);

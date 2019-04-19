@@ -1,6 +1,7 @@
 use crate::gl;
 
 use crate::tt::screen::Screen;
+use crate::util::color::Color;
 use crate::util::vector::Vector;
 
 pub struct Structure {
@@ -56,11 +57,7 @@ impl Structure {
                 0 => 1.,
                 _ => 0.5,
             };
-            screen.set_color_rgb(
-                COLOR_RGB[self.color][0],
-                COLOR_RGB[self.color][1],
-                COLOR_RGB[self.color][2],
-            );
+            screen.set_color(COLOR_RGB[self.color]);
             match self.shape {
                 Shape::Square => {
                     for i in 0..self.div_num {
@@ -80,12 +77,7 @@ impl Structure {
                         gl::Vertex3f(x12, 0.1, 0.5);
                         gl::Vertex3f(x11, 0.1, 0.5);
                         gl::End();
-                        screen.set_color_rgba(
-                            COLOR_RGB[self.color][0],
-                            COLOR_RGB[self.color][1],
-                            COLOR_RGB[self.color][2],
-                            alp,
-                        );
+                        screen.set_alpha_color((Color::from(COLOR_RGB[self.color]), alp));
                         gl::Begin(gl::GL_TRIANGLE_FAN);
                         gl::Vertex3f(x21, 0., -0.5);
                         gl::Vertex3f(x22, 0., -0.5);
@@ -112,12 +104,7 @@ impl Structure {
                         gl::Vertex3f(x2, 0.1, 0.5);
                         gl::Vertex3f(x1, 0.1, 0.5);
                         gl::End();
-                        screen.set_color_rgba(
-                            COLOR_RGB[self.color][0],
-                            COLOR_RGB[self.color][1],
-                            COLOR_RGB[self.color][2],
-                            alp,
-                        );
+                        screen.set_alpha_color((Color::from(COLOR_RGB[self.color]), alp));
                         gl::Begin(gl::GL_TRIANGLE_FAN);
                         gl::Vertex3f(x1, 0., y1);
                         gl::Vertex3f(x2, 0., y2);
@@ -150,12 +137,7 @@ impl Structure {
                         gl::Vertex3f(x2, 0.1, 0.5);
                         gl::Vertex3f(x1, 0.1, 0.5);
                         gl::End();
-                        screen.set_color_rgba(
-                            COLOR_RGB[self.color][0],
-                            COLOR_RGB[self.color][1],
-                            COLOR_RGB[self.color][2],
-                            alp,
-                        );
+                        screen.set_alpha_color((Color::from(COLOR_RGB[self.color]), alp));
                         gl::Begin(gl::GL_TRIANGLE_FAN);
                         gl::Vertex3f(x1, 0., y1);
                         gl::Vertex3f(x2, 0., y2);
@@ -173,12 +155,7 @@ impl Structure {
                         gl::Vertex3f(f32::sin(d + 0.3), f32::cos(d + 0.3), 0.5);
                         gl::Vertex3f(f32::sin(d - 0.3), f32::cos(d - 0.3), 0.5);
                         gl::End();
-                        screen.set_color_rgba(
-                            COLOR_RGB[self.color][0],
-                            COLOR_RGB[self.color][1],
-                            COLOR_RGB[self.color][2],
-                            alp,
-                        );
+                        screen.set_alpha_color((Color::from(COLOR_RGB[self.color]), alp));
                         gl::Begin(gl::GL_TRIANGLE_FAN);
                         gl::Vertex3f(f32::sin(d - 0.3), f32::cos(d - 0.3), -0.5);
                         gl::Vertex3f(f32::sin(d + 0.3), f32::cos(d + 0.3), -0.5);
@@ -203,13 +180,13 @@ pub enum Shape {
 
 pub const SHIP_SHAPES: [Shape; 3] = [Shape::Square, Shape::Wing, Shape::Triangle];
 
-pub const COLOR_RGB: [[f32; 3]; 8] = [
-    [1., 1., 1.],
-    [0.6, 0.6, 0.6],
-    [0.9, 0.5, 0.5],
-    [0.5, 0.9, 0.5],
-    [0.5, 0.5, 0.9],
-    [0.7, 0.7, 0.5],
-    [0.7, 0.5, 0.7],
-    [0.5, 0.7, 0.7],
+pub const COLOR_RGB: [(f32, f32, f32); 8] = [
+    (1., 1., 1.),
+    (0.6, 0.6, 0.6),
+    (0.9, 0.5, 0.5),
+    (0.5, 0.9, 0.5),
+    (0.5, 0.5, 0.9),
+    (0.7, 0.7, 0.5),
+    (0.7, 0.5, 0.7),
+    (0.5, 0.7, 0.7),
 ];

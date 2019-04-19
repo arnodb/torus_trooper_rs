@@ -5,7 +5,7 @@ use crate::tt::actor::enemy::{Enemy, EnemySetOption};
 use crate::tt::barrage::BarrageManager;
 use crate::tt::screen::Screen;
 use crate::tt::ship;
-use crate::tt::tunnel::{SliceColor, SliceDrawState, Torus, Tunnel};
+use crate::tt::tunnel::{SliceDrawState, Torus, Tunnel};
 use crate::tt::MoreParams;
 
 const BOSS_APP_RANK: [u32; ship::GRADE_NUM] = [100, 160, 250];
@@ -14,80 +14,24 @@ const LEVEL_UP_RATIO: f32 = 0.5;
 
 const TUNNEL_COLOR_CHANGE_INTERVAL: u32 = 60;
 
-const TUNNEL_COLOR_PATTERN_POLY: [SliceColor; 7] = [
-    SliceColor {
-        r: 0.7,
-        g: 0.9,
-        b: 1.,
-    },
-    SliceColor {
-        r: 0.6,
-        g: 1.,
-        b: 0.8,
-    },
-    SliceColor {
-        r: 0.9,
-        g: 0.7,
-        b: 0.6,
-    },
-    SliceColor {
-        r: 0.8,
-        g: 0.8,
-        b: 0.8,
-    },
-    SliceColor {
-        r: 0.5,
-        g: 0.9,
-        b: 0.9,
-    },
-    SliceColor {
-        r: 0.7,
-        g: 0.9,
-        b: 0.6,
-    },
-    SliceColor {
-        r: 0.8,
-        g: 0.5,
-        b: 0.9,
-    },
+const TUNNEL_COLOR_PATTERN_POLY: [(f32, f32, f32); 7] = [
+    (0.7, 0.9, 1.),
+    (0.6, 1., 0.8),
+    (0.9, 0.7, 0.6),
+    (0.8, 0.8, 0.8),
+    (0.5, 0.9, 0.9),
+    (0.7, 0.9, 0.6),
+    (0.8, 0.5, 0.9),
 ];
 
-const TUNNEL_COLOR_PATTERN_LINE: [SliceColor; 7] = [
-    SliceColor {
-        r: 0.6,
-        g: 0.7,
-        b: 1.,
-    },
-    SliceColor {
-        r: 0.4,
-        g: 0.8,
-        b: 0.6,
-    },
-    SliceColor {
-        r: 0.7,
-        g: 0.5,
-        b: 0.6,
-    },
-    SliceColor {
-        r: 0.6,
-        g: 0.6,
-        b: 0.6,
-    },
-    SliceColor {
-        r: 0.4,
-        g: 0.7,
-        b: 0.7,
-    },
-    SliceColor {
-        r: 0.6,
-        g: 0.7,
-        b: 0.5,
-    },
-    SliceColor {
-        r: 0.6,
-        g: 0.4,
-        b: 1.,
-    },
+const TUNNEL_COLOR_PATTERN_LINE: [(f32, f32, f32); 7] = [
+    (0.6, 0.7, 1.),
+    (0.4, 0.8, 0.6),
+    (0.7, 0.5, 0.6),
+    (0.6, 0.6, 0.6),
+    (0.4, 0.7, 0.7),
+    (0.6, 0.7, 0.5),
+    (0.6, 0.4, 1.),
 ];
 
 pub struct StageManager {
@@ -129,8 +73,8 @@ impl StageManager {
             dark_line: true,
             slice_draw_state: SliceDrawState {
                 dark_line_ratio: 1.,
-                poly: TUNNEL_COLOR_PATTERN_POLY[tunnel_color_poly_idx],
-                line: TUNNEL_COLOR_PATTERN_POLY[tunnel_color_line_idx],
+                poly: TUNNEL_COLOR_PATTERN_POLY[tunnel_color_poly_idx].into(),
+                line: TUNNEL_COLOR_PATTERN_POLY[tunnel_color_line_idx].into(),
             },
         }
     }
@@ -157,9 +101,11 @@ impl StageManager {
         self.slice_draw_state = SliceDrawState {
             dark_line_ratio: 1.,
             poly: TUNNEL_COLOR_PATTERN_POLY
-                [self.tunnel_color_poly_idx % TUNNEL_COLOR_PATTERN_POLY.len()],
+                [self.tunnel_color_poly_idx % TUNNEL_COLOR_PATTERN_POLY.len()]
+            .into(),
             line: TUNNEL_COLOR_PATTERN_LINE
-                [self.tunnel_color_line_idx % TUNNEL_COLOR_PATTERN_LINE.len()],
+                [self.tunnel_color_line_idx % TUNNEL_COLOR_PATTERN_LINE.len()]
+            .into(),
         };
         self.create_next_zone(screen, barrage_manager, more_params);
     }
@@ -277,25 +223,27 @@ impl StageManager {
                 let cp_idx_prev =
                     (self.tunnel_color_poly_idx - 1) % TUNNEL_COLOR_PATTERN_POLY.len();
                 let cp_idx_now = self.tunnel_color_poly_idx % TUNNEL_COLOR_PATTERN_POLY.len();
-                self.slice_draw_state.poly = SliceColor {
-                    r: TUNNEL_COLOR_PATTERN_POLY[cp_idx_prev].r * c_ratio
-                        + TUNNEL_COLOR_PATTERN_POLY[cp_idx_now].r * (1. - c_ratio),
-                    g: TUNNEL_COLOR_PATTERN_POLY[cp_idx_prev].g * c_ratio
-                        + TUNNEL_COLOR_PATTERN_POLY[cp_idx_now].g * (1. - c_ratio),
-                    b: TUNNEL_COLOR_PATTERN_POLY[cp_idx_prev].b * c_ratio
-                        + TUNNEL_COLOR_PATTERN_POLY[cp_idx_now].b * (1. - c_ratio),
-                };
+                self.slice_draw_state.poly = (
+                    TUNNEL_COLOR_PATTERN_POLY[cp_idx_prev].0 * c_ratio
+                        + TUNNEL_COLOR_PATTERN_POLY[cp_idx_now].0 * (1. - c_ratio),
+                    TUNNEL_COLOR_PATTERN_POLY[cp_idx_prev].1 * c_ratio
+                        + TUNNEL_COLOR_PATTERN_POLY[cp_idx_now].1 * (1. - c_ratio),
+                    TUNNEL_COLOR_PATTERN_POLY[cp_idx_prev].2 * c_ratio
+                        + TUNNEL_COLOR_PATTERN_POLY[cp_idx_now].2 * (1. - c_ratio),
+                )
+                    .into();
                 let cl_idx_prev =
                     (self.tunnel_color_line_idx - 1) % TUNNEL_COLOR_PATTERN_LINE.len();
                 let cl_idx_now = self.tunnel_color_line_idx % TUNNEL_COLOR_PATTERN_LINE.len();
-                self.slice_draw_state.line = SliceColor {
-                    r: TUNNEL_COLOR_PATTERN_LINE[cl_idx_prev].r * c_ratio
-                        + TUNNEL_COLOR_PATTERN_LINE[cl_idx_now].r * (1. - c_ratio),
-                    g: TUNNEL_COLOR_PATTERN_LINE[cl_idx_prev].g * c_ratio
-                        + TUNNEL_COLOR_PATTERN_LINE[cl_idx_now].g * (1. - c_ratio),
-                    b: TUNNEL_COLOR_PATTERN_LINE[cl_idx_prev].b * c_ratio
-                        + TUNNEL_COLOR_PATTERN_LINE[cl_idx_now].b * (1. - c_ratio),
-                };
+                self.slice_draw_state.line = (
+                    TUNNEL_COLOR_PATTERN_LINE[cl_idx_prev].0 * c_ratio
+                        + TUNNEL_COLOR_PATTERN_LINE[cl_idx_now].0 * (1. - c_ratio),
+                    TUNNEL_COLOR_PATTERN_LINE[cl_idx_prev].1 * c_ratio
+                        + TUNNEL_COLOR_PATTERN_LINE[cl_idx_now].1 * (1. - c_ratio),
+                    TUNNEL_COLOR_PATTERN_LINE[cl_idx_prev].2 * c_ratio
+                        + TUNNEL_COLOR_PATTERN_LINE[cl_idx_now].2 * (1. - c_ratio),
+                )
+                    .into();
             }
         }
     }

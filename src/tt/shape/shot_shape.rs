@@ -5,8 +5,9 @@ use crate::util::display_list::DisplayList;
 use crate::util::vector::Vector;
 
 use super::{Collidable, Drawable};
+use crate::util::color::Color;
 
-const COLOR_RGB: [f32; 3] = [0.8, 1., 0.7];
+const COLOR_RGB: (f32, f32, f32) = (0.8, 1., 0.7);
 
 pub struct ShotShape {
     collision: Vector,
@@ -22,17 +23,13 @@ impl ShotShape {
                 let d = i as f32 * std::f32::consts::PI / 4.;
                 unsafe {
                     gl::Begin(gl::GL_TRIANGLES);
-                    screen.set_color_rgb(COLOR_RGB[0], COLOR_RGB[1], COLOR_RGB[2]);
+                    screen.set_color(COLOR_RGB);
                     gl::Vertex3f(f32::sin(d) * 0.1, f32::cos(d) * 0.1, 0.2);
                     gl::Vertex3f(f32::sin(d) * 0.5, f32::cos(d) * 0.5, 0.5);
-                    screen.set_color_rgb(
-                        COLOR_RGB[0] * 0.2,
-                        COLOR_RGB[1] * 0.2,
-                        COLOR_RGB[2] * 0.2,
-                    );
+                    screen.set_color(Color::from(COLOR_RGB) * 0.2);
                     gl::Vertex3f(f32::sin(d) * 1.0, f32::cos(d) * 1.0, -0.7);
                     gl::End();
-                    screen.set_color_rgb(COLOR_RGB[0], COLOR_RGB[1], COLOR_RGB[2]);
+                    screen.set_color(COLOR_RGB);
                     gl::Begin(gl::GL_LINE_LOOP);
                     gl::Vertex3f(f32::sin(d) * 0.1, f32::cos(d) * 0.1, 0.2);
                     gl::Vertex3f(f32::sin(d) * 0.5, f32::cos(d) * 0.5, 0.5);
@@ -45,17 +42,13 @@ impl ShotShape {
                 let d = i as f32 * std::f32::consts::PI / 2.;
                 unsafe {
                     gl::Begin(gl::GL_TRIANGLES);
-                    screen.set_color_rgb(COLOR_RGB[0], COLOR_RGB[1], COLOR_RGB[2]);
+                    screen.set_color(COLOR_RGB);
                     gl::Vertex3f(f32::sin(d) * 0.1, f32::cos(d) * 0.1, 0.4);
                     gl::Vertex3f(f32::sin(d) * 0.3, f32::cos(d) * 0.3, 1.0);
-                    screen.set_color_rgb(
-                        COLOR_RGB[0] * 0.2,
-                        COLOR_RGB[1] * 0.2,
-                        COLOR_RGB[2] * 0.2,
-                    );
+                    screen.set_color(Color::from(COLOR_RGB) * 0.2);
                     gl::Vertex3f(f32::sin(d) * 0.5, f32::cos(d) * 0.5, -1.4);
                     gl::End();
-                    screen.set_color_rgb(COLOR_RGB[0], COLOR_RGB[1], COLOR_RGB[2]);
+                    screen.set_color(COLOR_RGB);
                     gl::Begin(gl::GL_LINE_LOOP);
                     gl::Vertex3f(f32::sin(d) * 0.1, f32::cos(d) * 0.1, 0.4);
                     gl::Vertex3f(f32::sin(d) * 0.3, f32::cos(d) * 0.3, 1.0);

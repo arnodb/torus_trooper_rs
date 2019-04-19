@@ -283,7 +283,7 @@ impl TitleManager {
         display_list.end_list();
         display_list.new_list();
         d1 = 0.;
-        screen.set_color_rgb(1., 1., 1.);
+        screen.set_color((1., 1., 1.));
         unsafe {
             gl::Begin(gl::GL_LINE_LOOP);
         }
@@ -296,7 +296,7 @@ impl TitleManager {
         unsafe {
             gl::End();
         }
-        screen.set_color_rgba(1., 1., 1., 0.3);
+        screen.set_alpha_color((1., 1., 1., 0.3));
         unsafe {
             gl::Begin(gl::GL_TRIANGLE_FAN);
             gl::Vertex3f(0., 0., 0.);
@@ -392,7 +392,7 @@ impl Manager for TitleManager {
             gl::Disable(gl::GL_BLEND);
         }
         let screen = &params.screen;
-        screen.set_color_rgb(0., 0., 0.);
+        screen.set_color((0., 0., 0.));
         let mut rcr = self.replay_change_ratio * 2.;
         if rcr > 1. {
             rcr = 1.;
@@ -439,12 +439,12 @@ impl Manager for TitleManager {
             gl::Rotatef(self.cnt as f32 * 0.2, 0., 0., 1.);
             gl::Disable(gl::GL_BLEND);
         }
-        screen.set_color_rgb(0., 0., 0.);
+        screen.set_color((0., 0., 0.));
         self.display_list.call(1);
         unsafe {
             gl::Enable(gl::GL_BLEND);
         }
-        screen.set_color_rgba(1., 1., 1., 0.5);
+        screen.set_alpha_color((1., 1., 1., 0.5));
         self.display_list.call(0);
         unsafe {
             gl::PopMatrix();
@@ -469,7 +469,7 @@ impl Manager for TitleManager {
             gl::PopMatrix();
         }
         let screen = &params.screen;
-        screen.set_color_rgb(1., 1., 1.);
+        screen.set_color((1., 1., 1.));
         unsafe {
             gl::Enable(gl::GL_TEXTURE_2D);
         }

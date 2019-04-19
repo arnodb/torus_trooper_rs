@@ -9,6 +9,7 @@ use sdl2_window::Sdl2Window;
 use crate::gl;
 
 use crate::tt::errors::GameError;
+use crate::util::color::{AlphaColor, Color};
 
 #[cfg(feature = "glutin_backend")]
 type Window = GlutinWindow;
@@ -170,16 +171,17 @@ impl Screen {
         self.screen_resized();
     }
 
-    pub fn set_color_rgb(&self, r: f32, g: f32, b: f32) {
-        self.set_color_rgba(r, g, b, 1.)
+    pub fn set_color<C: Into<Color>>(&self, color: C) {
+        self.set_alpha_color(color.into())
     }
-    pub fn set_color_rgba(&self, r: f32, g: f32, b: f32, a: f32) {
+    pub fn set_alpha_color<C: Into<AlphaColor>>(&self, color: C) {
+        let color = color.into();
         unsafe {
             gl::Color4f(
-                r * self.brightness,
-                g * self.brightness,
-                b * self.brightness,
-                a,
+                color.red * self.brightness,
+                color.green * self.brightness,
+                color.blue * self.brightness,
+                color.alpha,
             );
         }
     }

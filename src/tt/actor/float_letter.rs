@@ -51,7 +51,7 @@ impl FloatLetter {
         unsafe {
             gl::Translatef(0., 0., sp.z);
         }
-        screen.set_color_rgba(1., 1., 1., 1.);
+        screen.set_alpha_color((1., 1., 1., 1.));
         letter.draw_string_ex2(
             &self.msg,
             sp.x,
@@ -62,7 +62,7 @@ impl FloatLetter {
             false,
             self.d * 180. / std::f32::consts::PI,
         );
-        screen.set_color_rgba(1., 1., 1., self.alpha);
+        screen.set_alpha_color((1., 1., 1., self.alpha));
         letter.draw_string_ex2(
             &self.msg,
             sp.x,
