@@ -13,6 +13,7 @@ mod macros;
 pub mod tt;
 pub mod util;
 
+#[allow(clippy::all)]
 pub mod gl;
 pub mod glu;
 
