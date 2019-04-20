@@ -247,7 +247,7 @@ impl Enemy {
         }
         if let Some(tb_ref) = self.top_bullet {
             if let Some(mut top_bullet) = bullets.maybe_index_mut(tb_ref) {
-                top_bullet.options.as_mut().unwrap().bullet.pos = self.pos;
+                top_bullet.bullet.as_mut().unwrap().pos = self.pos;
                 self.check_bullet_in_range(spec, tunnel, ship, &mut top_bullet);
             } else {
                 self.top_bullet = None;
@@ -260,7 +260,7 @@ impl Enemy {
                     .unwrap()
                     .get_bit_offset(i as u32, self.bit_cnt);
                 {
-                    let bb_bullet = &mut bb_inst.options.as_mut().unwrap().bullet;
+                    let bb_bullet = &mut bb_inst.bullet.as_mut().unwrap();
                     bb_bullet.pos.x = bit_offset.x + self.pos.x;
                     bb_bullet.pos.y = bit_offset.y + self.pos.y;
                     bb_bullet.deg = d;
@@ -498,7 +498,7 @@ impl Enemy {
         }
         for bb in &self.bit_bullet {
             let bb_inst = &bullets[*bb];
-            let sp = tunnel.get_pos_v(bb_inst.options.as_ref().unwrap().bullet.pos);
+            let sp = tunnel.get_pos_v(bb_inst.bullet.as_ref().unwrap().pos);
             unsafe {
                 gl::PushMatrix();
             }
