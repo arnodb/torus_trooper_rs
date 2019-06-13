@@ -1,18 +1,19 @@
 use bulletml::parse::BulletMLParser;
 use bulletml::{self, BulletML};
+use failure::ResultExt;
 use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::util::vector::Vector;
-
 use crate::tt::actor::bullet::{BMLParam, BulletPool};
 use crate::tt::actor::PoolActorRef;
+use crate::tt::errors::{GameError, GameErrorKind};
 use crate::tt::screen::Screen;
 use crate::tt::shape::bullet_shape::BulletShape;
 use crate::tt::shape::Drawable;
+use crate::util::vector::Vector;
 
 pub struct Barrage {
     bml_params: Rc<Vec<BMLParam>>,
@@ -98,23 +99,34 @@ pub struct BarrageManager {
 const BARRAGE_DIR_NAME: &str = "barrage";
 
 impl BarrageManager {
-    pub fn load(screen: &Screen) -> Result<Self, bulletml::parse::Error> {
+    pub fn load(screen: &Screen) -> Result<Self, GameError> {
         let mut bmls = BTreeMap::new();
-        let dirs = fs::read_dir(BARRAGE_DIR_NAME)?;
+        let dirs = fs::read_dir(BARRAGE_DIR_NAME).context(GameErrorKind::Barrage)?;
         for dir_name in dirs {
-            let dir_name = dir_name?;
-            if dir_name.file_type()?.is_dir() {
-                let files = fs::read_dir(dir_name.path())?;
+            let dir_name = dir_name.context(GameErrorKind::Barrage)?;
+            if dir_name
+                .file_type()
+                .context(GameErrorKind::Barrage)?
+                .is_dir()
+            {
+                let files = fs::read_dir(dir_name.path()).context(GameErrorKind::Barrage)?;
                 for file_name in files {
-                    let file_name = file_name?;
-                    if file_name.file_type()?.is_file() {
+                    let file_name = file_name.context(GameErrorKind::Barrage)?;
+                    if file_name
+                        .file_type()
+                        .context(GameErrorKind::Barrage)?
+                        .is_file()
+                    {
                         if let Some("xml") = file_name.path().extension().and_then(OsStr::to_str) {
                             let entry = bmls
                                 .entry(dir_name.file_name().to_os_string())
                                 .or_insert_with(BTreeMap::new);
                             entry.insert(
                                 file_name.file_name().to_os_string(),
-                                Rc::new(BarrageManager::load_instance(&file_name.path())?),
+                                Rc::new(
+                                    BarrageManager::load_instance(&file_name.path())
+                                        .context(GameErrorKind::Barrage)?,
+                                ),
                             );
                         }
                     }
@@ -138,7 +150,7 @@ impl BarrageManager {
         })
     }
 
-    pub fn load_instance(path: &PathBuf) -> Result<BulletML, bulletml::parse::Error> {
+    pub fn load_instance(path: &PathBuf) -> Result<BulletML, bulletml::errors::ParseError> {
         BulletMLParser::parse_file(path.as_path())
     }
 

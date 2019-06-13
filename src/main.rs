@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate bitflags;
 #[macro_use]
-extern crate failure;
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
@@ -20,9 +18,10 @@ pub mod glu;
 #[cfg(feature = "game_recorder")]
 mod game_recorder;
 
-use failure::Backtrace;
+use failure::{err_msg, Context, ResultExt};
 use piston::event_loop::*;
 use piston::input::*;
+use std::error::Error;
 use std::str::FromStr;
 use std::time::Instant;
 use structopt::StructOpt;
@@ -34,7 +33,7 @@ use crate::tt::actor::particle::ParticlePool;
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::barrage::BarrageManager;
 use crate::tt::camera::Camera;
-use crate::tt::errors::GameError;
+use crate::tt::errors::{GameError, GameErrorKind};
 use crate::tt::letter::Letter;
 use crate::tt::manager::stage::StageManager;
 use crate::tt::manager::{GameManager, Manager, MoveAction};
@@ -47,7 +46,6 @@ use crate::tt::state::shared::SharedState;
 use crate::tt::tunnel::{Torus, Tunnel};
 use crate::tt::{GeneralParams, MoreParams};
 use crate::util::rand::Rand;
-use std::error::Error;
 
 struct MainLoop {
     options: Options,
@@ -59,7 +57,7 @@ impl MainLoop {
     }
 
     fn main(&mut self) -> Result<(), GameError> {
-        let sdl = sdl2::init().map_err(|err| GameError::Fatal(err, Backtrace::new()))?;
+        let sdl = sdl2::init().map_err(|err| err_msg(err).context(GameErrorKind::Sdl2Init))?;
         let sdl_joystick = sdl.joystick().map(Some).unwrap_or_else(|err| {
             eprintln!("{}", err);
             None
@@ -78,7 +76,7 @@ impl MainLoop {
         #[cfg(feature = "sdl_backend")]
         screen.init_opengl_sdl(
             sdl.video()
-                .map_err(|err| GameError::Fatal(err, Backtrace::new()))?,
+                .map_err(|err| err_msg(err).context(GameErrorKind::Sdl2VideoInit))?,
         )?;
 
         let mut pad = GamePad::new(self.options.reverse, sdl_joystick)?;
@@ -92,7 +90,7 @@ impl MainLoop {
         let mut camera = Camera::new();
         let mut ship = Ship::new(&screen, initial_seed);
 
-        let mut barrage_manager = BarrageManager::load(&screen)?;
+        let mut barrage_manager = BarrageManager::load(&screen).context(GameErrorKind::BulletML)?;
         let mut shots = ShotPool::new(64, &screen);
         let mut bullets = BulletPool::new(512, initial_seed);
         let mut enemies = EnemyPool::new(64, initial_seed, &screen);
@@ -101,7 +99,7 @@ impl MainLoop {
 
         let mut stage_manager = StageManager::new(initial_seed);
 
-        let mut sound_manager = SoundManager::new(self.options.no_sound)?;
+        let mut sound_manager = SoundManager::new(self.options.no_sound);
         sound_manager.init()?;
 
         let mut manager = GameManager::new(&screen)?;
@@ -143,7 +141,7 @@ impl MainLoop {
             params
                 .screen
                 .window_mut()
-                .ok_or_else(|| GameError::Fatal("No window".to_string(), Backtrace::new()))?,
+                .ok_or_else(|| Context::new(GameErrorKind::MissingWindow))?,
         ) {
             let now_millis = {
                 let duration = Instant::now().duration_since(start_time);

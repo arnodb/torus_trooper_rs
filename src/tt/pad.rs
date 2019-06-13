@@ -1,11 +1,10 @@
-use failure::Backtrace;
+use failure::err_msg;
 use piston::input::keyboard::Key;
 use piston::input::{Button, ButtonArgs, ButtonState};
 use rle_vec::RleVec;
 use std::collections::HashSet;
-use std::error::Error;
 
-use crate::tt::errors::GameError;
+use crate::tt::errors::{GameError, GameErrorKind};
 
 const JOYSTICK_AXIS: i16 = 16384;
 
@@ -79,15 +78,13 @@ impl GamePad {
                 |joystick_subsystem| {
                     let num = joystick_subsystem
                         .num_joysticks()
-                        .map_err(|err| GameError::Fatal(err, Backtrace::new()))?;
+                        .map_err(|err| err_msg(err).context(GameErrorKind::Joystick))?;
                     if num > 0 {
                         joystick_subsystem.set_event_state(false);
                         joystick_subsystem
                             .open(0)
                             .map(|j| Some((joystick_subsystem, j)))
-                            .map_err(|err| {
-                                GameError::Fatal(err.description().to_string(), Backtrace::new())
-                            })
+                            .map_err(|err| err_msg(err).context(GameErrorKind::Joystick))
                     } else {
                         Ok(None)
                     }

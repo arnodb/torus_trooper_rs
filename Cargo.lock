@@ -106,7 +106,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bulletml"
 version = "0.1.0"
-source = "git+https://github.com/arnodb/bulletml_rs.git#2553e344128176fd71a6badb47aaeba61b2034d0"
+source = "git+https://github.com/arnodb/bulletml_rs.git#b799e430391600469ac110a9e4958ec6e968f623"
 dependencies = [
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "indextree 3.1.1 (registry+https://github.com/rust-lang/crates.io-index)",

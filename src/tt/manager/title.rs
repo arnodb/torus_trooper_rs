@@ -1,18 +1,17 @@
+use failure::ResultExt;
 use piston::input::RenderArgs;
 
 use crate::gl;
 use crate::glu;
-
-use crate::util::display_list::DisplayList;
-use crate::util::texture::Texture;
-use crate::util::vector::{Vector, Vector3};
-
-use crate::tt::errors::GameError;
+use crate::tt::errors::{GameError, GameErrorKind};
 use crate::tt::manager::MoveAction;
 use crate::tt::pad::{PadButtons, PadDirection, PadState};
 use crate::tt::screen::Screen;
 use crate::tt::ship;
 use crate::tt::{GeneralParams, MoreParams};
+use crate::util::display_list::DisplayList;
+use crate::util::texture::Texture;
+use crate::util::vector::{Vector, Vector3};
 
 use super::Manager;
 
@@ -38,7 +37,7 @@ impl TitleManager {
     pub fn new(screen: &Screen) -> Result<Self, GameError> {
         Ok(TitleManager {
             display_list: TitleManager::create_torus_shape(screen),
-            title_texture: Texture::create("title.bmp")?,
+            title_texture: Texture::create("title.bmp").context(GameErrorKind::Texture)?,
             cnt: 0,
             grade: 0,
             level: 1,

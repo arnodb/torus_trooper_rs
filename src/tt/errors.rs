@@ -1,53 +1,73 @@
-use failure::Backtrace;
+use failure::{Backtrace, Context, Fail};
+use std::fmt;
+use std::fmt::Display;
 
-#[derive(Fail, Debug)]
-pub enum GameError {
+#[derive(Debug)]
+pub struct GameError {
+    inner: Context<GameErrorKind>,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
+pub enum GameErrorKind {
+    #[fail(display = "Joystick error")]
+    Joystick,
     #[fail(display = "Preferences error")]
-    Preference(#[cause] preferences::PreferencesError, Backtrace),
-    #[fail(display = "Image error")]
-    Image(#[cause] image::ImageError, Backtrace),
-    #[fail(display = "Sound error")]
-    Sound(#[cause] SoundError, Backtrace),
-    #[fail(display = "BulletML parse error")]
-    BulletML(#[cause] bulletml::parse::Error, Backtrace),
-    #[fail(display = "Fatal error")]
-    Fatal(String, Backtrace),
+    Preference,
+    #[fail(display = "Sound initialization error")]
+    SoundInit,
+    #[fail(display = "Texture error")]
+    Texture,
+
+    #[fail(display = "Window initialization error")]
+    WindowInit,
+    #[fail(display = "Missing window")]
+    MissingWindow,
+
+    #[fail(display = "Barrage error")]
+    Barrage,
+    #[fail(display = "BulletML error")]
+    BulletML,
+
+    #[fail(display = "SDL2 initialization error")]
+    Sdl2Init,
+    #[fail(display = "SDL2 video initialization error")]
+    Sdl2VideoInit,
+    #[fail(display = "SDL2 audio initialization error")]
+    Sdl2AudioInit,
 }
 
-impl From<preferences::PreferencesError> for GameError {
-    fn from(inner: preferences::PreferencesError) -> Self {
-        GameError::Preference(inner, Backtrace::new())
+impl Fail for GameError {
+    fn cause(&self) -> Option<&Fail> {
+        self.inner.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.inner.backtrace()
     }
 }
 
-impl From<image::ImageError> for GameError {
-    fn from(inner: image::ImageError) -> Self {
-        GameError::Image(inner, Backtrace::new())
+impl Display for GameError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(&self.inner, f)
     }
 }
 
-impl From<SoundError> for GameError {
-    fn from(inner: SoundError) -> Self {
-        GameError::Sound(inner, Backtrace::new())
+impl GameError {
+    pub fn kind(&self) -> GameErrorKind {
+        *self.inner.get_context()
     }
 }
 
-impl From<bulletml::parse::Error> for GameError {
-    fn from(inner: bulletml::parse::Error) -> Self {
-        GameError::BulletML(inner, Backtrace::new())
+impl From<GameErrorKind> for GameError {
+    fn from(kind: GameErrorKind) -> GameError {
+        GameError {
+            inner: Context::new(kind),
+        }
     }
 }
 
-#[derive(Fail, Debug)]
-pub enum SoundError {
-    #[fail(display = "I/O error")]
-    InputOutput(#[cause] std::io::Error, Backtrace),
-    #[fail(display = "Sdl")]
-    Sdl(String, Backtrace),
-}
-
-impl From<std::io::Error> for SoundError {
-    fn from(inner: std::io::Error) -> Self {
-        SoundError::InputOutput(inner, Backtrace::new())
+impl From<Context<GameErrorKind>> for GameError {
+    fn from(inner: Context<GameErrorKind>) -> GameError {
+        GameError { inner: inner }
     }
 }
