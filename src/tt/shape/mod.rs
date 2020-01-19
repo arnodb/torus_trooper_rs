@@ -17,7 +17,7 @@ pub trait Drawable {
 pub trait Collidable {
     fn collision(&self) -> Vector;
 
-    fn check_collision_shape(&self, ax: f32, ay: f32, shape: &Collidable, speed: f32) -> bool {
+    fn check_collision_shape(&self, ax: f32, ay: f32, shape: &dyn Collidable, speed: f32) -> bool {
         let mut c = self.collision() + shape.collision();
         c.y *= speed;
         ax <= c.x && ay <= c.y

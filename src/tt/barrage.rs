@@ -17,8 +17,8 @@ use crate::util::vector::Vector;
 
 pub struct Barrage {
     bml_params: Rc<Vec<BMLParam>>,
-    shape: Rc<Drawable>,
-    disap_shape: Rc<Drawable>,
+    shape: Rc<dyn Drawable>,
+    disap_shape: Rc<dyn Drawable>,
     long_range: bool,
     prev_wait: u32,
     post_wait: u32,
@@ -26,7 +26,7 @@ pub struct Barrage {
 }
 
 impl Barrage {
-    pub fn new(shape: &Rc<Drawable>, disap_shape: &Rc<Drawable>) -> Self {
+    pub fn new(shape: &Rc<dyn Drawable>, disap_shape: &Rc<dyn Drawable>) -> Self {
         Barrage {
             bml_params: Rc::new(Vec::new()),
             shape: shape.clone(),

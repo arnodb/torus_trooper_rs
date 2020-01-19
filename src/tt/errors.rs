@@ -37,7 +37,7 @@ pub enum GameErrorKind {
 }
 
 impl Fail for GameError {
-    fn cause(&self) -> Option<&Fail> {
+    fn cause(&self) -> Option<&dyn Fail> {
         self.inner.cause()
     }
 

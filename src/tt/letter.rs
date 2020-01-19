@@ -64,9 +64,9 @@ impl Letter {
 
     fn convert_char_to_int(c: char) -> usize {
         (match c {
-            '0'...'9' => c as u8 - b'0',
-            'A'...'Z' => c as u8 - b'A' + 10,
-            'a'...'z' => c as u8 - b'a' + 10,
+            '0'..='9' => c as u8 - b'0',
+            'A'..='Z' => c as u8 - b'A' + 10,
+            'a'..='z' => c as u8 - b'a' + 10,
             '.' => 36,
             '-' => 38,
             '+' => 39,

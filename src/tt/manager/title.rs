@@ -228,7 +228,7 @@ impl TitleManager {
         for _i in 0..32 {
             cp.x = f32::sin(d1) * (torus_rad + ring_rad);
             cp.y = f32::cos(d1) * (torus_rad + ring_rad);
-            cp.gl_vertex();;
+            cp.gl_vertex();
             cp.x = f32::sin(d1) * (torus_rad + ring_rad * 10.);
             cp.y = f32::cos(d1) * (torus_rad + ring_rad * 10.);
             cp.gl_vertex();

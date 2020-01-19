@@ -356,8 +356,8 @@ impl BulletPool {
         pos: Vector,
         deg: f32,
         speed: f32,
-        shape: &Rc<Drawable>,
-        disap_shape: &Rc<Drawable>,
+        shape: &Rc<dyn Drawable>,
+        disap_shape: &Rc<dyn Drawable>,
         x_reverse: f32,
         y_reverse: f32,
         long_range: bool,
@@ -532,8 +532,8 @@ pub struct BulletImpl {
     acc: Vector,
     pub deg: f32,
     speed: f32,
-    shape: Rc<Drawable>,
-    disap_shape: Rc<Drawable>,
+    shape: Rc<dyn Drawable>,
+    disap_shape: Rc<dyn Drawable>,
     x_reverse: f32,
     y_reverse: f32,
     long_range: bool,
@@ -542,8 +542,8 @@ pub struct BulletImpl {
 
 impl BulletImpl {
     fn new_param_first(
-        shape: &Rc<Drawable>,
-        disap_shape: &Rc<Drawable>,
+        shape: &Rc<dyn Drawable>,
+        disap_shape: &Rc<dyn Drawable>,
         x_reverse: f32,
         y_reverse: f32,
         long_range: bool,
@@ -564,8 +564,8 @@ impl BulletImpl {
     }
 
     fn new_param(
-        shape: &Rc<Drawable>,
-        disap_shape: &Rc<Drawable>,
+        shape: &Rc<dyn Drawable>,
+        disap_shape: &Rc<dyn Drawable>,
         x_reverse: f32,
         y_reverse: f32,
         long_range: bool,

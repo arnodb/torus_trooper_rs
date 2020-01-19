@@ -207,7 +207,7 @@ impl MainLoop {
     }
 }
 
-fn parse_brightness(s: &str) -> Result<usize, Box<Error>> {
+fn parse_brightness(s: &str) -> Result<usize, Box<dyn Error>> {
     let val = usize::from_str(s)?;
     if val > 100 {
         Err("brightness must if in the range [0-100]")?;
@@ -215,7 +215,7 @@ fn parse_brightness(s: &str) -> Result<usize, Box<Error>> {
     Ok(val)
 }
 
-fn parse_luminosity(s: &str) -> Result<usize, Box<Error>> {
+fn parse_luminosity(s: &str) -> Result<usize, Box<dyn Error>> {
     let val = usize::from_str(s)?;
     if val > 100 {
         Err("luminosity must if in the range [0-100]")?;

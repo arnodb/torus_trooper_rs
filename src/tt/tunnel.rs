@@ -35,7 +35,6 @@ pub struct Tunnel {
 impl Tunnel {
     pub fn new(torus: Torus) -> Self {
         let rings_state = vec![0; torus.rings.len()];
-        use std::iter::Iterator;
         Tunnel {
             torus,
             ship_idx: 0,

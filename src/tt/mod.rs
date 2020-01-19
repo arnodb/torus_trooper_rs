@@ -19,7 +19,7 @@ pub struct GeneralParams<'a, 'shared, 'sound> {
     pub screen: &'a mut screen::Screen,
     pub letter: &'a letter::Letter,
 
-    pub pad: &'a mut pad::Pad,
+    pub pad: &'a mut dyn pad::Pad,
 
     pub shared_state: &'a mut state::shared::SharedState<'shared>,
 

@@ -1048,8 +1048,8 @@ pub mod ship_spec {
                 morph_rank /= 3.;
             }
             let (bsr, dbsr) = barrage_manager.get_shape(shape_type);
-            let bsr = Rc::new(ResizableDrawable::new(bsr, size * 1.25)) as Rc<Drawable>;
-            let dbsr = Rc::new(ResizableDrawable::new(dbsr, size * 1.25)) as Rc<Drawable>;
+            let bsr = Rc::new(ResizableDrawable::new(bsr, size * 1.25)) as Rc<dyn Drawable>;
+            let dbsr = Rc::new(ResizableDrawable::new(dbsr, size * 1.25)) as Rc<dyn Drawable>;
             let mut br = Barrage::new(&bsr, &dbsr);
             br.set_wait(pre_wait, post_wait);
             br.set_long_range(long_range);
