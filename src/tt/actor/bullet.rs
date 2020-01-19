@@ -273,7 +273,15 @@ impl BulletPool {
         self.bullet_rand.set_seed(seed);
     }
 
-    fn add_bullet(&mut self, src_bullet: &Bullet, deg: f32, speed: f32) -> Option<PoolActorRef> {
+    fn add_bullet(
+        &mut self,
+        src_bullet_ref: PoolActorRef,
+        deg: f32,
+        speed: f32,
+    ) -> Option<PoolActorRef> {
+        // Let's fix that later. The problem is accessing one bullet for reading while writing
+        // in another one which is different by contract.
+        let src_bullet = unsafe { &*((&self.pool[src_bullet_ref]) as *const Bullet) };
         let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
         if let Some(rb) = src_bullet_impl.root_bullet {
             let rb = &self.pool[rb];
@@ -317,11 +325,14 @@ impl BulletPool {
 
     fn add_bullet_state(
         &mut self,
-        src_bullet: &Bullet,
+        src_bullet_ref: PoolActorRef,
         state: State,
         deg: f32,
         speed: f32,
     ) -> Option<PoolActorRef> {
+        // Let's fix that later. The problem is accessing one bullet for reading while writing
+        // in another one which is different by contract.
+        let src_bullet = unsafe { &*((&self.pool[src_bullet_ref]) as *const Bullet) };
         let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
         if let Some(rb) = src_bullet_impl.root_bullet {
             let rb = &self.pool[rb];
@@ -395,14 +406,12 @@ impl BulletPool {
         particles: &mut ParticlePool,
     ) {
         let mut ship_destroyed = false;
+        // XXX Need to rethink this unsafe to make it clearer that it is actually safe.
         let invariant_pool = unsafe { &mut *(self as *mut BulletPool) };
-        // XXX acting_refs resolves currently acting bullets so
-        // invariant_self is safe and so is invariant_bullet.
         for bullet_ref in self.pool.as_refs() {
             let (release, destroy) = {
+                let mut manager = BulletsManager::new(invariant_pool, bullet_ref);
                 let bullet = &mut self.pool[bullet_ref];
-                let invariant_bullet = unsafe { &mut *(bullet as *mut Bullet) };
-                let mut manager = BulletsManager::new(invariant_pool, invariant_bullet);
                 bullet.mov(
                     &mut manager,
                     params,
@@ -496,26 +505,26 @@ impl IndexMut<PoolActorRef> for BulletPool {
 
 struct BulletsManager<'a> {
     bullets: &'a mut BulletPool,
-    bullet: &'a Bullet,
+    bullet_ref: PoolActorRef,
     bullet_should_be_released: bool,
 }
 
 impl<'a> BulletsManager<'a> {
-    fn new(bullets: &'a mut BulletPool, bullet: &'a mut Bullet) -> Self {
+    fn new(bullets: &'a mut BulletPool, bullet_ref: PoolActorRef) -> Self {
         BulletsManager {
             bullets,
-            bullet,
+            bullet_ref,
             bullet_should_be_released: false,
         }
     }
 
     fn add_bullet(&mut self, deg: f32, speed: f32) {
-        self.bullets.add_bullet(self.bullet, deg, speed);
+        self.bullets.add_bullet(self.bullet_ref, deg, speed);
     }
 
     fn add_bullet_state(&mut self, state: State, deg: f32, speed: f32) {
         self.bullets
-            .add_bullet_state(self.bullet, state, deg, speed);
+            .add_bullet_state(self.bullet_ref, state, deg, speed);
     }
 
     fn get_turn(&self) -> u32 {
