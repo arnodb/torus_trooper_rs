@@ -148,7 +148,7 @@ impl<T> Index<PoolActorRef> for Pool<T> {
         match &pa.state {
             ActorState::Acting { generation, .. } => {
                 if *generation != index.generation {
-                    panic!("Actor doesn't exist any more");
+                    panic!("Actor not found");
                 }
             }
             ActorState::NotActing => {
@@ -165,7 +165,7 @@ impl<T> IndexMut<PoolActorRef> for Pool<T> {
         match &pa.state {
             ActorState::Acting { generation, .. } => {
                 if *generation != index.generation {
-                    panic!("Actor doesn't exist any more");
+                    panic!("Actor not found");
                 }
             }
             ActorState::NotActing => {
