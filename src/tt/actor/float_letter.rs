@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 
 use crate::gl;
 
-use crate::tt::actor::{Pool, PoolActorRef};
+use crate::tt::actor::pool::{Pool, PoolActorRef};
 use crate::tt::letter::{self, Letter};
 use crate::tt::screen::Screen;
 use crate::tt::tunnel::Tunnel;

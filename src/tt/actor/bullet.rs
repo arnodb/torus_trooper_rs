@@ -10,8 +10,8 @@ use crate::util::vector::Vector;
 
 use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::ParticlePool;
+use crate::tt::actor::pool::{Pool, PoolActorRef, PoolGetInstanceArea};
 use crate::tt::actor::shot::{Shot, ShotPool};
-use crate::tt::actor::{Pool, PoolActorRef, PoolGetInstanceArea};
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::Ship;
 use crate::tt::tunnel::{self, Tunnel};

@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::tt::actor::bullet::{BMLParam, BulletPool};
-use crate::tt::actor::PoolActorRef;
+use crate::tt::actor::pool::PoolActorRef;
 use crate::tt::errors::{GameError, GameErrorKind};
 use crate::tt::screen::Screen;
 use crate::tt::shape::bullet_shape::BulletShape;

@@ -7,7 +7,7 @@ use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::enemy::EnemyPool;
 use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
-use crate::tt::actor::{Pool, PoolActorRef};
+use crate::tt::actor::pool::{Pool, PoolActorRef};
 use crate::tt::screen::Screen;
 use crate::tt::shape::shot_shape::ShotShape;
 use crate::tt::shape::{Drawable, ResizableDrawable};

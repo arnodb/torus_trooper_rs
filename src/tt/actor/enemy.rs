@@ -1,8 +1,8 @@
 use crate::tt::actor::bullet::{Bullet, BulletPool};
 use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
+use crate::tt::actor::pool::{Pool, PoolActorRef};
 use crate::tt::actor::shot::Shot;
-use crate::tt::actor::{Pool, PoolActorRef};
 use crate::tt::barrage::BarrageManager;
 use crate::tt::screen::Screen;
 use crate::tt::shape::bit_shape::BitShape;

@@ -6,8 +6,8 @@ use crate::util::vector::{Vector, Vector3};
 
 use crate::tt::actor::bullet::BulletPool;
 use crate::tt::actor::particle::{ParticlePool, ParticleSpec};
+use crate::tt::actor::pool::PoolActorRef;
 use crate::tt::actor::shot::ShotPool;
-use crate::tt::actor::PoolActorRef;
 use crate::tt::camera::Camera;
 use crate::tt::pad::{PadButtons, PadDirection};
 use crate::tt::screen::Screen;
