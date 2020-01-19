@@ -279,20 +279,30 @@ impl BulletPool {
         deg: f32,
         speed: f32,
     ) -> Option<PoolActorRef> {
-        // Let's fix that later. The problem is accessing one bullet for reading while writing
-        // in another one which is different by contract.
-        let src_bullet = unsafe { &*((&self.pool[src_bullet_ref]) as *const Bullet) };
-        let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
-        if let Some(rb) = src_bullet_impl.root_bullet {
-            let rb = &self.pool[rb];
-            if rb.root_rank <= 0. {
-                return None;
+        let (bml_idx, bml_params, bullet_impl, src_bullet_impl_pos) = {
+            let src_bullet = &self.pool[src_bullet_ref];
+            let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
+            if let Some(rb) = src_bullet_impl.root_bullet {
+                let rb = &self.pool[rb];
+                if rb.root_rank <= 0. {
+                    return None;
+                }
             }
-        }
-        let bml_idx = src_bullet.bml_idx;
+            (
+                src_bullet.bml_idx,
+                src_bullet.bml_params.clone(),
+                BulletImpl::new_param(
+                    &src_bullet_impl.shape,
+                    &src_bullet_impl.disap_shape,
+                    src_bullet_impl.x_reverse,
+                    src_bullet_impl.y_reverse,
+                    src_bullet_impl.long_range,
+                ),
+                src_bullet_impl.pos,
+            )
+        };
         let inst = self.pool.get_instance();
         if let Some((bullet, bullet_ref)) = inst {
-            let bml_params = &src_bullet.bml_params;
             let (goto_next_parser, bml_idx) = {
                 if bml_idx + 1 >= bml_params.len() {
                     (false, bml_idx)
@@ -304,18 +314,12 @@ impl BulletPool {
             bullet.bml_idx = bml_idx;
             let bml_param = &bml_params[bml_idx];
             bullet.runner.init(&bml_param.bml);
-            bullet.bullet = Some(BulletImpl::new_param(
-                &src_bullet_impl.shape,
-                &src_bullet_impl.disap_shape,
-                src_bullet_impl.x_reverse,
-                src_bullet_impl.y_reverse,
-                src_bullet_impl.long_range,
-            ));
+            bullet.bullet = Some(bullet_impl);
             if goto_next_parser {
-                bullet.set(src_bullet_impl.pos, deg, speed);
+                bullet.set(src_bullet_impl_pos, deg, speed);
                 bullet.set_morph_seed();
             } else {
-                bullet.set_simple(src_bullet_impl.pos, deg, speed);
+                bullet.set_simple(src_bullet_impl_pos, deg, speed);
             }
             Some(bullet_ref)
         } else {
@@ -330,31 +334,35 @@ impl BulletPool {
         deg: f32,
         speed: f32,
     ) -> Option<PoolActorRef> {
-        // Let's fix that later. The problem is accessing one bullet for reading while writing
-        // in another one which is different by contract.
-        let src_bullet = unsafe { &*((&self.pool[src_bullet_ref]) as *const Bullet) };
-        let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
-        if let Some(rb) = src_bullet_impl.root_bullet {
-            let rb = &self.pool[rb];
-            if rb.root_rank <= 0. {
-                return None;
+        let (bml_idx, bml_params, bullet_impl, src_bullet_impl_pos) = {
+            let src_bullet = &self.pool[src_bullet_ref];
+            let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
+            if let Some(rb) = src_bullet_impl.root_bullet {
+                let rb = &self.pool[rb];
+                if rb.root_rank <= 0. {
+                    return None;
+                }
             }
-        }
-        let bml_idx = src_bullet.bml_idx;
+            (
+                src_bullet.bml_idx,
+                src_bullet.bml_params.clone(),
+                BulletImpl::new_param(
+                    &src_bullet_impl.shape,
+                    &src_bullet_impl.disap_shape,
+                    src_bullet_impl.x_reverse,
+                    src_bullet_impl.y_reverse,
+                    src_bullet_impl.long_range,
+                ),
+                src_bullet_impl.pos,
+            )
+        };
         let inst = self.pool.get_instance();
         if let Some((bullet, bullet_ref)) = inst {
-            let bml_params = &src_bullet.bml_params;
             bullet.bml_params = bml_params.clone();
             bullet.bml_idx = bml_idx;
             bullet.runner.init_from_state(state);
-            bullet.bullet = Some(BulletImpl::new_param(
-                &src_bullet_impl.shape,
-                &src_bullet_impl.disap_shape,
-                src_bullet_impl.x_reverse,
-                src_bullet_impl.y_reverse,
-                src_bullet_impl.long_range,
-            ));
-            bullet.set(src_bullet_impl.pos, deg, speed);
+            bullet.bullet = Some(bullet_impl);
+            bullet.set(src_bullet_impl_pos, deg, speed);
             Some(bullet_ref)
         } else {
             None
