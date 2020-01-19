@@ -16,7 +16,7 @@ enum ActorState {
     Acting { generation: usize },
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PoolActorRef {
     idx: usize,
     generation: usize,
@@ -302,4 +302,55 @@ impl<'a, T> Index<PoolActorRef> for PoolGetInstanceArea<'a, T> {
     fn index(&self, index: PoolActorRef) -> &Self::Output {
         &self.pool[index]
     }
+}
+
+#[test]
+fn check_iteration_generation_boundary() {
+    let mut pool = Pool::<()>::new(100);
+    for _ in 0..1 {
+        pool.get_instance();
+    }
+    let (_, del_1) = pool.get_instance().unwrap();
+    for _ in 0..3 {
+        pool.get_instance();
+    }
+    let (_, del_2) = pool.get_instance().unwrap();
+    for _ in 0..7 {
+        pool.get_instance();
+    }
+    let (_, del_3) = pool.get_instance().unwrap();
+    for _ in 0..5 {
+        pool.get_instance();
+    }
+
+    let mut count = 0;
+    let (mut current_pool, mut new_pool) = pool.split();
+    let mut iter = current_pool.into_iter();
+    while let Some((_, pa_ref)) = iter.next() {
+        count += 1;
+        // Delete the ones we want to delete
+        if pa_ref == del_1 || pa_ref == del_2 || pa_ref == del_3 {
+            iter.release();
+        }
+        // Add some more
+        if count == 6 || count == 9 {
+            new_pool.get_instance();
+        }
+    }
+    // There were 19 actors when the iteration started.
+    assert_eq!(count, 19);
+
+    // Add even more
+    for _ in 0..11 {
+        pool.get_instance();
+    }
+
+    let mut count = 0;
+    let (mut current_pool, _) = pool.split();
+    let mut iter = current_pool.into_iter();
+    while let Some((_, _)) = iter.next() {
+        count += 1;
+    }
+    // There were 29 actors when the iteration started.
+    assert_eq!(count, 29);
 }
