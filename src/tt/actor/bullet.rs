@@ -11,7 +11,7 @@ use crate::util::vector::Vector;
 use crate::tt::actor::float_letter::FloatLetterPool;
 use crate::tt::actor::particle::ParticlePool;
 use crate::tt::actor::shot::{Shot, ShotPool};
-use crate::tt::actor::{Pool, PoolActorRef};
+use crate::tt::actor::{Pool, PoolActorRef, PoolGetInstanceArea};
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::Ship;
 use crate::tt::tunnel::{self, Tunnel};
@@ -273,102 +273,6 @@ impl BulletPool {
         self.bullet_rand.set_seed(seed);
     }
 
-    fn add_bullet(
-        &mut self,
-        src_bullet_ref: PoolActorRef,
-        deg: f32,
-        speed: f32,
-    ) -> Option<PoolActorRef> {
-        let (bml_idx, bml_params, bullet_impl, src_bullet_impl_pos) = {
-            let src_bullet = &self.pool[src_bullet_ref];
-            let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
-            if let Some(rb) = src_bullet_impl.root_bullet {
-                let rb = &self.pool[rb];
-                if rb.root_rank <= 0. {
-                    return None;
-                }
-            }
-            (
-                src_bullet.bml_idx,
-                src_bullet.bml_params.clone(),
-                BulletImpl::new_param(
-                    &src_bullet_impl.shape,
-                    &src_bullet_impl.disap_shape,
-                    src_bullet_impl.x_reverse,
-                    src_bullet_impl.y_reverse,
-                    src_bullet_impl.long_range,
-                ),
-                src_bullet_impl.pos,
-            )
-        };
-        let inst = self.pool.get_instance();
-        if let Some((bullet, bullet_ref)) = inst {
-            let (goto_next_parser, bml_idx) = {
-                if bml_idx + 1 >= bml_params.len() {
-                    (false, bml_idx)
-                } else {
-                    (true, bml_idx + 1)
-                }
-            };
-            bullet.bml_params = bml_params.clone();
-            bullet.bml_idx = bml_idx;
-            let bml_param = &bml_params[bml_idx];
-            bullet.runner.init(&bml_param.bml);
-            bullet.bullet = Some(bullet_impl);
-            if goto_next_parser {
-                bullet.set(src_bullet_impl_pos, deg, speed);
-                bullet.set_morph_seed();
-            } else {
-                bullet.set_simple(src_bullet_impl_pos, deg, speed);
-            }
-            Some(bullet_ref)
-        } else {
-            None
-        }
-    }
-
-    fn add_bullet_state(
-        &mut self,
-        src_bullet_ref: PoolActorRef,
-        state: State,
-        deg: f32,
-        speed: f32,
-    ) -> Option<PoolActorRef> {
-        let (bml_idx, bml_params, bullet_impl, src_bullet_impl_pos) = {
-            let src_bullet = &self.pool[src_bullet_ref];
-            let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
-            if let Some(rb) = src_bullet_impl.root_bullet {
-                let rb = &self.pool[rb];
-                if rb.root_rank <= 0. {
-                    return None;
-                }
-            }
-            (
-                src_bullet.bml_idx,
-                src_bullet.bml_params.clone(),
-                BulletImpl::new_param(
-                    &src_bullet_impl.shape,
-                    &src_bullet_impl.disap_shape,
-                    src_bullet_impl.x_reverse,
-                    src_bullet_impl.y_reverse,
-                    src_bullet_impl.long_range,
-                ),
-                src_bullet_impl.pos,
-            )
-        };
-        let inst = self.pool.get_instance();
-        if let Some((bullet, bullet_ref)) = inst {
-            bullet.bml_params = bml_params.clone();
-            bullet.bml_idx = bml_idx;
-            bullet.runner.init_from_state(state);
-            bullet.bullet = Some(bullet_impl);
-            bullet.set(src_bullet_impl_pos, deg, speed);
-            Some(bullet_ref)
-        } else {
-            None
-        }
-    }
-
     pub fn add_top_bullet(
         &mut self,
         bml_params: &Rc<Vec<BMLParam>>,
@@ -414,12 +318,12 @@ impl BulletPool {
         particles: &mut ParticlePool,
     ) {
         let mut ship_destroyed = false;
-        // XXX Need to rethink this unsafe to make it clearer that it is actually safe.
-        let invariant_pool = unsafe { &mut *(self as *mut BulletPool) };
-        for bullet_ref in self.pool.as_refs() {
+        let turn = self.get_turn();
+        let (mut current_pool, mut new_pool) = self.pool.split();
+        let mut iter = current_pool.into_iter();
+        while let Some((bullet, bullet_ref)) = iter.next() {
             let (release, destroy) = {
-                let mut manager = BulletsManager::new(invariant_pool, bullet_ref);
-                let bullet = &mut self.pool[bullet_ref];
+                let mut manager = BulletsManager::new(&mut new_pool, bullet_ref, turn);
                 bullet.mov(
                     &mut manager,
                     params,
@@ -430,7 +334,7 @@ impl BulletPool {
                 )
             };
             if release {
-                self.pool.release(bullet_ref);
+                iter.release();
             }
             if destroy {
                 ship_destroyed = true;
@@ -511,32 +415,108 @@ impl IndexMut<PoolActorRef> for BulletPool {
     }
 }
 
-struct BulletsManager<'a> {
-    bullets: &'a mut BulletPool,
-    bullet_ref: PoolActorRef,
+struct BulletsManager<'a, 'p> {
+    pool: &'a mut PoolGetInstanceArea<'p, Bullet>,
+    src_bullet_ref: PoolActorRef,
     bullet_should_be_released: bool,
+    turn: u32,
 }
 
-impl<'a> BulletsManager<'a> {
-    fn new(bullets: &'a mut BulletPool, bullet_ref: PoolActorRef) -> Self {
+impl<'a, 'p> BulletsManager<'a, 'p> {
+    fn new(
+        pool: &'a mut PoolGetInstanceArea<'p, Bullet>,
+        src_bullet_ref: PoolActorRef,
+        turn: u32,
+    ) -> Self {
         BulletsManager {
-            bullets,
-            bullet_ref,
+            pool,
+            src_bullet_ref,
             bullet_should_be_released: false,
+            turn,
         }
     }
 
     fn add_bullet(&mut self, deg: f32, speed: f32) {
-        self.bullets.add_bullet(self.bullet_ref, deg, speed);
+        let (bml_idx, bml_params, bullet_impl, src_bullet_impl_pos) = {
+            let src_bullet = &self.pool[self.src_bullet_ref];
+            let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
+            if let Some(rb) = src_bullet_impl.root_bullet {
+                let rb = &self.pool[rb];
+                if rb.root_rank <= 0. {
+                    return;
+                }
+            }
+            (
+                src_bullet.bml_idx,
+                src_bullet.bml_params.clone(),
+                BulletImpl::new_param(
+                    &src_bullet_impl.shape,
+                    &src_bullet_impl.disap_shape,
+                    src_bullet_impl.x_reverse,
+                    src_bullet_impl.y_reverse,
+                    src_bullet_impl.long_range,
+                ),
+                src_bullet_impl.pos,
+            )
+        };
+        let inst = self.pool.get_instance();
+        if let Some((bullet, _)) = inst {
+            let (goto_next_parser, bml_idx) = {
+                if bml_idx + 1 >= bml_params.len() {
+                    (false, bml_idx)
+                } else {
+                    (true, bml_idx + 1)
+                }
+            };
+            bullet.bml_params = bml_params.clone();
+            bullet.bml_idx = bml_idx;
+            let bml_param = &bml_params[bml_idx];
+            bullet.runner.init(&bml_param.bml);
+            bullet.bullet = Some(bullet_impl);
+            if goto_next_parser {
+                bullet.set(src_bullet_impl_pos, deg, speed);
+                bullet.set_morph_seed();
+            } else {
+                bullet.set_simple(src_bullet_impl_pos, deg, speed);
+            }
+        }
     }
 
     fn add_bullet_state(&mut self, state: State, deg: f32, speed: f32) {
-        self.bullets
-            .add_bullet_state(self.bullet_ref, state, deg, speed);
+        let (bml_idx, bml_params, bullet_impl, src_bullet_impl_pos) = {
+            let src_bullet = &self.pool[self.src_bullet_ref];
+            let src_bullet_impl = src_bullet.bullet.as_ref().unwrap();
+            if let Some(rb) = src_bullet_impl.root_bullet {
+                let rb = &self.pool[rb];
+                if rb.root_rank <= 0. {
+                    return;
+                }
+            }
+            (
+                src_bullet.bml_idx,
+                src_bullet.bml_params.clone(),
+                BulletImpl::new_param(
+                    &src_bullet_impl.shape,
+                    &src_bullet_impl.disap_shape,
+                    src_bullet_impl.x_reverse,
+                    src_bullet_impl.y_reverse,
+                    src_bullet_impl.long_range,
+                ),
+                src_bullet_impl.pos,
+            )
+        };
+        let inst = self.pool.get_instance();
+        if let Some((bullet, _)) = inst {
+            bullet.bml_params = bml_params.clone();
+            bullet.bml_idx = bml_idx;
+            bullet.runner.init_from_state(state);
+            bullet.bullet = Some(bullet_impl);
+            bullet.set(src_bullet_impl_pos, deg, speed);
+        }
     }
 
     fn get_turn(&self) -> u32 {
-        self.bullets.get_turn()
+        self.turn
     }
 
     fn kill(&mut self) {
@@ -634,11 +614,11 @@ impl Default for TTRunner {
     }
 }
 
-struct TTRunnerData<'a, 'm>
+struct TTRunnerData<'a, 'm, 'p>
 where
     'm: 'a,
 {
-    manager: &'a mut BulletsManager<'m>,
+    manager: &'a mut BulletsManager<'m, 'p>,
     rand: &'a mut Rand,
     bullet: &'a mut BulletImpl,
     bml_param: &'a BMLParam,
@@ -648,7 +628,7 @@ where
 const VEL_SS_SDM_RATIO: f32 = 62. / 10.;
 const VEL_SDM_SS_RATIO: f32 = 10. / 62.;
 
-impl<'a, 'm> AppRunner<TTRunnerData<'a, 'm>> for TTRunner {
+impl<'a, 'm, 'p> AppRunner<TTRunnerData<'a, 'm, 'p>> for TTRunner {
     fn get_bullet_direction(&self, data: &TTRunnerData) -> f64 {
         f64::from(rtod(data.bullet.deg))
     }

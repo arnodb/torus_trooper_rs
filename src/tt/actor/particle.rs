@@ -314,13 +314,12 @@ impl ParticlePool {
     }
 
     pub fn mov(&mut self, ship_speed: f32, tunnel: &Tunnel) {
-        for particle_ref in self.pool.as_refs() {
-            let release = {
-                let particle = &mut self.pool[particle_ref];
-                particle.mov(ship_speed, tunnel)
-            };
+        let (mut current_pool, _) = self.pool.split();
+        let mut iter = current_pool.into_iter();
+        while let Some((particle, _)) = iter.next() {
+            let release = particle.mov(ship_speed, tunnel);
             if release {
-                self.pool.release(particle_ref);
+                iter.release();
             }
         }
     }

@@ -663,9 +663,10 @@ impl EnemyPool {
         particles: &mut ParticlePool,
     ) -> bool {
         let mut goto_next_zone = false;
-        for enemy_ref in self.pool.as_refs() {
+        let (mut current_pool, _) = self.pool.split();
+        let mut iter = current_pool.into_iter();
+        while let Some((enemy, _)) = iter.next() {
             let release = {
-                let enemy = &mut self.pool[enemy_ref];
                 let spec = match enemy.spec {
                     EnemySpec::Small(idx) => &mut self.small_ship_specs[idx],
                     EnemySpec::Medium(idx) => &mut self.medium_ship_specs[idx],
@@ -690,7 +691,7 @@ impl EnemyPool {
                 release
             };
             if release {
-                self.pool.release(enemy_ref);
+                iter.release();
             }
         }
         goto_next_zone
@@ -703,9 +704,10 @@ impl EnemyPool {
         bullets: &mut BulletPool,
         particles: &mut ParticlePool,
     ) {
-        for enemy_ref in self.passed_pool.as_refs() {
+        let (mut current_pool, _) = self.passed_pool.split();
+        let mut iter = current_pool.into_iter();
+        while let Some((enemy, _)) = iter.next() {
             let release = {
-                let enemy = &mut self.passed_pool[enemy_ref];
                 let spec = match enemy.spec {
                     EnemySpec::Small(idx) => &mut self.small_ship_specs[idx],
                     EnemySpec::Medium(idx) => &mut self.medium_ship_specs[idx],
@@ -720,7 +722,7 @@ impl EnemyPool {
                 release
             };
             if release {
-                self.passed_pool.release(enemy_ref);
+                iter.release();
             }
         }
     }
@@ -735,9 +737,10 @@ impl EnemyPool {
         float_letters: &mut FloatLetterPool,
     ) -> bool {
         let mut release_shot = false;
-        for enemy_ref in self.pool.as_refs() {
+        let (mut current_pool, _) = self.pool.split();
+        let mut iter = current_pool.into_iter();
+        while let Some((enemy, _)) = iter.next() {
             let release_enemy = {
-                let enemy = &mut self.pool[enemy_ref];
                 let spec = match enemy.spec {
                     EnemySpec::Small(idx) => &self.small_ship_specs[idx],
                     EnemySpec::Medium(idx) => &self.medium_ship_specs[idx],
@@ -761,7 +764,7 @@ impl EnemyPool {
                 release_enemy
             };
             if release_enemy {
-                self.pool.release(enemy_ref);
+                iter.release();
             }
         }
         release_shot

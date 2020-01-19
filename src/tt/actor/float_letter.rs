@@ -106,13 +106,12 @@ impl FloatLetterPool {
     }
 
     pub fn mov(&mut self) {
-        for fl_ref in self.pool.as_refs() {
-            let release = {
-                let fl = &mut self.pool[fl_ref];
-                fl.mov()
-            };
+        let (mut current_pool, _) = self.pool.split();
+        let mut iter = current_pool.into_iter();
+        while let Some((fl, _)) = iter.next() {
+            let release = fl.mov();
             if release {
-                self.pool.release(fl_ref);
+                iter.release();
             }
         }
     }

@@ -290,21 +290,20 @@ impl ShotPool {
         particles: &mut ParticlePool,
         float_letters: &mut FloatLetterPool,
     ) {
-        for shot_ref in self.pool.as_refs() {
-            let release = {
-                let shot = &mut self.pool[shot_ref];
-                shot.mov(
-                    params,
-                    ship,
-                    bullets,
-                    enemies,
-                    particles,
-                    float_letters,
-                    &mut self.rand,
-                )
-            };
+        let (mut current_pool, _) = self.pool.split();
+        let mut iter = current_pool.into_iter();
+        while let Some((shot, _)) = iter.next() {
+            let release = shot.mov(
+                params,
+                ship,
+                bullets,
+                enemies,
+                particles,
+                float_letters,
+                &mut self.rand,
+            );
             if release {
-                self.pool.release(shot_ref);
+                iter.release();
             }
         }
     }
