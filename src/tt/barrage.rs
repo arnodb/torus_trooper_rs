@@ -100,6 +100,31 @@ const BARRAGE_DIR_NAME: &str = "barrage";
 
 impl BarrageManager {
     pub fn load(screen: &Screen) -> Result<Self, GameError> {
+        Self::new(Self::load_instances()?, screen)
+    }
+
+    fn new(
+        bmls: BTreeMap<OsString, BTreeMap<OsString, Rc<BulletML>>>,
+        screen: &Screen,
+    ) -> Result<Self, GameError> {
+        Ok(BarrageManager {
+            bmls,
+            square_bullet_shapes: (
+                Rc::new(BulletShape::new_square(false, screen)),
+                Rc::new(BulletShape::new_square(true, screen)),
+            ),
+            triangle_bullet_shapes: (
+                Rc::new(BulletShape::new_triangle(false, screen)),
+                Rc::new(BulletShape::new_triangle(true, screen)),
+            ),
+            bar_bullet_shapes: (
+                Rc::new(BulletShape::new_bar(false, screen)),
+                Rc::new(BulletShape::new_bar(true, screen)),
+            ),
+        })
+    }
+
+    fn load_instances() -> Result<BTreeMap<OsString, BTreeMap<OsString, Rc<BulletML>>>, GameError> {
         let mut bmls = BTreeMap::new();
         let dirs = fs::read_dir(BARRAGE_DIR_NAME).context(GameErrorKind::Barrage)?;
         for dir_name in dirs {
@@ -133,25 +158,12 @@ impl BarrageManager {
                 }
             }
         }
-        Ok(BarrageManager {
-            bmls,
-            square_bullet_shapes: (
-                Rc::new(BulletShape::new_square(false, screen)),
-                Rc::new(BulletShape::new_square(true, screen)),
-            ),
-            triangle_bullet_shapes: (
-                Rc::new(BulletShape::new_triangle(false, screen)),
-                Rc::new(BulletShape::new_triangle(true, screen)),
-            ),
-            bar_bullet_shapes: (
-                Rc::new(BulletShape::new_bar(false, screen)),
-                Rc::new(BulletShape::new_bar(true, screen)),
-            ),
-        })
+        Ok(bmls)
     }
 
     pub fn load_instance(path: &PathBuf) -> Result<BulletML, bulletml::errors::ParseError> {
-        BulletMLParser::parse_file(path.as_path())
+        // With fasteval capacity set to 19, it crashes. This is covered by a test below.
+        BulletMLParser::with_capacities(0, 20).parse_file(path.as_path())
     }
 
     pub fn get_instance(&self, dir_name: &OsStr, file_name: &OsStr) -> &Rc<BulletML> {
@@ -173,4 +185,9 @@ impl BarrageManager {
             BulletShapeType::Bar => (&self.bar_bullet_shapes.0, &self.bar_bullet_shapes.1),
         }
     }
+}
+
+#[test]
+fn should_load_barrage_files() {
+    BarrageManager::load_instances().unwrap();
 }
