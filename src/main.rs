@@ -1,9 +1,15 @@
+#![cfg_attr(nightly, feature(backtrace))]
+
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate derive_new;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate thiserror;
 
 #[macro_use]
 mod macros;
@@ -18,7 +24,6 @@ pub mod glu;
 #[cfg(feature = "game_recorder")]
 mod game_recorder;
 
-use failure::{err_msg, Context, ResultExt};
 use piston::event_loop::*;
 use piston::input::*;
 use std::error::Error;
@@ -33,7 +38,7 @@ use crate::tt::actor::particle::ParticlePool;
 use crate::tt::actor::shot::ShotPool;
 use crate::tt::barrage::BarrageManager;
 use crate::tt::camera::Camera;
-use crate::tt::errors::{GameError, GameErrorKind};
+use crate::tt::errors::GameError;
 use crate::tt::letter::Letter;
 use crate::tt::manager::stage::StageManager;
 use crate::tt::manager::{GameManager, Manager, MoveAction};
@@ -57,7 +62,7 @@ impl MainLoop {
     }
 
     fn main(&mut self) -> Result<(), GameError> {
-        let sdl = sdl2::init().map_err(|err| err_msg(err).context(GameErrorKind::Sdl2Init))?;
+        let sdl = sdl2::init().map_err(GameError::new_sdl2_init)?;
         let sdl_joystick = sdl.joystick().map(Some).unwrap_or_else(|err| {
             eprintln!("{}", err);
             None
@@ -74,10 +79,7 @@ impl MainLoop {
         #[cfg(not(feature = "sdl_backend"))]
         screen.init_opengl()?;
         #[cfg(feature = "sdl_backend")]
-        screen.init_opengl_sdl(
-            sdl.video()
-                .map_err(|err| err_msg(err).context(GameErrorKind::Sdl2VideoInit))?,
-        )?;
+        screen.init_opengl_sdl(sdl.video().map_err(GameError::new_sdl2_video_init)?)?;
 
         let mut pad = GamePad::new(self.options.reverse, sdl_joystick)?;
 
@@ -90,7 +92,7 @@ impl MainLoop {
         let mut camera = Camera::new();
         let mut ship = Ship::new(&screen, initial_seed);
 
-        let mut barrage_manager = BarrageManager::load(&screen).context(GameErrorKind::BulletML)?;
+        let mut barrage_manager = BarrageManager::load(&screen)?;
         let mut shots = ShotPool::new(64, &screen);
         let mut bullets = BulletPool::new(512, initial_seed);
         let mut enemies = EnemyPool::new(64, initial_seed, &screen);
@@ -141,7 +143,7 @@ impl MainLoop {
             params
                 .screen
                 .window_mut()
-                .ok_or_else(|| Context::new(GameErrorKind::MissingWindow))?,
+                .ok_or_else(|| GameError::new_missing_window())?,
         ) {
             let now_millis = {
                 let duration = Instant::now().duration_since(start_time);

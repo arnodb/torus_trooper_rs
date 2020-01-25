@@ -1,5 +1,5 @@
-use rand_xorshift::XorShiftRng;
 use rand_core::{RngCore, SeedableRng};
+use rand_xorshift::XorShiftRng;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct Rand {
