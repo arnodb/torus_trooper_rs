@@ -319,7 +319,7 @@ impl Tunnel {
         for i in 1..slices.len() {
             if z > slices[i].depth {
                 idx = i - 1;
-                ofs = (z - (slices[idx].depth) - z) / (slices[idx + 1].depth - slices[idx].depth);
+                ofs = (slices[idx].depth - z) / (slices[idx + 1].depth - slices[idx].depth);
                 break;
             }
         }
