@@ -3,7 +3,8 @@ matrix:
   include:
     - rust: stable
     - rust: stable
-      env: FEATURES='-no-default-features --features sdl_backend'
+      env:
+        - CARGO_OPTIONS='--no-default-features --features sdl_backend'
     - rust: beta
     - rust: nightly
   allow_failures:
@@ -12,3 +13,6 @@ matrix:
 before_install:
   - sudo apt-get update -y
   - sudo apt-get install -y libsdl2-dev libsdl2-mixer-dev libegl1-mesa-dev libgles2-mesa-dev
+script:
+  - cargo build --verbose $CARGO_OPTIONS
+  - cargo test --verbose $CARGO_OPTIONS
