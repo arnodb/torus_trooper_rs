@@ -23,13 +23,15 @@ pub struct Tunnel {
     ship_y: f32,
     torus_idx: usize,
     point_from: f32,
-    sight_depth: f32,
-    slices: Vec<Slice>,
-    slices_backward: Vec<Slice>,
-    // TODO use vectors
-    slices_ring_indexes: [Option<usize>; DEPTH_NUM],
-    slices_backward_ring_indexes: [Option<usize>; DEPTH_NUM],
+    slices: TunnelSlices,
+    slices_backward: TunnelSlices,
     rings_state: Vec<u32>,
+}
+
+struct TunnelSlices {
+    slices: Vec<Slice>,
+    // TODO use vectors
+    ring_indexes: [Option<usize>; DEPTH_NUM],
 }
 
 impl Tunnel {
@@ -42,11 +44,14 @@ impl Tunnel {
             ship_y: 0.,
             torus_idx: 0,
             point_from: 0.,
-            sight_depth: 0.,
-            slices: std::iter::repeat(Slice::new()).take(DEPTH_NUM).collect(),
-            slices_backward: std::iter::repeat(Slice::new()).take(DEPTH_NUM).collect(),
-            slices_ring_indexes: [None; DEPTH_NUM],
-            slices_backward_ring_indexes: [None; DEPTH_NUM],
+            slices: TunnelSlices {
+                slices: std::iter::repeat(Slice::new()).take(DEPTH_NUM).collect(),
+                ring_indexes: [None; DEPTH_NUM],
+            },
+            slices_backward: TunnelSlices {
+                slices: std::iter::repeat(Slice::new()).take(DEPTH_NUM).collect(),
+                ring_indexes: [None; DEPTH_NUM],
+            },
             rings_state,
         }
     }
@@ -57,15 +62,15 @@ impl Tunnel {
         self.rings_state = rings_state;
         self.torus_idx = 0;
         self.point_from = 0.;
-        self.sight_depth = 0.;
     }
 
     pub fn set_slices(&mut self) {
-        self.sight_depth = 0.;
+        let mut sight_depth = 0.;
         let mut ti = self.torus_idx as f32;
         let mut dr = 1.;
+        let slices = &mut self.slices;
         {
-            let first_slice = self.slices.first_mut();
+            let first_slice = slices.slices.first_mut();
             if let Some(slice) = first_slice {
                 slice.set_first(
                     self.point_from,
@@ -74,25 +79,25 @@ impl Tunnel {
                 );
             };
         }
-        let slices_len = self.slices.len();
+        let slices_len = slices.slices.len();
         for i in 1..slices_len {
-            self.sight_depth += dr;
+            sight_depth += dr;
             let prev_ti = ti as usize;
             ti += dr;
             if ti >= self.torus.slice_num as f32 {
                 ti -= self.torus.slice_num as f32;
             }
             let (state, ring_index) = self.torus.get_slice_state_and_ring(ti as usize, prev_ti);
-            self.slices_ring_indexes[i] = ring_index;
+            slices.ring_indexes[i] = ring_index;
             if let Some(ri) = ring_index {
                 self.rings_state[ri] += 1;
             }
-            let new_slice = self.slices[i - 1].set_prev_to(
+            let new_slice = slices.slices[i - 1].set_prev_to(
                 &state,
                 dr,
-                self.sight_depth - self.ship_idx as f32 - self.ship_ofs,
+                sight_depth - self.ship_idx as f32 - self.ship_ofs,
             );
-            self.slices[i].set(&new_slice);
+            slices.slices[i].set(&new_slice);
             if i >= slices_len / 2 && dr < DEPTH_RATIO_MAX {
                 dr *= DEPTH_CHANGE_RATIO;
             }
@@ -100,11 +105,12 @@ impl Tunnel {
     }
 
     pub fn set_slices_backward(&mut self) {
-        let mut sd = 0.;
+        let mut sight_depth = 0.;
         let mut ti = self.torus_idx as f32;
         let mut dr = -1.;
+        let slices = &mut self.slices_backward;
         {
-            let first_slice = self.slices_backward.first_mut();
+            let first_slice = slices.slices.first_mut();
             if let Some(slice) = first_slice {
                 slice.set_first(
                     self.point_from,
@@ -113,25 +119,25 @@ impl Tunnel {
                 );
             };
         }
-        let slices_backward_len = self.slices_backward.len();
+        let slices_backward_len = slices.slices.len();
         for i in 1..slices_backward_len {
+            sight_depth += dr;
             let prev_ti = ti as usize;
             ti += dr;
-            sd += dr;
             if ti < 0. {
                 ti += self.torus.slice_num as f32;
             }
             let (state, ring_index) = self.torus.get_slice_state_and_ring(prev_ti, ti as usize);
-            self.slices_backward_ring_indexes[i] = ring_index;
+            slices.ring_indexes[i] = ring_index;
             if let Some(ri) = ring_index {
                 self.rings_state[ri] += 1;
             }
-            let new_slice = self.slices_backward[i - 1].set_prev_to(
+            let new_slice = slices.slices[i - 1].set_prev_to(
                 &state,
                 dr,
-                sd - self.ship_idx as f32 - self.ship_ofs,
+                sight_depth - self.ship_idx as f32 - self.ship_ofs,
             );
-            self.slices_backward[i].set(&new_slice);
+            slices.slices[i].set(&new_slice);
             if i >= slices_backward_len / 2 && dr > -DEPTH_RATIO_MAX {
                 dr *= DEPTH_CHANGE_RATIO;
             }
@@ -143,11 +149,12 @@ impl Tunnel {
             return;
         }
         self.torus_idx += n;
+        let slices = &self.slices.slices;
         for i in 0..n {
-            self.point_from += self.slices[i].state.mp;
-            self.point_from %= self.slices[i].state.point_num as f32;
+            self.point_from += slices[i].state.mp;
+            self.point_from %= slices[i].state.point_num as f32;
             if self.point_from < 0. {
-                self.point_from += self.slices[i].state.point_num as f32;
+                self.point_from += slices[i].state.point_num as f32;
             }
         }
         if self.torus_idx >= self.torus.slice_num {
@@ -165,26 +172,26 @@ impl Tunnel {
     }
 
     fn get_pos(&self, d: f32, o: f32, si: usize, rr: f32) -> Vector3 {
+        let slices = &self.slices.slices;
         let nsi = si + 1;
-        let r = self.slices[si].state.rad * (1. - o) + self.slices[nsi].state.rad * o;
-        let d1 = self.slices[si].d1 * (1. - o) + self.slices[nsi].d1 * o;
-        let d2 = self.slices[si].d2 * (1. - o) + self.slices[nsi].d2 * o;
+        let r = slices[si].state.rad * (1. - o) + slices[nsi].state.rad * o;
+        let d1 = slices[si].d1 * (1. - o) + slices[nsi].d1 * o;
+        let d2 = slices[si].d2 * (1. - o) + slices[nsi].d2 * o;
         let mut tpos = Vector3::new_at(0., r * rr, 0.);
         tpos.roll_z(d).roll_y(d1).roll_x(d2);
-        tpos += self.slices[si].center_pos * (1. - o) + self.slices[nsi].center_pos * o;
+        tpos += slices[si].center_pos * (1. - o) + slices[nsi].center_pos * o;
         tpos
     }
 
     fn get_pos_backward(&self, d: f32, o: f32, si: usize, rr: f32) -> Vector3 {
+        let slices = &self.slices_backward.slices;
         let nsi = si + 1;
-        let r =
-            self.slices_backward[si].state.rad * (1. - o) + self.slices_backward[nsi].state.rad * o;
-        let d1 = self.slices_backward[si].d1 * (1. - o) + self.slices_backward[nsi].d1 * o;
-        let d2 = self.slices_backward[si].d2 * (1. - o) + self.slices_backward[nsi].d2 * o;
+        let r = slices[si].state.rad * (1. - o) + slices[nsi].state.rad * o;
+        let d1 = slices[si].d1 * (1. - o) + slices[nsi].d1 * o;
+        let d2 = slices[si].d2 * (1. - o) + slices[nsi].d2 * o;
         let mut tpos = Vector3::new_at(0., r * rr, 0.);
         tpos.roll_z(d).roll_y(d1).roll_x(d2);
-        tpos += self.slices_backward[si].center_pos * (1. - o)
-            + self.slices_backward[nsi].center_pos * o;
+        tpos += slices[si].center_pos * (1. - o) + slices[nsi].center_pos * o;
         tpos
     }
 
@@ -200,7 +207,8 @@ impl Tunnel {
 
     pub fn get_pos_v3(&self, p: Vector3) -> Vector3 {
         let (si, o) = self.calc_index(p.y);
-        self.get_pos(p.x, o, si, RAD_RATIO - p.z / self.slices[si].state.rad)
+        let slices = &self.slices.slices;
+        self.get_pos(p.x, o, si, RAD_RATIO - p.z / slices[si].state.rad)
     }
 
     fn get_center_pos(&self, y: f32) -> (Vector3, f32, f32) {
@@ -211,19 +219,20 @@ impl Tunnel {
         if mut_y >= -(self.ship_idx as f32) - self.ship_ofs {
             let (si, o) = self.calc_index(mut_y);
             let nsi = si + 1;
+            let slices = &self.slices.slices;
             (
-                self.slices[si].center_pos * (1. - o) + self.slices[nsi].center_pos * o,
-                self.slices[si].d1 * (1. - o) + self.slices[nsi].d1 * o,
-                self.slices[si].d2 * (1. - o) + self.slices[nsi].d2 * o,
+                slices[si].center_pos * (1. - o) + slices[nsi].center_pos * o,
+                slices[si].d1 * (1. - o) + slices[nsi].d1 * o,
+                slices[si].d2 * (1. - o) + slices[nsi].d2 * o,
             )
         } else {
             let (si, o) = self.calc_index_backward(mut_y);
             let nsi = si + 1;
+            let slices = &self.slices_backward.slices;
             (
-                self.slices_backward[si].center_pos * (1. - o)
-                    + self.slices_backward[nsi].center_pos * o,
-                self.slices_backward[si].d1 * (1. - o) + self.slices_backward[nsi].d1 * o,
-                self.slices_backward[si].d2 * (1. - o) + self.slices_backward[nsi].d2 * o,
+                slices[si].center_pos * (1. - o) + slices[nsi].center_pos * o,
+                slices[si].d1 * (1. - o) + slices[nsi].d1 * o,
+                slices[si].d2 * (1. - o) + slices[nsi].d2 * o,
             )
         }
     }
@@ -231,10 +240,10 @@ impl Tunnel {
     pub fn get_slice(&self, y: f32) -> &Slice {
         if y >= -(self.ship_idx as f32) - self.ship_ofs {
             let (si, _o) = self.calc_index(y);
-            &self.slices[si]
+            &self.slices.slices[si]
         } else {
             let (si, _o) = self.calc_index_backward(y);
-            &self.slices_backward[si]
+            &self.slices_backward.slices[si]
         }
     }
 
@@ -285,17 +294,18 @@ impl Tunnel {
 
     pub fn get_radius(&self, z: f32) -> f32 {
         let (si, o) = self.calc_index(z);
-        self.slices[si].state.rad * (1.0 - o) + self.slices[si + 1].state.rad * o
+        let slices = &self.slices.slices;
+        slices[si].state.rad * (1.0 - o) + slices[si + 1].state.rad * o
     }
 
     fn calc_index(&self, z: f32) -> (usize, f32) {
-        let mut idx = self.slices.len() + 99999;
+        let slices = &self.slices.slices;
+        let mut idx = slices.len() + 99999;
         let mut ofs = 0.;
-        for i in 1..self.slices.len() {
-            if z < self.slices[i].depth {
+        for i in 1..slices.len() {
+            if z < slices[i].depth {
                 idx = i - 1;
-                ofs = (z - self.slices[idx].depth)
-                    / (self.slices[idx + 1].depth - self.slices[idx].depth);
+                ofs = (z - slices[idx].depth) / (slices[idx + 1].depth - slices[idx].depth);
                 break;
             }
         }
@@ -303,8 +313,8 @@ impl Tunnel {
             idx = 0;
             ofs = 0.;
         } else */
-        if idx >= self.slices.len() - 1 {
-            idx = self.slices.len() - 2;
+        if idx >= slices.len() - 1 {
+            idx = slices.len() - 2;
             ofs = 0.99;
         }
         if ofs < 0. {
@@ -316,13 +326,13 @@ impl Tunnel {
     }
 
     fn calc_index_backward(&self, z: f32) -> (usize, f32) {
-        let mut idx = self.slices_backward.len() + 99999;
+        let slices = &self.slices_backward.slices;
+        let mut idx = slices.len() + 99999;
         let mut ofs = 0.;
-        for i in 1..self.slices_backward.len() {
-            if z > self.slices_backward[i].depth {
+        for i in 1..slices.len() {
+            if z > slices[i].depth {
                 idx = i - 1;
-                ofs = (z - (self.slices_backward[idx].depth) - z)
-                    / (self.slices_backward[idx + 1].depth - self.slices_backward[idx].depth);
+                ofs = (z - (slices[idx].depth) - z) / (slices[idx + 1].depth - slices[idx].depth);
                 break;
             }
         }
@@ -330,8 +340,8 @@ impl Tunnel {
             idx = 0;
             ofs = 0.;
         } else */
-        if idx >= self.slices_backward.len() - 1 {
-            idx = self.slices_backward.len() - 2;
+        if idx >= slices.len() - 1 {
+            idx = slices.len() - 2;
             ofs = 0.99;
         }
         if ofs < 0. {
@@ -366,12 +376,12 @@ impl Tunnel {
         let mut line_bn = 0.4;
         let mut poly_bn = 0.;
         let mut light_bn = 0.5 - draw_state.dark_line_ratio * 0.2;
-        if let Some(slice) = self.slices.last_mut() {
+        if let Some(slice) = self.slices.slices.last_mut() {
             slice.set_point_pos();
         }
-        let slices_len = self.slices.len();
+        let slices_len = self.slices.slices.len();
         for i in (1..slices_len).rev() {
-            let rtd = match self.slices_ring_indexes[i] {
+            let rtd = match self.slices.ring_indexes[i] {
                 Some(ring_index) => {
                     let ring = &self.torus.rings[ring_index];
                     let (p, d1, d2) = self.get_center_pos(ring.idx as f32);
@@ -385,9 +395,10 @@ impl Tunnel {
                 }
                 None => None,
             };
-            self.slices[i - 1].set_point_pos();
-            self.slices[i].draw(
-                &self.slices[i - 1],
+            let slices = &mut self.slices.slices;
+            slices[i - 1].set_point_pos();
+            slices[i].draw(
+                &slices[i - 1],
                 line_bn,
                 poly_bn,
                 light_bn,
@@ -420,12 +431,12 @@ impl Tunnel {
         let mut line_bn = 0.4;
         let mut poly_bn = 0.;
         let mut light_bn = 0.5 - draw_state.dark_line_ratio * 0.2;
-        if let Some(slice) = self.slices_backward.last_mut() {
+        if let Some(slice) = self.slices_backward.slices.last_mut() {
             slice.set_point_pos();
         }
-        let slices_backward_len = self.slices_backward.len();
+        let slices_backward_len = self.slices_backward.slices.len();
         for i in (1..slices_backward_len).rev() {
-            let rtd = match self.slices_backward_ring_indexes[i] {
+            let rtd = match self.slices_backward.ring_indexes[i] {
                 Some(ring_index) => {
                     let ring = &self.torus.rings[ring_index];
                     let (p, d1, d2) = self.get_center_pos(ring.idx as f32);
@@ -439,9 +450,10 @@ impl Tunnel {
                 }
                 None => None,
             };
-            self.slices_backward[i - 1].set_point_pos();
-            self.slices_backward[i].draw(
-                &self.slices_backward[i - 1],
+            let slices = &mut self.slices_backward.slices;
+            slices[i - 1].set_point_pos();
+            slices[i].draw(
+                &slices[i - 1],
                 line_bn,
                 poly_bn,
                 light_bn,
