@@ -171,20 +171,7 @@ impl Tunnel {
         self.ship_idx = SHIP_IDX_OFS;
     }
 
-    fn get_pos(&self, d: f32, o: f32, si: usize, rr: f32) -> Vector3 {
-        let slices = &self.slices.slices;
-        let nsi = si + 1;
-        let r = slices[si].state.rad * (1. - o) + slices[nsi].state.rad * o;
-        let d1 = slices[si].d1 * (1. - o) + slices[nsi].d1 * o;
-        let d2 = slices[si].d2 * (1. - o) + slices[nsi].d2 * o;
-        let mut tpos = Vector3::new_at(0., r * rr, 0.);
-        tpos.roll_z(d).roll_y(d1).roll_x(d2);
-        tpos += slices[si].center_pos * (1. - o) + slices[nsi].center_pos * o;
-        tpos
-    }
-
-    fn get_pos_backward(&self, d: f32, o: f32, si: usize, rr: f32) -> Vector3 {
-        let slices = &self.slices_backward.slices;
+    fn get_pos(&self, d: f32, o: f32, si: usize, rr: f32, slices: &Vec<Slice>) -> Vector3 {
         let nsi = si + 1;
         let r = slices[si].state.rad * (1. - o) + slices[nsi].state.rad * o;
         let d1 = slices[si].d1 * (1. - o) + slices[nsi].d1 * o;
@@ -198,17 +185,17 @@ impl Tunnel {
     pub fn get_pos_v(&self, p: Vector) -> Vector3 {
         if p.y >= -(self.ship_idx as f32) - self.ship_ofs {
             let (si, o) = self.calc_index(p.y);
-            self.get_pos(p.x, o, si, 1.0)
+            self.get_pos(p.x, o, si, 1.0, &self.slices.slices)
         } else {
             let (si, o) = self.calc_index_backward(p.y);
-            self.get_pos_backward(p.x, o, si, 1.0)
+            self.get_pos(p.x, o, si, 1.0, &self.slices_backward.slices)
         }
     }
 
     pub fn get_pos_v3(&self, p: Vector3) -> Vector3 {
         let (si, o) = self.calc_index(p.y);
         let slices = &self.slices.slices;
-        self.get_pos(p.x, o, si, RAD_RATIO - p.z / slices[si].state.rad)
+        self.get_pos(p.x, o, si, RAD_RATIO - p.z / slices[si].state.rad, slices)
     }
 
     fn get_center_pos(&self, y: f32) -> (Vector3, f32, f32) {
