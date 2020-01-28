@@ -1,7 +1,6 @@
-use failure::ResultExt;
 use preferences::{AppInfo, Preferences};
 
-use crate::tt::errors::{GameError, GameErrorKind};
+use crate::tt::errors::GameError;
 use crate::tt::ship;
 
 pub struct PrefManager {
@@ -118,8 +117,6 @@ pub fn load_prefs_file<T: Preferences + Default, S: AsRef<str>>(key: S) -> T {
 }
 
 pub fn save_prefs_file<T: Preferences, S: AsRef<str>>(prefs: &T, key: S) -> Result<(), GameError> {
-    prefs
-        .save(&APP_INFO, key)
-        .context(GameErrorKind::Preference)?;
+    prefs.save(&APP_INFO, key)?;
     Ok(())
 }

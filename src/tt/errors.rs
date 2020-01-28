@@ -1,73 +1,84 @@
-use failure::{Backtrace, Context, Fail};
-use std::fmt;
-use std::fmt::Display;
+#[cfg(nightly)]
+use std::backtrace::Backtrace;
 
-#[derive(Debug)]
-pub struct GameError {
-    inner: Context<GameErrorKind>,
-}
+#[derive(Error, Debug, new)]
+pub enum GameError {
+    #[error("Joystick error")]
+    Joystick {
+        source: Box<dyn std::error::Error>,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
+    #[error("Preferences error")]
+    Preferences {
+        #[from]
+        source: preferences::PreferencesError,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
+    #[error("Sound initialization error")]
+    SoundInit {
+        source: Box<dyn std::error::Error>,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
+    #[error("Texture error")]
+    Image {
+        #[from]
+        source: image::ImageError,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
-pub enum GameErrorKind {
-    #[fail(display = "Joystick error")]
-    Joystick,
-    #[fail(display = "Preferences error")]
-    Preference,
-    #[fail(display = "Sound initialization error")]
-    SoundInit,
-    #[fail(display = "Texture error")]
-    Texture,
+    #[error("Window initialization error")]
+    WindowInit {
+        source: Box<dyn std::error::Error>,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
+    #[error("Missing window")]
+    MissingWindow(#[cfg(nightly)] Backtrace),
 
-    #[fail(display = "Window initialization error")]
-    WindowInit,
-    #[fail(display = "Missing window")]
-    MissingWindow,
+    #[error("Barrage error")]
+    Barrage {
+        source: Box<dyn std::error::Error>,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
+    #[error("BulletML error")]
+    BulletML {
+        #[from]
+        source: bulletml::errors::ParseError,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
 
-    #[fail(display = "Barrage error")]
-    Barrage,
-    #[fail(display = "BulletML error")]
-    BulletML,
-
-    #[fail(display = "SDL2 initialization error")]
-    Sdl2Init,
-    #[fail(display = "SDL2 video initialization error")]
-    Sdl2VideoInit,
-    #[fail(display = "SDL2 audio initialization error")]
-    Sdl2AudioInit,
-}
-
-impl Fail for GameError {
-    fn cause(&self) -> Option<&dyn Fail> {
-        self.inner.cause()
-    }
-
-    fn backtrace(&self) -> Option<&Backtrace> {
-        self.inner.backtrace()
-    }
-}
-
-impl Display for GameError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Display::fmt(&self.inner, f)
-    }
-}
-
-impl GameError {
-    pub fn kind(&self) -> GameErrorKind {
-        *self.inner.get_context()
-    }
-}
-
-impl From<GameErrorKind> for GameError {
-    fn from(kind: GameErrorKind) -> GameError {
-        GameError {
-            inner: Context::new(kind),
-        }
-    }
-}
-
-impl From<Context<GameErrorKind>> for GameError {
-    fn from(inner: Context<GameErrorKind>) -> GameError {
-        GameError { inner: inner }
-    }
+    #[error("SDL2 initialization error: {error}")]
+    Sdl2Init {
+        error: String,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
+    #[error("SDL2 video initialization error: {error}")]
+    Sdl2VideoInit {
+        error: String,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
+    #[error("SDL2 audio initialization error: {error}")]
+    Sdl2AudioInit {
+        error: String,
+        #[cfg(nightly)]
+        #[new(value = "Backtrace::capture()")]
+        backtrace: Backtrace,
+    },
 }

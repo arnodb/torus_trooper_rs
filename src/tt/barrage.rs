@@ -1,6 +1,5 @@
 use bulletml::parse::BulletMLParser;
 use bulletml::{self, BulletML};
-use failure::ResultExt;
 use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
 use std::fs;
@@ -9,7 +8,7 @@ use std::rc::Rc;
 
 use crate::tt::actor::bullet::{BMLParam, BulletPool};
 use crate::tt::actor::pool::PoolActorRef;
-use crate::tt::errors::{GameError, GameErrorKind};
+use crate::tt::errors::GameError;
 use crate::tt::screen::Screen;
 use crate::tt::shape::bullet_shape::BulletShape;
 use crate::tt::shape::Drawable;
@@ -126,20 +125,30 @@ impl BarrageManager {
 
     fn load_instances() -> Result<BTreeMap<OsString, BTreeMap<OsString, Rc<BulletML>>>, GameError> {
         let mut bmls = BTreeMap::new();
-        let dirs = fs::read_dir(BARRAGE_DIR_NAME).context(GameErrorKind::Barrage)?;
+        let dirs = fs::read_dir(BARRAGE_DIR_NAME)
+            .map_err(Box::from)
+            .map_err(GameError::new_barrage)?;
         for dir_name in dirs {
-            let dir_name = dir_name.context(GameErrorKind::Barrage)?;
+            let dir_name = dir_name
+                .map_err(Box::from)
+                .map_err(GameError::new_barrage)?;
             if dir_name
                 .file_type()
-                .context(GameErrorKind::Barrage)?
+                .map_err(Box::from)
+                .map_err(GameError::new_barrage)?
                 .is_dir()
             {
-                let files = fs::read_dir(dir_name.path()).context(GameErrorKind::Barrage)?;
+                let files = fs::read_dir(dir_name.path())
+                    .map_err(Box::from)
+                    .map_err(GameError::new_barrage)?;
                 for file_name in files {
-                    let file_name = file_name.context(GameErrorKind::Barrage)?;
+                    let file_name = file_name
+                        .map_err(Box::from)
+                        .map_err(GameError::new_barrage)?;
                     if file_name
                         .file_type()
-                        .context(GameErrorKind::Barrage)?
+                        .map_err(Box::from)
+                        .map_err(GameError::new_barrage)?
                         .is_file()
                     {
                         if let Some("xml") = file_name.path().extension().and_then(OsStr::to_str) {
@@ -148,10 +157,7 @@ impl BarrageManager {
                                 .or_insert_with(BTreeMap::new);
                             entry.insert(
                                 file_name.file_name().to_os_string(),
-                                Rc::new(
-                                    BarrageManager::load_instance(&file_name.path())
-                                        .context(GameErrorKind::Barrage)?,
-                                ),
+                                Rc::new(BarrageManager::load_instance(&file_name.path())?),
                             );
                         }
                     }

@@ -1,11 +1,10 @@
-use failure::{err_msg, ResultExt};
 use sdl2::mixer::{Channel, Chunk, Music, AUDIO_S16};
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 
-use crate::tt::errors::{GameError, GameErrorKind};
+use crate::tt::errors::GameError;
 use crate::util::rand::Rand;
 
 pub struct SoundManager<'a> {
@@ -45,7 +44,7 @@ impl<'a> SoundManager<'a> {
         let channels = 1;
         let chunk_size = 4_096;
         sdl2::mixer::open_audio(frequency, format, channels, chunk_size)
-            .map_err(|err| err_msg(err).context(GameErrorKind::Sdl2AudioInit))?;
+            .map_err(GameError::new_sdl2_audio_init)?;
 
         self.bgm = SoundManager::load_musics()?;
         self.se = SoundManager::load_chunks()?;
@@ -56,18 +55,24 @@ impl<'a> SoundManager<'a> {
 
     fn load_musics<'m>() -> Result<Vec<Music<'m>>, GameError> {
         let mut musics = Vec::new();
-        let files = fs::read_dir(MUSIC_DIR_NAME).context(GameErrorKind::SoundInit)?;
+        let files = fs::read_dir(MUSIC_DIR_NAME)
+            .map_err(Box::from)
+            .map_err(GameError::new_sound_init)?;
         for file_name in files {
-            let file_name = file_name.context(GameErrorKind::SoundInit)?;
+            let file_name = file_name
+                .map_err(Box::from)
+                .map_err(GameError::new_sound_init)?;
             if file_name
                 .file_type()
-                .context(GameErrorKind::SoundInit)?
+                .map_err(Box::from)
+                .map_err(GameError::new_sound_init)?
                 .is_file()
             {
                 match file_name.path().extension().and_then(OsStr::to_str) {
                     Some("ogg") | Some("wav") => {
                         let music = Music::from_file(file_name.path())
-                            .map_err(|err| err_msg(err).context(GameErrorKind::SoundInit))?;
+                            .map_err(Box::from)
+                            .map_err(GameError::new_sound_init)?;
                         musics.push(music);
                     }
                     _ => {}
@@ -93,7 +98,8 @@ impl<'a> SoundManager<'a> {
             ("timeup_beep.wav", 7),
         ] {
             let chunk = Chunk::from_file(chunk_path.join(file_name))
-                .map_err(|err| err_msg(err).context(GameErrorKind::SoundInit))?;
+                .map_err(Box::from)
+                .map_err(GameError::new_sound_init)?;
             chunks.insert(file_name.to_string(), (chunk, *ch));
         }
         Ok(chunks)

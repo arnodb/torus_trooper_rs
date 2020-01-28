@@ -1,4 +1,3 @@
-use failure::{err_msg, ResultExt};
 #[cfg(feature = "glutin_backend")]
 use glutin_window::GlutinWindow;
 use opengl_graphics::OpenGL;
@@ -7,7 +6,7 @@ use piston::window::{OpenGLWindow, Size, WindowSettings};
 use sdl2_window::Sdl2Window;
 
 use crate::gl;
-use crate::tt::errors::{GameError, GameErrorKind};
+use crate::tt::errors::GameError;
 use crate::util::color::{AlphaColor, Color};
 
 #[cfg(feature = "glutin_backend")]
@@ -81,8 +80,7 @@ impl Screen {
         let window = self
             .window_settings()
             .build()
-            .map_err(|err| err_msg(err.description().to_string()))
-            .context(GameErrorKind::WindowInit)?;
+            .map_err(GameError::new_window_init)?;
         self.init_opengl_internal(window)
     }
 
@@ -92,7 +90,8 @@ impl Screen {
         video_subsystem: sdl2::VideoSubsystem,
     ) -> Result<(), GameError> {
         let window = Sdl2Window::with_subsystem(video_subsystem, &self.window_settings())
-            .map_err(|err| err_msg(err).context(GameErrorKind::WindowInit))?;
+            .map_err(Box::from)
+            .map_err(GameError::new_window_init)?;
         self.init_opengl_internal(window)
     }
 
