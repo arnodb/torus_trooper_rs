@@ -13,7 +13,7 @@ use crate::tt::pad::{PadButtons, PadDirection};
 use crate::tt::screen::Screen;
 use crate::tt::shape::ship_shape::ShipShape;
 use crate::tt::shape::Drawable;
-use crate::tt::tunnel::{Tunnel, DEFAULT_RAD};
+use crate::tt::tunnel::{InCourseSliceCheck, Tunnel, DEFAULT_RAD};
 use crate::tt::GeneralParams;
 
 pub const GRADE_NUM: usize = 3;
@@ -335,28 +335,26 @@ impl Ship {
             self.eye_pos.x -= std::f32::consts::PI * 2.;
         }
         let sl = params.tunnel.get_slice(self.rel_pos.y);
-        let co = params.tunnel.check_in_course(self.rel_pos);
-        if co != 0. {
-            let mut bm = (-OUT_OF_COURSE_BANK * co - self.bank) * 0.075;
-            if bm > 1. {
-                bm = 1.;
-            } else if bm < -1. {
-                bm = -1.;
-            }
+        if let InCourseSliceCheck::NotInCourse(co) = params.tunnel.check_in_course(self.rel_pos) {
+            let bm = f32::max(
+                f32::min((-OUT_OF_COURSE_BANK * co - self.bank) * 0.075, 1.),
+                -1.,
+            );
             self.speed *= 1. - f32::abs(bm);
             self.bank += bm;
-            let mut lo = f32::abs(self.pos.x - sl.get_left_edge_deg());
+            let sl_edges = sl.get_edges();
+            let mut lo = f32::abs(self.pos.x - sl_edges.left);
             if lo > std::f32::consts::PI {
                 lo = std::f32::consts::PI * 2. - lo;
             }
-            let mut ro = f32::abs(self.pos.x - sl.get_right_edge_deg());
+            let mut ro = f32::abs(self.pos.x - sl_edges.right);
             if ro > std::f32::consts::PI {
                 ro = std::f32::consts::PI * 2. - ro;
             }
             if lo > ro {
-                self.pos.x = sl.get_right_edge_deg();
+                self.pos.x = sl_edges.right;
             } else {
-                self.pos.x = sl.get_left_edge_deg();
+                self.pos.x = sl_edges.left;
             }
             self.rel_pos.x = self.pos.x;
         }

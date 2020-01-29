@@ -4,7 +4,7 @@ use crate::gl;
 
 use crate::tt::actor::pool::{Pool, PoolActorRef};
 use crate::tt::screen::Screen;
-use crate::tt::tunnel::Tunnel;
+use crate::tt::tunnel::{InCourseSliceCheck, Tunnel};
 use crate::util::color::Color;
 use crate::util::rand::Rand;
 use crate::util::vector::{Vector, Vector3};
@@ -146,8 +146,9 @@ impl Particle {
     }
 
     fn check_in_course(&mut self, tunnel: &Tunnel) {
-        // TODO epsilon
-        if tunnel.check_in_course(Vector::new_at(self.pos.x, self.pos.y)) != 0. {
+        if let InCourseSliceCheck::NotInCourse(..) =
+            tunnel.check_in_course(Vector::new_at(self.pos.x, self.pos.y))
+        {
             self.in_course = false;
         }
     }

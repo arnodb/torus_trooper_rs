@@ -263,13 +263,12 @@ impl StageManager {
         let mut x = if sl.is_nearly_round() {
             self.rand.gen_f32(std::f32::consts::PI)
         } else {
-            let ld = sl.get_left_edge_deg();
-            let rd = sl.get_right_edge_deg();
-            let mut wd = rd - ld;
+            let sl_edges = sl.get_edges();
+            let mut wd = sl_edges.right - sl_edges.left;
             if wd < 0. {
                 wd += std::f32::consts::PI * 2.;
             }
-            ld + self.rand.gen_f32(wd)
+            sl_edges.left + self.rand.gen_f32(wd)
         };
         if x < 0. {
             x += std::f32::consts::PI * 2.;

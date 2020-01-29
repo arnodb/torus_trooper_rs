@@ -8,7 +8,7 @@ use crate::tt::screen::Screen;
 use crate::tt::shape::bit_shape::BitShape;
 use crate::tt::shape::{Collidable, Drawable};
 use crate::tt::ship::{self, Ship};
-use crate::tt::tunnel::{self, Tunnel};
+use crate::tt::tunnel::{self, InCourseSliceCheck, InsideSliceCheck, Tunnel};
 use crate::tt::GeneralParams;
 use crate::util::rand::Rand;
 use crate::util::vector::Vector;
@@ -141,15 +141,17 @@ impl Enemy {
             self.handle_limit_y(py, limit_y);
         }
         let mut steer = false;
-        if let Some((ld, rd)) = spec.get_range_of_movement(self.pos, tunnel) {
-            let cdf = Tunnel::check_deg_inside(self.pos.x, ld, rd);
-            if cdf != 0 {
-                steer = true;
-                if cdf == -1 {
-                    self.bank = spec.try_to_move(self.bank, self.pos.x, ld);
-                } else if cdf == 1 {
-                    self.bank = spec.try_to_move(self.bank, self.pos.x, rd);
+        if let Some(edges) = spec.get_range_of_movement(self.pos, tunnel) {
+            match edges.check_inside(self.pos.x) {
+                InsideSliceCheck::Left => {
+                    steer = true;
+                    self.bank = spec.try_to_move(self.bank, self.pos.x, edges.left);
                 }
+                InsideSliceCheck::Right => {
+                    steer = true;
+                    self.bank = spec.try_to_move(self.bank, self.pos.x, edges.right);
+                }
+                InsideSliceCheck::Inside => {}
             }
         }
         if !steer {
@@ -207,27 +209,26 @@ impl Enemy {
             }
         }
         let sl = tunnel.get_slice(self.pos.y);
-        let co = tunnel.check_in_course(self.pos);
-        // TODO epsilon
-        if co != 0. {
+        if let InCourseSliceCheck::NotInCourse(co) = tunnel.check_in_course(self.pos) {
             let bm = f32::max(
                 f32::min((-OUT_OF_COURSE_BANK * co - self.bank) * 0.075, 1.),
                 -1.,
             );
             self.speed *= 1. - f32::abs(bm);
             self.bank += bm;
-            let mut lo = f32::abs(self.pos.x - sl.get_left_edge_deg());
+            let sl_edges = sl.get_edges();
+            let mut lo = f32::abs(self.pos.x - sl_edges.left);
             if lo > std::f32::consts::PI {
                 lo = std::f32::consts::PI * 2. - lo;
             }
-            let mut ro = f32::abs(self.pos.x - sl.get_right_edge_deg());
+            let mut ro = f32::abs(self.pos.x - sl_edges.right);
             if ro > std::f32::consts::PI {
                 ro = std::f32::consts::PI * 2. - ro;
             }
             if lo > ro {
-                self.pos.x = sl.get_right_edge_deg();
+                self.pos.x = sl_edges.right;
             } else {
-                self.pos.x = sl.get_left_edge_deg();
+                self.pos.x = sl_edges.left;
             }
         }
         self.d1 += (sl.d1() - self.d1) * 0.1;
@@ -809,7 +810,7 @@ pub mod ship_spec {
     use crate::tt::shape::ship_shape::ShipShape;
     use crate::tt::shape::{Drawable, ResizableDrawable};
     use crate::tt::ship;
-    use crate::tt::tunnel::Tunnel;
+    use crate::tt::tunnel::{InsideSliceCheck, SliceEdges, Tunnel};
 
     #[derive(PartialEq, Eq, Clone, Copy, Debug)]
     enum BitType {
@@ -1099,29 +1100,25 @@ pub mod ship_spec {
             sp + (aim - sp) * SPEED_CHANGE_RATIO
         }
 
-        pub fn get_range_of_movement(&self, p: Vector, tunnel: &Tunnel) -> Option<(f32, f32)> {
+        pub fn get_range_of_movement(&self, p: Vector, tunnel: &Tunnel) -> Option<SliceEdges> {
             let mut py: f32 = p.y;
             let cs = tunnel.get_slice(py);
             py += self.visual_range;
             let vs = tunnel.get_slice(py);
             if !cs.is_nearly_round() {
-                let mut from = cs.get_left_edge_deg();
-                let mut to = cs.get_right_edge_deg();
+                let mut range = cs.get_edges();
                 if !vs.is_nearly_round() {
-                    let vld = vs.get_left_edge_deg();
-                    let vrd = vs.get_right_edge_deg();
-                    if Tunnel::check_deg_inside(from, vld, vrd) == -1 {
-                        from = vld;
+                    let vs_edges = vs.get_edges();
+                    if vs_edges.check_inside(range.left) == InsideSliceCheck::Left {
+                        range.left = vs_edges.left;
                     }
-                    if Tunnel::check_deg_inside(to, vld, vrd) == 1 {
-                        to = vrd;
+                    if vs_edges.check_inside(range.right) == InsideSliceCheck::Right {
+                        range.right = vs_edges.right;
                     }
                 }
-                Some((from, to))
+                Some(range)
             } else if !vs.is_nearly_round() {
-                let from = vs.get_left_edge_deg();
-                let to = vs.get_right_edge_deg();
-                Some((from, to))
+                Some(vs.get_edges())
             } else {
                 None
             }

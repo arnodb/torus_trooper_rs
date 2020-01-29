@@ -234,49 +234,8 @@ impl Tunnel {
         }
     }
 
-    pub fn check_in_course(&self, p: Vector) -> f32 {
-        let sl = self.get_slice(p.y);
-        if sl.is_nearly_round() {
-            return 0.;
-        }
-        let ld = sl.get_left_edge_deg();
-        let rd = sl.get_right_edge_deg();
-        let rsl = Tunnel::check_deg_inside(p.x, ld, rd);
-        if rsl == 0 {
-            0.
-        } else {
-            let rad = sl.state.rad;
-            let mut ofs = if rsl == 1 { p.x - rd } else { ld - p.x };
-            if ofs >= std::f32::consts::PI * 2. {
-                ofs -= std::f32::consts::PI * 2.;
-            } else if ofs < 0. {
-                ofs += std::f32::consts::PI * 2.;
-            }
-            ofs * rad * rsl as f32
-        }
-    }
-
-    // TODO return -1, 0, 1
-    pub fn check_deg_inside(d: f32, ld: f32, rd: f32) -> i32 {
-        let mut rsl = 0;
-        if rd <= ld {
-            if d > rd && d < ld {
-                rsl = if d < (rd + ld) / 2. { 1 } else { -1 };
-            }
-        } else {
-            if d < ld || d > rd {
-                let mut cd = (ld + rd) / 2. + std::f32::consts::PI;
-                if cd >= std::f32::consts::PI * 2. {
-                    cd -= std::f32::consts::PI * 2.;
-                }
-                if cd >= std::f32::consts::PI {
-                    rsl = if d < cd && d > rd { 1 } else { -1 };
-                } else {
-                    rsl = if d > cd && d < ld { -1 } else { 1 };
-                }
-            }
-        }
-        rsl
+    pub fn check_in_course(&self, p: Vector) -> InCourseSliceCheck {
+        self.get_slice(p.y).check_in_course(p)
     }
 
     pub fn get_radius(&self, z: f32) -> f32 {
@@ -480,6 +439,12 @@ pub struct SliceDrawState {
     pub poly: Color,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum InCourseSliceCheck {
+    InCourse,
+    NotInCourse(f32),
+}
+
 #[derive(Clone)]
 pub struct Slice {
     state: SliceState,
@@ -663,8 +628,9 @@ impl Slice {
             }
         }
         if !round_slice && light_bn > 0.2 {
-            self.draw_side_light(self.get_left_edge_deg() - 0.07, light_bn, screen);
-            self.draw_side_light(self.get_right_edge_deg() + 0.07, light_bn, screen);
+            let edges = self.get_edges();
+            self.draw_side_light(edges.left - 0.07, light_bn, screen);
+            self.draw_side_light(edges.right + 0.07, light_bn, screen);
         }
         if let Some(rtd) = ring {
             if light_bn > 0.2 {
@@ -714,17 +680,47 @@ impl Slice {
         self.state.course_width >= self.state.point_num as f32 - 1.
     }
 
-    pub fn get_left_edge_deg(&self) -> f32 {
-        self.point_from * std::f32::consts::PI * 2. / self.state.point_num as f32
+    pub fn get_edges(&self) -> SliceEdges {
+        SliceEdges {
+            left: self.point_from * std::f32::consts::PI * 2. / self.state.point_num as f32,
+            right: {
+                let mut rd =
+                    (self.point_from + self.state.course_width) * std::f32::consts::PI * 2.
+                        / self.state.point_num as f32;
+                if rd >= std::f32::consts::PI * 2. {
+                    rd -= std::f32::consts::PI * 2.;
+                }
+                rd
+            },
+        }
     }
 
-    pub fn get_right_edge_deg(&self) -> f32 {
-        let mut rd = (self.point_from + self.state.course_width) * std::f32::consts::PI * 2.
-            / self.state.point_num as f32;
-        if rd >= std::f32::consts::PI * 2. {
-            rd -= std::f32::consts::PI * 2.;
+    fn check_in_course(&self, p: Vector) -> InCourseSliceCheck {
+        if self.is_nearly_round() {
+            return InCourseSliceCheck::InCourse;
         }
-        rd
+        let edges = self.get_edges();
+        match edges.check_inside(p.x) {
+            InsideSliceCheck::Inside => InCourseSliceCheck::InCourse,
+            InsideSliceCheck::Right => {
+                let mut ofs = p.x - edges.right;
+                if ofs >= std::f32::consts::PI * 2. {
+                    ofs -= std::f32::consts::PI * 2.;
+                } else if ofs < 0. {
+                    ofs += std::f32::consts::PI * 2.;
+                }
+                InCourseSliceCheck::NotInCourse(ofs * self.state.rad)
+            }
+            InsideSliceCheck::Left => {
+                let mut ofs = edges.left - p.x;
+                if ofs >= std::f32::consts::PI * 2. {
+                    ofs -= std::f32::consts::PI * 2.;
+                } else if ofs < 0. {
+                    ofs += std::f32::consts::PI * 2.;
+                }
+                InCourseSliceCheck::NotInCourse(-ofs * self.state.rad)
+            }
+        }
     }
 
     pub fn d1(&self) -> f32 {
@@ -733,6 +729,57 @@ impl Slice {
 
     pub fn d2(&self) -> f32 {
         self.d2
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InsideSliceCheck {
+    Inside,
+    Left,
+    Right,
+}
+
+pub struct SliceEdges {
+    pub left: f32,
+    pub right: f32,
+}
+
+impl SliceEdges {
+    pub fn check_inside(&self, deg: f32) -> InsideSliceCheck {
+        let Self { left, right } = *self;
+        if right <= left {
+            if deg > right && deg < left {
+                if deg < (right + left) / 2. {
+                    InsideSliceCheck::Right
+                } else {
+                    InsideSliceCheck::Left
+                }
+            } else {
+                InsideSliceCheck::Inside
+            }
+        } else {
+            if deg < left || deg > right {
+                let mut cd = (left + right) / 2. + std::f32::consts::PI;
+                if cd >= std::f32::consts::PI * 2. {
+                    cd -= std::f32::consts::PI * 2.;
+                }
+                if cd >= std::f32::consts::PI {
+                    if deg < cd && deg > right {
+                        InsideSliceCheck::Right
+                    } else {
+                        InsideSliceCheck::Left
+                    }
+                } else {
+                    if deg > cd && deg < left {
+                        InsideSliceCheck::Left
+                    } else {
+                        InsideSliceCheck::Right
+                    }
+                }
+            } else {
+                InsideSliceCheck::Inside
+            }
+        }
     }
 }
 
