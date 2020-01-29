@@ -208,27 +208,20 @@ impl Tunnel {
         if mut_y < -(self.get_torus_length() as f32) / 2. {
             mut_y += self.get_torus_length() as f32;
         }
-        if mut_y >= -(self.ship_idx as f32) - self.ship_ofs {
+        let (slices, si, o) = if mut_y >= -(self.ship_idx as f32) - self.ship_ofs {
             let (si, o) = self.calc_index(mut_y);
-            let nsi = si + 1;
-            let slice_si = &self.slices[si].slice;
-            let slice_nsi = &self.slices[nsi].slice;
-            (
-                slice_si.center_pos * (1. - o) + slice_nsi.center_pos * o,
-                slice_si.d1 * (1. - o) + slice_nsi.d1 * o,
-                slice_si.d2 * (1. - o) + slice_nsi.d2 * o,
-            )
+            (&self.slices, si, o)
         } else {
             let (si, o) = self.calc_index_backward(mut_y);
-            let nsi = si + 1;
-            let slice_si = &self.slices_backward[si].slice;
-            let slice_nsi = &self.slices_backward[nsi].slice;
-            (
-                slice_si.center_pos * (1. - o) + slice_nsi.center_pos * o,
-                slice_si.d1 * (1. - o) + slice_nsi.d1 * o,
-                slice_si.d2 * (1. - o) + slice_nsi.d2 * o,
-            )
-        }
+            (&self.slices_backward, si, o)
+        };
+        let slice_si = &slices[si].slice;
+        let slice_nsi = &slices[si + 1].slice;
+        (
+            slice_si.center_pos * (1. - o) + slice_nsi.center_pos * o,
+            slice_si.d1 * (1. - o) + slice_nsi.d1 * o,
+            slice_si.d2 * (1. - o) + slice_nsi.d2 * o,
+        )
     }
 
     pub fn get_slice(&self, y: f32) -> &Slice {
@@ -305,20 +298,7 @@ impl Tunnel {
                 break;
             }
         }
-        /*XXX if idx < 0 {
-            idx = 0;
-            ofs = 0.;
-        } else */
-        if idx >= slices.len() - 1 {
-            idx = slices.len() - 2;
-            ofs = 0.99;
-        }
-        if ofs < 0. {
-            ofs = 0.;
-        } else if ofs >= 1. {
-            ofs = 0.99;
-        }
-        (idx, ofs)
+        Self::adjust_index(idx, ofs, slices.len())
     }
 
     fn calc_index_backward(&self, z: f32) -> (usize, f32) {
@@ -334,12 +314,17 @@ impl Tunnel {
                 break;
             }
         }
+        Self::adjust_index(idx, ofs, slices.len())
+    }
+
+    #[inline]
+    fn adjust_index(mut idx: usize, mut ofs: f32, slices_len: usize) -> (usize, f32) {
         /*XXX if idx < 0 {
             idx = 0;
             ofs = 0.;
         } else */
-        if idx >= slices.len() - 1 {
-            idx = slices.len() - 2;
+        if idx >= slices_len - 1 {
+            idx = slices_len - 2;
             ofs = 0.99;
         }
         if ofs < 0. {
