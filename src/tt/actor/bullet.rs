@@ -354,10 +354,6 @@ impl BulletPool {
     }
 
     pub fn release(&mut self, bullet_ref: PoolActorRef) {
-        {
-            let bullet = &mut self.pool[bullet_ref];
-            bullet.bullet = None;
-        }
         self.pool.release(bullet_ref);
     }
 
