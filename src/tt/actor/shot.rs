@@ -41,7 +41,7 @@ pub struct Shot {
     range: f32,
     size: f32,
     trg_size: f32,
-    pub charge_shot: bool,
+    charge_shot: bool,
     in_charge: bool,
     star_shell: bool,
     pub shape: Option<ResizableDrawable<ShotShape>>,
