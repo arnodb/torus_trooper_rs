@@ -1,0 +1,84 @@
+name: Continuous Integration
+
+on:
+  workflow_dispatch:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+
+  test:
+
+    name: Rust ${{ matrix.flavour.name }}
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      passed_rustfmt: ${{ steps.rustfmt.outputs.passed_rustfmt }}
+#      passed_clippy: ${{ steps.clippy.outputs.passed_clippy }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        flavour:
+          - id: stable-glutin
+            name: Stable Glutin
+            rust:
+              version: stable
+              features:
+          - id: stable-sdl
+            name: Stable SDL
+            rust:
+              version: stable
+              features: --no-default-features --features sdl_backend
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.flavour.rust.version }}
+          components: rustfmt, clippy
+
+      - id: install-dependencies
+        name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libsdl2-dev libsdl2-mixer-dev libegl1-mesa-dev libgles2-mesa-dev
+
+      - id: rustfmt
+        name: Rust format
+        if: ${{ matrix.flavour.id == 'stable-glutin' }}
+        run: |
+          cargo fmt --verbose --all -- --check
+          echo "passed_rustfmt=${{ matrix.flavour.id }}" >> "$GITHUB_OUTPUT"
+
+#      - id: clippy
+#        name: Clippy
+#        if: ${{ matrix.flavour.id == 'stable-glutin' }}
+#        run: |
+#          cargo clippy --all ${{ matrix.flavour.rust.features }} --all-targets -- -D warnings
+#          echo "passed_clippy=${{ matrix.flavour.id }}" >> "$GITHUB_OUTPUT"
+
+      - id: test
+        name: Compile and run tests
+        run: cargo test ${{ matrix.flavour.rust.features }} --verbose
+
+  code-checks:
+
+    name: Code checks
+
+    runs-on: ubuntu-latest
+
+    needs: test
+
+    steps:
+
+      - name: Rustfmt
+        run: |
+          echo "Rustfmt run on ${{ needs.test.outputs.passed_rustfmt }}" >> "$GITHUB_STEP_SUMMARY"
+          test "${{ needs.test.outputs.passed_rustfmt }}" = "stable-glutin"
+
