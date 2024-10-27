@@ -46,7 +46,7 @@ impl Screen {
     #[cfg(feature = "glutin_backend")]
     pub fn physical_size(&self) -> (f64, f64) {
         let dpi_factor = if let Some(window) = &self.window {
-            window.window.get_hidpi_factor()
+            window.window.scale_factor()
         } else {
             1.
         };
@@ -98,7 +98,7 @@ impl Screen {
     fn window_settings(&self) -> WindowSettings {
         let opengl = OpenGL::V2_1;
         WindowSettings::new("Torus Trooper", self.size)
-            .opengl(opengl)
+            .graphics_api(opengl)
             .vsync(true)
             .fullscreen(self.fullscreen)
             .exit_on_esc(false)
